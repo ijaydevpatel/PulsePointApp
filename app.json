@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "PulsePoint",
+    "slug": "pulsepoint-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "android": {
+      "package": "nz.ac.aut.comp826.pulsepoint",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#12263A"
+      },
+      "permissions": []
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 29
+          }
+        }
+      ],
+      "expo-sqlite",
+      "expo-secure-store"
+    ]
+  }
+}
