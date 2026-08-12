@@ -3,10 +3,6 @@
 COMP826 Mobile Systems Development — Milestone 2 build.
 Offline-first symptom triage and care navigation.
 
-**Android build instructions: see [`ANDROID_STUDIO_SETUP.md`](./ANDROID_STUDIO_SETUP.md).**
-
----
-
 ## Quick start
 
 ```powershell
@@ -30,6 +26,22 @@ Then **File → Open → `PulsePointApp/android`** in Android Studio and press *
 | `npm run lint:boundaries` | Evaluation criterion **E3** — fails if the domain layer imports React, React Native, Expo, SQLite or any network client |
 | `npm run android` | Build and launch on a connected device/emulator |
 | `npm run prebuild:clean` | Regenerate `android/` from scratch |
+
+## Dependency security
+
+`npm audit` reports 20 findings. They trace back to **two** upstream packages, and
+neither reaches the shipped APK — Metro only bundles what the app actually imports,
+and none of these are imported by app code.
+
+| Package | Severity | Where it lives | Status |
+|---|---|---|---|
+| `postcss` | high + moderate | `@expo/metro-config`, build time | **Fixed** — pinned to `^8.5.26` via `overrides` |
+| `image-size` | high | `metro` bundler, build time | **No fix exists.** Latest published version (2.0.2) is still within the vulnerable range. Denial-of-service in ICNS/JXL parsers, reachable only by feeding hostile image files to the bundler at build time. |
+| `uuid` | moderate | `xcode`, iOS project generation | **Not overridden on purpose.** `xcode` requires `uuid@^7`; forcing `uuid@11` breaks it. It runs only during iOS prebuild. |
+
+Do not run `npm audit fix --force`. It ignores Expo's version pinning and will break
+the SDK. Re-check with `npm run audit` after each SDK upgrade — the SDK 52 → 54 move
+alone took this from 31 findings (1 critical) down to 20.
 
 ## Architecture
 

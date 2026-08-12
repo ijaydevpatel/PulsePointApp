@@ -12,3 +12,11 @@ local.properties
 *.iml
 .gradle/
 build/
+
+# Secrets - never commit. Only .env.example belongs in the repo.
+.env
+.env.*
+!.env.example
+*.keystore
+*.jks
+google-services.json
