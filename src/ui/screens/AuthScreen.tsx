@@ -1,16 +1,27 @@
 /**
- * FR11. Reachable from More → Profile, and never shown as a wall on launch.
+ * FR11. Reachable from More → Account, never shown as a wall on launch.
+ *
+ * The escape hatch is a real button of equal weight, not a greyed link. If
+ * someone can be nudged past it by design, the "account gates sync, not access"
+ * claim in DESIGN.md is not actually true in the interface.
  */
 import React, { useState } from 'react';
-import { View, Text, TextInput, ScrollView, StyleSheet, Pressable } from 'react-native';
-import { ScreenHeader } from '../components/ScreenHeader';
-import { Button } from '../components/Primitives';
+import { View, TextInput, Animated, StyleSheet } from 'react-native';
 import { AuthGateway, Session } from '../../domain/auth';
-import { C, S, R, T, TOUCH } from '../theme';
+import { useTheme, TYPE, S, TOUCH, ROW_INSET } from '../theme';
+import { Txt } from '../components/Primitives';
+import { Icon } from '../components/Icon';
+import { ListSection, ListCustomRow } from '../components/List';
+import { IOSButton } from '../components/Controls';
+import { NavBar, LargeTitle, useNavScroll, useNavInset } from '../components/NavBar';
 
 export function AuthScreen({ gateway, onBack, onDone }: {
   gateway: AuthGateway; onBack: () => void; onDone: (s: Session) => void;
 }) {
+  const { c: P } = useTheme();
+  const nav = useNavScroll();
+  const topInset = useNavInset();
+
   const [mode, setMode] = useState<'in' | 'up'>('in');
   const [email, setEmail] = useState('');
   const [pw, setPw] = useState('');
@@ -29,64 +40,95 @@ export function AuthScreen({ gateway, onBack, onDone }: {
     } finally { setBusy(false); }
   }
 
+  const field = { color: P.ink, flex: 1, minHeight: TOUCH - 6, paddingVertical: 0, ...TYPE.body };
+
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: S.xxxl }} keyboardShouldPersistTaps="handled">
-      <ScreenHeader
+    <Animated.ScrollView
+      onScroll={nav.onScroll}
+      scrollEventThrottle={nav.scrollEventThrottle}
+      contentContainerStyle={{ paddingTop: topInset, paddingBottom: S.huge }}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+    >
+      <NavBar
+        title={mode === 'in' ? 'Sign in' : 'Create account'}
+        y={nav.y}
+        onBack={onBack}
+       
+      />
+      <LargeTitle
         title={mode === 'in' ? 'Sign in' : 'Create account'}
         subtitle="Only needed to sync history across devices"
-        onBack={onBack}
+        y={nav.y}
       />
-      <View style={{ paddingHorizontal: S.xl }}>
-        <View style={st.note}>
-          <Text style={[T.caption, { color: C.inkSoft }]}>
-            You do not need an account. Symptom checks, red-flag alerts and the medicine
-            checker all work signed out and offline.
-          </Text>
+
+      <ListSection footer="You do not need an account. Symptom checks, red-flag alerts and the medicine checker all work signed out and offline.">
+        <ListCustomRow>
+          <Icon name="shield" size={20} color={P.ok} />
+          <Txt t="subhead" c={P.inkSoft} style={{ flex: 1 }}>
+            Everything works without signing in
+          </Txt>
+        </ListCustomRow>
+      </ListSection>
+
+      <ListSection header="Details">
+        <ListCustomRow>
+          <Txt t="body" c={P.muted} style={{ width: 84 }}>Email</Txt>
+          <TextInput
+            style={field}
+            value={email}
+            onChangeText={setEmail}
+            autoCapitalize="none"
+            keyboardType="email-address"
+            autoComplete="email"
+            placeholder="you@example.com"
+            placeholderTextColor={P.faint}
+            accessibilityLabel="Email address"
+          />
+        </ListCustomRow>
+        <ListCustomRow>
+          <Txt t="body" c={P.muted} style={{ width: 84 }}>Password</Txt>
+          <TextInput
+            style={field}
+            value={pw}
+            onChangeText={setPw}
+            secureTextEntry
+            autoComplete={mode === 'in' ? 'current-password' : 'new-password'}
+            placeholder="At least 8 characters"
+            placeholderTextColor={P.faint}
+            accessibilityLabel="Password"
+          />
+        </ListCustomRow>
+      </ListSection>
+
+      {err ? (
+        <View style={st.err}>
+          <Icon name="alert" size={16} color={P.danger} />
+          <Txt t="footnote" c={P.danger}>{err}</Txt>
         </View>
+      ) : null}
 
-        <Text style={[T.label, { marginTop: S.xxl, marginBottom: S.sm }]}>Email</Text>
-        <TextInput
-          style={st.input} value={email} onChangeText={setEmail}
-          autoCapitalize="none" keyboardType="email-address" autoComplete="email"
-          placeholder="you@example.com" placeholderTextColor={C.faint}
-          accessibilityLabel="Email address"
+      <View style={{ paddingHorizontal: ROW_INSET, gap: S.md }}>
+        <IOSButton
+          title={mode === 'in' ? 'Sign in' : 'Create account'}
+          onPress={submit}
+          disabled={!valid}
+          busy={busy}
         />
-
-        <Text style={[T.label, { marginTop: S.lg, marginBottom: S.sm }]}>Password</Text>
-        <TextInput
-          style={st.input} value={pw} onChangeText={setPw}
-          secureTextEntry autoComplete={mode === 'in' ? 'current-password' : 'new-password'}
-          placeholder="At least 8 characters" placeholderTextColor={C.faint}
-          accessibilityLabel="Password"
+        <IOSButton
+          title={mode === 'in' ? 'No account? Create one' : 'Already have an account? Sign in'}
+          kind="plain"
+          onPress={() => { setMode(mode === 'in' ? 'up' : 'in'); setErr(null); }}
         />
-
-        {err ? <Text style={st.err}>{err}</Text> : null}
-
-        <View style={{ height: S.xxl }} />
-        <Button title={mode === 'in' ? 'Sign in' : 'Create account'}
-          onPress={submit} disabled={!valid} busy={busy} />
-
-        <Pressable onPress={() => { setMode(mode === 'in' ? 'up' : 'in'); setErr(null); }}
-          accessibilityRole="button" style={st.switch}>
-          <Text style={st.switchText}>
-            {mode === 'in' ? 'No account? Create one' : 'Already have an account? Sign in'}
-          </Text>
-        </Pressable>
-
-        <View style={{ height: S.md }} />
-        <Button title="Continue without an account" tone="quiet" onPress={onBack} />
+        <IOSButton title="Continue without an account" kind="tinted" onPress={onBack} />
       </View>
-    </ScrollView>
+    </Animated.ScrollView>
   );
 }
 
 const st = StyleSheet.create({
-  note: { backgroundColor: C.surfaceAlt, borderRadius: R.md, padding: S.lg },
-  input: {
-    minHeight: TOUCH + 6, borderRadius: R.md, borderWidth: 1.5, borderColor: C.line,
-    backgroundColor: C.surface, paddingHorizontal: S.lg, fontSize: 16, color: C.ink,
+  err: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: ROW_INSET + S.lg, marginBottom: S.lg, marginTop: -S.lg,
   },
-  err: { marginTop: S.md, fontSize: 13.5, color: C.danger, fontWeight: '600' },
-  switch: { minHeight: TOUCH, alignItems: 'center', justifyContent: 'center', marginTop: S.md },
-  switchText: { fontSize: 14.5, fontWeight: '600', color: C.accent },
 });

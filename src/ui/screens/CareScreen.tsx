@@ -1,11 +1,13 @@
 /** FR4 — care locator. Phase 6 adds GPS, the cached dataset and the map. */
 import React from 'react';
-import { View, ScrollView, Text } from 'react-native';
-import { ScreenHeader } from '../components/ScreenHeader';
-import { Card, SectionLabel, PhaseNotice } from '../components/Primitives';
-import { SeveritySpine } from '../components/SeveritySpine';
-import { S, T, C } from '../theme';
+import { View, Animated } from 'react-native';
 import { TriageBand } from '../../domain/entities';
+import { useTheme, S, TAB_CLEARANCE } from '../theme';
+import { Txt } from '../components/Primitives';
+import { Icon } from '../components/Icon';
+import { SeveritySpine } from '../components/SeveritySpine';
+import { ListSection, ListCustomRow } from '../components/List';
+import { NavBar, LargeTitle, useNavScroll, useNavInset } from '../components/NavBar';
 
 const SAMPLE: { name: string; kind: string; km: string; band: TriageBand; open: string }[] = [
   { name: 'Auckland City Hospital', kind: 'Emergency department', km: '3.4 km', band: 'EMERGENCY', open: 'Open 24 hours' },
@@ -15,27 +17,38 @@ const SAMPLE: { name: string; kind: string; km: string; band: TriageBand; open: 
 ];
 
 export function CareScreen() {
+  const { c: P, band: B } = useTheme();
+  const nav = useNavScroll();
+  const topInset = useNavInset();
+
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: S.xxxl }}>
-      <ScreenHeader title="Care near you" subtitle="Ranked by the level of care you need" />
-      <View style={{ paddingHorizontal: S.xl }}>
-        <SectionLabel>NEAREST FIRST</SectionLabel>
+    <Animated.ScrollView
+      onScroll={nav.onScroll}
+      scrollEventThrottle={nav.scrollEventThrottle}
+      contentContainerStyle={{ paddingTop: topInset, paddingBottom: TAB_CLEARANCE + S.xxl }}
+      showsVerticalScrollIndicator={false}
+    >
+      <NavBar title="Care" y={nav.y} />
+      <LargeTitle title="Care near you" subtitle="Ranked by the level of care you need" y={nav.y} />
+
+      <ListSection
+        header="Nearest first"
+        footer="Sample data. Phase 6 adds GPS, a bundled facility dataset and the map. When offline the ranking prefers 24-hour hospitals over clinics, because clinic hours go stale and hospital hours do not."
+      >
         {SAMPLE.map((f) => (
-          <Card key={f.name} style={{ marginBottom: S.sm }}>
-            <View style={{ flexDirection: 'row', gap: S.lg, alignItems: 'center' }}>
-              <SeveritySpine band={f.band} height={44} width={5} />
-              <View style={{ flex: 1 }}>
-                <Text style={T.bodyStrong}>{f.name}</Text>
-                <Text style={[T.caption, { marginTop: 2 }]}>{f.kind} · {f.km}</Text>
-                <Text style={[T.caption, { color: C.ok, fontWeight: '600', marginTop: 2 }]}>{f.open}</Text>
-              </View>
+          <ListCustomRow key={f.name} onPress={() => {}} minHeight={64}>
+            <SeveritySpine band={f.band} height={40} width={4} />
+            <View style={{ flex: 1 }}>
+              <Txt t="body" c={P.ink}>{f.name}</Txt>
+              <Txt t="footnote" c={P.muted} style={{ marginTop: 1 }}>
+                {`${f.kind} · ${f.km}`}
+              </Txt>
+              <Txt t="caption1" c={B[f.band].fg} style={{ marginTop: 2 }}>{f.open}</Txt>
             </View>
-          </Card>
+            <Icon name="chevronRight" size={16} color={P.faint} />
+          </ListCustomRow>
         ))}
-        <View style={{ height: S.lg }} />
-        <PhaseNotice phase={6}
-          what="Sample data. Phase 6 adds GPS, a bundled facility dataset and the map. When offline the ranking prefers 24-hour hospitals over clinics, because clinic hours go stale and hospital hours do not." />
-      </View>
-    </ScrollView>
+      </ListSection>
+    </Animated.ScrollView>
   );
 }

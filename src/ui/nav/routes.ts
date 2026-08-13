@@ -8,11 +8,14 @@
  * There is no landing screen. The app opens on Triage because the first screen
  * should be the task (§5.3, learnability).
  */
+import { IconName } from '../components/Icon';
+
 export type TabKey = 'triage' | 'medicines' | 'care' | 'records' | 'more';
 
 export type RouteKey =
   | TabKey
   | 'result'      // pushed from triage
+  | 'interactions' // pushed from medicines
   | 'checkin'     // pushed from more
   | 'news'
   | 'chat'
@@ -23,16 +26,16 @@ export type RouteKey =
 export interface TabDef {
   key: TabKey;
   label: string;
-  /** Simple geometric glyph — no icon font dependency, no download weight. */
-  glyph: 'pulse' | 'pill' | 'pin' | 'rows' | 'dots';
+  /** Name in the hand-drawn icon set (src/ui/components/Icon.tsx). */
+  icon: IconName;
 }
 
 export const TABS: readonly TabDef[] = [
-  { key: 'triage',    label: 'Triage',    glyph: 'pulse' },
-  { key: 'medicines', label: 'Medicines', glyph: 'pill' },
-  { key: 'care',      label: 'Care',      glyph: 'pin' },
-  { key: 'records',   label: 'Records',   glyph: 'rows' },
-  { key: 'more',      label: 'More',      glyph: 'dots' },
+  { key: 'triage',    label: 'Triage',    icon: 'pulse' },
+  { key: 'medicines', label: 'Medicines', icon: 'pill' },
+  { key: 'care',      label: 'Care',      icon: 'pin' },
+  { key: 'records',   label: 'Records',   icon: 'records' },
+  { key: 'more',      label: 'More',      icon: 'more' },
 ];
 
 export const DEFAULT_TAB: TabKey = 'triage';

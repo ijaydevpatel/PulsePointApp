@@ -5,26 +5,34 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
-    "prebuild": "expo prebuild --platform android",
-    "prebuild:clean": "expo prebuild --platform android --clean",
+    "prebuild": "expo prebuild --platform android && node scripts/bundle-js-in-debug.js",
+    "prebuild:clean": "expo prebuild --platform android --clean && node scripts/bundle-js-in-debug.js",
     "test": "jest",
     "typecheck": "tsc --noEmit",
     "lint:boundaries": "node scripts/check-domain-boundaries.js",
     "ios": "expo run:ios",
     "test:harness": "tsc --noEmit",
     "audit": "node scripts/audit-gate.js",
-    "audit:raw": "npm audit"
+    "audit:raw": "npm audit",
+    "postprebuild": "node scripts/bundle-js-in-debug.js",
+    "contrast": "node scripts/contrast-audit.js",
+    "verify": "npm run typecheck && npm run lint:boundaries && npm run contrast && npm test"
   },
   "dependencies": {
+    "@expo-google-fonts/inter": "^0.4.2",
     "expo": "^54.0.36",
+    "expo-blur": "~15.0.8",
     "expo-build-properties": "~1.0.10",
     "expo-crypto": "~15.0.9",
+    "expo-font": "~14.0.12",
+    "expo-haptics": "~15.0.8",
     "expo-secure-store": "~15.0.8",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
     "react-native": "0.81.5",
-    "react-native-safe-area-context": "~5.6.0"
+    "react-native-safe-area-context": "~5.6.0",
+    "react-native-svg": "15.12.1"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

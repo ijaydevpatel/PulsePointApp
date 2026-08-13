@@ -4,6 +4,7 @@
  * quantised TFLite model in Phase 6 touches only the implementation.
  */
 import { SymptomEpisode, TriageResult } from './entities';
+import { Drug, InteractionRule } from './medicines';
 
 export interface Classification {
   readonly severity: number;   // 0..100
@@ -39,4 +40,22 @@ export interface EpisodeStore {
   /** R2: episodes still awaiting enrichment, oldest first. Used in Phase 8. */
   pendingSync(): Promise<readonly HistoryEntry[]>;
   markSynced(episodeId: string): Promise<void>;
+}
+
+/**
+ * IInteractionRepository — FR6.
+ *
+ * Synchronous on purpose. The table is bundled with the app, so there is no
+ * IO and therefore no failure mode to model. Making this async would invent a
+ * pending state the UI would then have to render, and a pending state is one
+ * step away from the silent "Awaiting Synchronization" the web app got stuck
+ * in. If Phase 9 ever moves the table to a downloaded update, that change
+ * belongs behind a cache that keeps this contract synchronous.
+ */
+export interface InteractionRepository {
+  readonly version: string;
+  /** Null when nothing in the table matches the typed text. */
+  resolve(typed: string): Drug | null;
+  /** Every rule. The use case does the pairing, so this stays a dumb source. */
+  rules(): readonly InteractionRule[];
 }
