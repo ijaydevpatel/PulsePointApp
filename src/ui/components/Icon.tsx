@@ -16,17 +16,19 @@ export type IconName =
   | 'pulse' | 'pill' | 'pin' | 'records' | 'more'
   | 'chevronRight' | 'chevronLeft' | 'close' | 'check' | 'plus'
   | 'alert' | 'shield' | 'clock' | 'trash' | 'user'
-  | 'sun' | 'moon' | 'search' | 'arrowRight';
+  | 'sun' | 'moon' | 'search' | 'arrowRight'
+  | 'message' | 'newspaper' | 'file'
+  | 'google' | 'eye' | 'eyeOff';
 
 interface Props {
   name: IconName;
   size?: number;
-  color: string;
+  color?: string;
   /** Filled variant for active tab states. Only some icons define one. */
   weight?: 'regular' | 'bold';
 }
 
-export function Icon({ name, size = 24, color, weight = 'regular' }: Props) {
+export function Icon({ name, size = 24, color = '#3A46E8', weight = 'regular' }: Props) {
   const sw = weight === 'bold' ? 2.4 : 1.8;
   const common = {
     stroke: color,
@@ -45,6 +47,44 @@ export function Icon({ name, size = 24, color, weight = 'regular' }: Props) {
 
 function glyph(name: IconName, p: object, color: string, sw: number) {
   switch (name) {
+    case 'google':
+      return (
+        <>
+          <Path
+            fill="#4285F4"
+            d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c1.86-1.71 2.93-4.23 2.93-7.29z"
+          />
+          <Path
+            fill="#34A853"
+            d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+          />
+          <Path
+            fill="#FBBC05"
+            d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+          />
+          <Path
+            fill="#EA4335"
+            d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+          />
+        </>
+      );
+
+    case 'eye':
+      return (
+        <>
+          <Path {...p} d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+          <Circle cx="12" cy="12" r="3" stroke={color} strokeWidth={sw} fill="none" />
+        </>
+      );
+
+    case 'eyeOff':
+      return (
+        <>
+          <Path {...p} d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.45 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+          <Line {...p} x1="1" y1="1" x2="23" y2="23" />
+        </>
+      );
+
     /* Triage — a cardiac trace that resolves into a steady line. */
     case 'pulse':
       return <Path {...p} d="M2 12.5h4.2l2.1-6.6 3.4 12.2 2.6-8.1 1.7 2.5H22" />;
@@ -69,7 +109,36 @@ function glyph(name: IconName, p: object, color: string, sw: number) {
         </>
       );
 
-    /* Records — stacked entries, the top one longer, reading as a timeline. */
+    case 'message':
+      return (
+        <>
+          <Path {...p} d="M20.4 12.4a7.6 7.6 0 0 1-8.2 7.6L6.4 21l1.1-4.3a7.6 7.6 0 1 1 12.9-4.3Z" />
+          <Line {...p} x1="9.2" y1="11.4" x2="15.2" y2="11.4" opacity={0.45} />
+          <Line {...p} x1="9.2" y1="14.6" x2="13.2" y2="14.6" opacity={0.45} />
+        </>
+      );
+
+    case 'newspaper':
+      return (
+        <>
+          <Path {...p} d="M4 5.6h13.2v12.8a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2Z" />
+          <Path {...p} d="M17.2 9.2H20v9.2a2 2 0 0 1-2.8 1.8" opacity={0.45} />
+          <Line {...p} x1="7" y1="9.2" x2="14.2" y2="9.2" />
+          <Line {...p} x1="7" y1="12.6" x2="14.2" y2="12.6" opacity={0.45} />
+          <Line {...p} x1="7" y1="16" x2="11.4" y2="16" opacity={0.45} />
+        </>
+      );
+
+    case 'file':
+      return (
+        <>
+          <Path {...p} d="M13.4 3.4H7a2 2 0 0 0-2 2v13.2a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9Z" />
+          <Path {...p} d="M13.4 3.4V9H19" opacity={0.45} />
+          <Line {...p} x1="8.6" y1="13.4" x2="15.4" y2="13.4" opacity={0.45} />
+          <Line {...p} x1="8.6" y1="16.6" x2="12.8" y2="16.6" opacity={0.45} />
+        </>
+      );
+
     case 'records':
       return (
         <>
@@ -79,7 +148,6 @@ function glyph(name: IconName, p: object, color: string, sw: number) {
         </>
       );
 
-    /* More — three dots, weighted so it does not read as an ellipsis. */
     case 'more':
       return (
         <>
@@ -117,7 +185,6 @@ function glyph(name: IconName, p: object, color: string, sw: number) {
         </>
       );
 
-    /* Alert — triangle with a stem. Used only for red flags. */
     case 'alert':
       return (
         <>
@@ -127,7 +194,6 @@ function glyph(name: IconName, p: object, color: string, sw: number) {
         </>
       );
 
-    /* Shield — used for the encrypted-storage and privacy affordances. */
     case 'shield':
       return (
         <>

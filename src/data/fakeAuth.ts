@@ -16,4 +16,13 @@ export class FakeAuthGateway implements AuthGateway {
     return this.signIn(email, password);
   }
   async signOut(): Promise<void> { this.session = GUEST; }
+
+  /**
+   * Always null. This gateway does not talk to Clerk, so it has no token to
+   * give. Returning a placeholder string would make the backend reject the
+   * request as malformed rather than unauthenticated, which is a worse error
+   * to debug — the services map a missing token onto UNAUTHENTICATED, and the
+   * UI already has wording for that state.
+   */
+  async getToken(): Promise<string | null> { return null; }
 }
