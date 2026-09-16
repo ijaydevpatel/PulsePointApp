@@ -1,56 +1,68 @@
 /**
  * Liquid glass material.
  *
- * Not glassmorphism. A glassmorphic panel is uniformly frosted; this is close
- * to clear through the middle and bends what is behind it at the rim, the way
- * a lens does where its surface curves.
+ * ── The rendering constraint that shapes this file ───────────────────────────
  *
- * Five layers, and the order is the whole trick:
+ * react-native-svg on Android renders gradient **fills** correctly and gradient
+ * **strokes** unreliably — an unresolved stroke falls back to solid black. That
+ * was the hard dark outline round the tab bar: a failed gradient stroke, not a
+ * border and not a shadow.
  *
- *   1. edge blur    — a heavy BlurView filling the shape
- *   2. edge tint    — a denser fill over it
- *   3. centre       — an inset, separately-rounded view holding a *light* blur
- *                     and a much weaker tint, which cuts a clear window through
- *                     the middle and leaves the heavy blur showing only as a
- *                     band round the rim
- *   4. light        — bright hairline along the top where light enters, a
- *                     second bright edge along the bottom inside face where it
- *                     exits, dim along the sides
- *   5. specular     — a short arc across the top-left
+ * So the rule here is: gradients are only ever used as fills. Anything that has
+ * to be a line is a View with a border or a 1px block. Every visual cue below
+ * is chosen to fit that constraint while still reading as a lens.
  *
- * Layer 3 is what makes it read as refraction. Real per-pixel distortion needs
- * a GPU shader (react-native-skia would give it), but the eye infers "the
- * content behind is being bent here" from the *gradient* of blur across the
- * surface, not from geometric accuracy. Blurring the rim ~4× harder than the
- * centre produces that gradient with no shader and no extra native module.
+ * ── The four cues, and why each one is present ───────────────────────────────
  *
- * Layer 4 matters more than it sounds. Light entering the top and leaving the
- * bottom is what gives the material thickness. A single uniform border reads as
- * a stroke round a rectangle; two opposed edges read as a solid object.
+ *   1. backdrop blur   — the material samples what is behind it
+ *   2. sheen           — a gradient FILL across the top half, brightest at the
+ *                        very top, gone by the middle. This is the lens: a
+ *                        curved surface gathers light unevenly across its face.
+ *   3. rim             — a hairline border. White in both schemes, because a
+ *                        lit edge is white; it is only ever dark when the
+ *                        render has failed.
+ *   4. specular        — a short bright line just inside the top edge, the
+ *                        highlight a convex surface throws.
+ *
+ * ── Why the tint is so low ───────────────────────────────────────────────────
+ *
+ * `BlurView` with `tint="light"` lays down its own heavy white wash. At high
+ * intensity over a light app background that produces a solid white pill with a
+ * visible edge — opaque, not glass. Intensity stays low and nothing else fills
+ * the shape, so on a pale background the material is nearly invisible and only
+ * announces itself when something coloured passes underneath. That is the
+ * correct behaviour, not a missing feature.
  */
-import React, { ReactNode, useState } from 'react';
+import React, { ReactNode, useRef, useState } from 'react';
 import {
   View, StyleSheet, Platform, ViewStyle, StyleProp, LayoutChangeEvent,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import Svg, { Defs, LinearGradient, Stop, Rect, Path } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 import { useTheme, R } from '../theme';
 
 const androidBlur = Platform.OS === 'android'
   ? ('dimezisBlurView' as const)
   : undefined;
 
+/** SVG ids are document-global in react-native-svg; keep them per-instance. */
+let seq = 0;
+
 export function LiquidGlass({
-  children, style, radius = R.pill, contentStyle, edgeWidth,
+  children, style, radius = R.pill, contentStyle, intensity,
 }: {
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
   /** Pass size/2 for a circle, R.pill for a capsule. */
   radius?: number;
   contentStyle?: StyleProp<ViewStyle>;
+  intensity?: number;
+  /** Accepted for call-site compatibility; the rim is no longer a band. */
   edgeWidth?: number;
 }) {
-  const { glass: G } = useTheme();
+  const { scheme } = useTheme();
+  const dark = scheme === 'dark';
+  const uid = useRef(`lg${(seq += 1)}`).current;
   const [size, setSize] = useState({ w: 0, h: 0 });
 
   const onLayout = (e: LayoutChangeEvent) => {
@@ -58,49 +70,22 @@ export function LiquidGlass({
     if (width !== size.w || height !== size.h) setSize({ w: width, h: height });
   };
 
-  // A capsule's true corner radius is half its height, never the 999 sentinel.
+  // A capsule's true radius is half its height, never the 999 sentinel.
   const r = size.h > 0 ? Math.min(radius, size.h / 2) : radius;
-
-  // The band must not swallow the whole shape on small controls.
-  const ew = Math.min(edgeWidth ?? G.edgeWidth, (Math.min(size.w, size.h) / 2) - 2);
-  const innerR = Math.max(0, r - ew);
 
   return (
     <View
       style={[{ borderRadius: radius, overflow: 'hidden' }, style]}
       onLayout={onLayout}
     >
-      {/* 1 + 2 — the refracting rim. Heavy blur, denser fill. */}
       <BlurView
-        intensity={G.edgeBlur}
-        tint={G.tint_mode}
+        intensity={intensity ?? (dark ? 30 : 26)}
+        tint={dark ? 'dark' : 'light'}
         experimentalBlurMethod={androidBlur}
         style={StyleSheet.absoluteFill}
       />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: G.edgeTint }]} />
 
-      {/* 3 — the clear centre, cutting a window through the heavy blur. */}
-      {ew > 0 && size.w > 0 ? (
-        <View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            left: ew, right: ew, top: ew, bottom: ew,
-            borderRadius: innerR,
-            overflow: 'hidden',
-          }}
-        >
-          <BlurView
-            intensity={G.centreBlur}
-            tint={G.tint_mode}
-            experimentalBlurMethod={androidBlur}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: G.centreTint }]} />
-        </View>
-      ) : null}
-
-      {/* 4 + 5 — the light. */}
+      {/* Sheen — a gradient FILL, which renders correctly on Android. */}
       {size.w > 0 && size.h > 0 ? (
         <Svg
           width={size.w}
@@ -109,86 +94,62 @@ export function LiquidGlass({
           pointerEvents="none"
         >
           <Defs>
-            {/*
-              Outer rim: brightest at the very top, falling away by a third of
-              the height. This is light entering the curve.
-            */}
-            <LinearGradient id="rimOuter" x1="0" y1="0" x2="0.18" y2="1">
-              <Stop offset="0" stopColor={G.rimTop} />
-              <Stop offset="0.34" stopColor={G.rimSide} />
-              <Stop offset="1" stopColor={G.rimSide} />
-            </LinearGradient>
-
-            {/*
-              Inner rim: the opposite. Dark at the top, bright along the bottom
-              inside face — light leaving the far surface. Having both is what
-              gives the material thickness rather than outline.
-            */}
-            <LinearGradient id="rimInner" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor="rgba(0,0,0,0)" />
-              <Stop offset="0.55" stopColor="rgba(0,0,0,0)" />
-              <Stop offset="1" stopColor={G.rimBottom} />
+            <LinearGradient id={`${uid}-sheen`} x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0" stopColor="#FFFFFF" stopOpacity={dark ? 0.16 : 0.55} />
+              <Stop offset="0.45" stopColor="#FFFFFF" stopOpacity={dark ? 0.04 : 0.14} />
+              <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
             </LinearGradient>
           </Defs>
-
-          {/* Outer rim, inset by half its stroke so overflow cannot clip it. */}
           <Rect
-            x={0.8} y={0.8}
-            width={Math.max(0, size.w - 1.6)}
-            height={Math.max(0, size.h - 1.6)}
-            rx={Math.max(0, r - 0.8)} ry={Math.max(0, r - 0.8)}
-            fill="none"
-            stroke="url(#rimOuter)"
-            strokeWidth={1.6}
-          />
-
-          {/* Inner rim, sitting on the boundary between the two blur zones. */}
-          {ew > 1 ? (
-            <Rect
-              x={ew} y={ew}
-              width={Math.max(0, size.w - ew * 2)}
-              height={Math.max(0, size.h - ew * 2)}
-              rx={innerR} ry={innerR}
-              fill="none"
-              stroke="url(#rimInner)"
-              strokeWidth={1.1}
-            />
-          ) : null}
-
-          {/*
-            Specular arc across the top-left. Short and offset — a highlight
-            that spans the full width reads as a stripe, not a reflection.
-          */}
-          <Path
-            d={`M ${Math.max(3, r * 0.5)} ${Math.max(2.4, r * 0.3)}
-                Q ${size.w * 0.26} 1.6 ${Math.min(size.w * 0.56, size.w - r * 0.5)} ${Math.max(2.6, r * 0.26)}`}
-            stroke={G.specular}
-            strokeWidth={1.3}
-            strokeLinecap="round"
-            fill="none"
-            opacity={0.62}
+            x={0} y={0} width={size.w} height={size.h}
+            rx={r} ry={r}
+            fill={`url(#${uid}-sheen)`}
           />
         </Svg>
       ) : null}
+
+      {/*
+        Rim. White in both schemes — a lit edge is white by definition. If this
+        ever renders dark, something has failed; it is not a light-mode variant.
+      */}
+      <View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          {
+            borderRadius: radius,
+            borderWidth: StyleSheet.hairlineWidth * 2,
+            borderColor: dark ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.85)',
+          },
+        ]}
+      />
+
+      {/* Specular highlight just inside the top edge. */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 1.5,
+          left: '20%',
+          right: '20%',
+          height: StyleSheet.hairlineWidth * 2,
+          borderRadius: 1,
+          backgroundColor: dark ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,1)',
+        }}
+      />
 
       <View style={contentStyle}>{children}</View>
     </View>
   );
 }
 
-/**
- * Circular liquid-glass control. Back buttons, close, icon actions.
- *
- * The rim band is scaled down for small controls — a fixed 11pt band on a 36pt
- * circle would leave no clear centre and collapse back into frosted glass.
- */
+/** Circular liquid-glass control. Back buttons, close, icon actions. */
 export function GlassCircle({
   size = 44, children, style,
 }: { size?: number; children?: ReactNode; style?: StyleProp<ViewStyle> }) {
   return (
     <LiquidGlass
       radius={size / 2}
-      edgeWidth={Math.max(4, size * 0.19)}
       style={[{ width: size, height: size }, style]}
       contentStyle={{
         width: size, height: size,

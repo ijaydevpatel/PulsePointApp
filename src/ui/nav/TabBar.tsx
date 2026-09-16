@@ -1,53 +1,54 @@
 /**
  * Floating liquid-glass tab bar.
  *
- * Detached from the bottom edge and made of the liquid glass material, so the
- * content behind it stays partly readable rather than being hidden under a
- * chrome strip.
+ * ── How the active indicator is positioned, and why it changed ───────────────
  *
- * The active indicator is a single circle that travels between slots — and it
- * *stretches* while it moves, then settles. That deformation is the "liquid"
- * part and it is not decoration: a rigid shape sliding across reads as a
- * selection box, whereas one that elongates with its own momentum reads as a
- * substance under tension. It is the cheapest single change that makes the
- * material feel physical rather than painted on.
+ * It used to be placed by arithmetic: measure the row, divide by the tab count,
+ * offset by the padding, subtract half the indicator. That is three assumptions
+ * about layout, and it was wrong twice — first because onLayout reports the box
+ * *including* padding while the tabs sit inside it, then again once the icon
+ * offset was folded in.
  *
- * The stretch is derived from the animated position rather than fired
- * separately, so it can never desynchronise from the travel — it is literally
- * a function of how far the indicator still has to go.
+ * It is now positioned from measurement instead of derivation: every tab
+ * reports its own x and width via onLayout, and the indicator simply adopts
+ * them. There is no padding term, no divide, and nothing to get wrong — if the
+ * tab moves, the indicator moves with it by definition.
  *
- * QR6 is unaffected: every slot still exceeds the 44pt minimum, and the active
- * state is carried by icon weight, label weight and the indicator together.
+ * The indicator is also a capsule behind the whole item rather than a circle
+ * around the glyph. A circle has to be centred on *something* — the icon, or
+ * the item, or the slot — and those three differ. A capsule that adopts the
+ * tab's own bounds has no such ambiguity.
+ *
+ * The stretch on travel is kept: it is interpolated from the same animated
+ * value that drives translation, so the deformation cannot fall out of sync
+ * with the movement.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { View, StyleSheet, Animated, LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TABS, TabKey } from './routes';
-import { useTheme, TYPE, S, R, TOUCH, MOTION, circle } from '../theme';
+import { useTheme, TYPE, S, R, TOUCH, MOTION } from '../theme';
 import { Icon } from '../components/Icon';
 import { Springy } from '../components/Primitives';
 import { LiquidGlass } from '../components/LiquidGlass';
 
-/**
- * The active indicator sits behind the icon only, not the icon and label
- * together. A blob tall enough to cover both fills the whole bar height and
- * reads as a lozenge crowding its neighbours; a disc around the glyph reads as
- * a selected state.
- */
-const DOT = 38;
-const ICON = 23;
 const PAD_V = S.sm + 2;
+const PAD_H = S.xs;
+/** Inset of the capsule inside the tab's measured bounds. */
+const GAP = 5;
+
+interface Slot { x: number; w: number }
 
 export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: TabKey) => void }) {
-  const { c: P, elev, scheme } = useTheme();
+  const { c: P, scheme } = useTheme();
   const insets = useSafeAreaInsets();
 
   const index = Math.max(0, TABS.findIndex((t) => t.key === active));
-  const [slot, setSlot] = useState(0);
+  const [slots, setSlots] = useState<Slot[]>([]);
+  const measured = slots.length === TABS.length && slots.every((s) => s && s.w > 0);
 
-  /** Animated slot position, in slots rather than pixels. */
+  /** Animated position, in tab index units. */
   const pos = useRef(new Animated.Value(index)).current;
-  /** Where the travel started, so stretch can be measured against distance. */
   const from = useRef(index);
 
   useEffect(() => {
@@ -60,17 +61,17 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
     }).start(() => { from.current = index; });
   }, [index, pos]);
 
-  const onLayout = (e: LayoutChangeEvent) => {
-    const w = e.nativeEvent.layout.width;
-    const next = w / TABS.length;
-    if (Math.abs(next - slot) > 0.5) setSlot(next);
+  const onTabLayout = (i: number) => (e: LayoutChangeEvent) => {
+    const { x, width } = e.nativeEvent.layout;
+    setSlots((prev) => {
+      const cur = prev[i];
+      if (cur && Math.abs(cur.x - x) < 0.5 && Math.abs(cur.w - width) < 0.5) return prev;
+      const next = [...prev];
+      next[i] = { x, w: width };
+      return next;
+    });
   };
 
-  /*
-    Stretch: 1 at either end of the journey, widest in the middle. Built by
-    interpolating the *same* animated value that drives translation, so the
-    deformation is exactly in phase with the movement.
-  */
   const a = Math.min(from.current, index);
   const b = Math.max(from.current, index);
   const moving = b > a;
@@ -82,7 +83,6 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
         extrapolate: 'clamp',
       })
     : 1;
-
   const squashY = moving
     ? pos.interpolate({
         inputRange: [a, (a + b) / 2, b],
@@ -91,12 +91,18 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
       })
     : 1;
 
-  const translateX = slot > 0
+  /*
+   * Translation interpolates across the measured x of every tab, so the
+   * indicator tracks real positions even if the tabs are unequal widths.
+   */
+  const translateX = measured
     ? pos.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0, slot],
+        inputRange: TABS.map((_, i) => i),
+        outputRange: slots.map((s) => s.x + GAP),
       })
     : 0;
+
+  const capsuleW = measured ? slots[index]!.w - GAP * 2 : 0;
 
   return (
     <View
@@ -104,40 +110,30 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
         st.wrap,
         { bottom: Math.max(insets.bottom, S.sm) + S.xs, left: S.lg, right: S.lg },
         /*
-         * Deliberately not elev(3). Android draws elevation as a real shadow,
-         * and at elevation 14 on a rounded shape it collapses into a hard dark
-         * ring hugging the edge — which read as a black outline round the
-         * capsule rather than as depth. A wide, low-opacity shadow lifts the
-         * bar without drawing a line around it.
+         * Android draws elevation as a real shadow; at high values on a rounded
+         * shape it collapses into a hard dark ring that reads as an outline
+         * rather than depth. Wide and low-opacity instead.
          */
         {
           shadowColor: '#000',
           shadowOpacity: scheme === 'dark' ? 0.44 : 0.10,
           shadowRadius: 24,
           shadowOffset: { width: 0, height: 10 },
-          elevation: 6,
+          elevation: 4,
         },
       ]}
       pointerEvents="box-none"
     >
       <LiquidGlass radius={R.pill} style={st.bar}>
-        <View style={st.row} onLayout={onLayout} accessibilityRole="tablist">
-          {slot > 0 ? (
+        <View style={st.row} accessibilityRole="tablist">
+          {measured ? (
             <Animated.View
               pointerEvents="none"
               style={[
-                st.dot,
-                circle(DOT),
+                st.capsule,
                 {
-                  left: (slot - DOT) / 2,
-                  // Aligned to the icon, not the centre of the whole slot.
-                  top: PAD_V + ICON / 2 - DOT / 2,
-                  /*
-                   * A soft tint, no border. The bordered version read as an
-                   * opaque lavender chip pasted onto the glass — a solid object
-                   * sitting on the material rather than a highlight within it.
-                   */
-                  backgroundColor: P.accent + (scheme === 'dark' ? '2B' : '16'),
+                  width: capsuleW,
+                  backgroundColor: P.accent + (scheme === 'dark' ? '2E' : '18'),
                   transform: [
                     { translateX },
                     { scaleX: stretchX },
@@ -148,35 +144,36 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
             />
           ) : null}
 
-          {TABS.map((t) => {
+          {TABS.map((t, i) => {
             const on = t.key === active;
             return (
-              <Springy
-                key={t.key}
-                onPress={() => onSelect(t.key)}
-                weight="select"
-                scaleTo={0.88}
-                accessibilityRole="tab"
-                accessibilityLabel={t.label}
-                accessibilityState={{ selected: on }}
-                style={st.tab}
-              >
-                <Icon
-                  name={t.icon}
-                  size={ICON}
-                  color={on ? P.accent : P.muted}
-                  weight={on ? 'bold' : 'regular'}
-                />
-                <Animated.Text
-                  numberOfLines={1}
-                  style={[
-                    TYPE.micro,
-                    { color: on ? P.accent : P.muted, fontSize: 10.5, marginTop: 3 },
-                  ]}
+              <View key={t.key} style={{ flex: 1 }} onLayout={onTabLayout(i)}>
+                <Springy
+                  onPress={() => onSelect(t.key)}
+                  weight="select"
+                  scaleTo={0.9}
+                  accessibilityRole="tab"
+                  accessibilityLabel={t.label}
+                  accessibilityState={{ selected: on }}
+                  style={st.tab}
                 >
-                  {t.label}
-                </Animated.Text>
-              </Springy>
+                  <Icon
+                    name={t.icon}
+                    size={23}
+                    color={on ? P.accent : P.muted}
+                    weight={on ? 'bold' : 'regular'}
+                  />
+                  <Animated.Text
+                    numberOfLines={1}
+                    style={[
+                      TYPE.micro,
+                      { color: on ? P.accent : P.muted, fontSize: 10.5, marginTop: 3 },
+                    ]}
+                  >
+                    {t.label}
+                  </Animated.Text>
+                </Springy>
+              </View>
             );
           })}
         </View>
@@ -188,10 +185,15 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
 const st = StyleSheet.create({
   wrap: { position: 'absolute' },
   bar: { borderRadius: R.pill },
-  row: { flexDirection: 'row', paddingVertical: PAD_V, paddingHorizontal: S.xs },
-  dot: { position: 'absolute' },
+  row: { flexDirection: 'row', paddingVertical: PAD_V, paddingHorizontal: PAD_H },
+  capsule: {
+    position: 'absolute',
+    left: 0,
+    top: GAP,
+    bottom: GAP,
+    borderRadius: R.pill,
+  },
   tab: {
-    flex: 1,
     minHeight: TOUCH + 4,
     alignItems: 'center',
     justifyContent: 'center',

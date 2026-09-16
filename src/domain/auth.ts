@@ -29,6 +29,15 @@ export interface AuthGateway {
   signIn(email: string, password: string): Promise<Session>;
   signUp(email: string, password: string): Promise<Session>;
   signOut(): Promise<void>;
+  /**
+   * Bearer token for the backend, or null when there is none.
+   *
+   * Every /api route on the backend runs `protect`, so without this the server
+   * answers 401 and the app can only ever show its local results. The fake
+   * gateway returns null on purpose: it authenticates against nothing, so
+   * inventing a token here would turn a clear 401 into a confusing 500.
+   */
+  getToken(): Promise<string | null>;
 }
 
 /** Local-only features never consult this. Sync features must. */

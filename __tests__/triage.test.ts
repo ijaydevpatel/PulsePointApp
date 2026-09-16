@@ -4,7 +4,7 @@
  * Evaluation criterion E4 requires 100% branch coverage of red-flag rules.
  */
 import { AssessSymptomsUseCase, bandForSeverity } from '../src/domain/assessSymptoms';
-import { detectRedFlags, RED_FLAG_RULES } from '../src/domain/redFlags';
+import { detectRedFlags, RED_FLAG_RULES, rulesNeedingReview } from '../src/domain/redFlags';
 import { RuleClassifier } from '../src/data/ruleClassifier';
 import { InMemoryEpisodeStore } from '../src/data/memoryStore';
 import { SymptomEpisode, AgeBand, requiresEscalation } from '../src/domain/entities';
@@ -118,5 +118,61 @@ describe('performance budget (QR1)', () => {
     const t0 = Date.now();
     await run(ep([['cough', 3], ['fever', 5], ['fatigue', 4]]));
     expect(Date.now() - t0).toBeLessThan(500);
+  });
+});
+
+/**
+ * Traceability of the red-flag rules (FR3 / QR5).
+ *
+ * The report states that red-flag rules "trace to published guidance". These
+ * tests turn that sentence into something a build can check. Without them the
+ * claim rests on a comment, and comments do not fail.
+ */
+describe('red-flag traceability', () => {
+  it('every rule carries a source with a publisher and a title', () => {
+    for (const rule of RED_FLAG_RULES) {
+      expect(rule.source).toBeDefined();
+      expect(rule.source.publisher.trim().length).toBeGreaterThan(0);
+      expect(rule.source.title.trim().length).toBeGreaterThan(0);
+    }
+  });
+
+  it('a cited rule has a year and a resolvable https url', () => {
+    for (const rule of RED_FLAG_RULES.filter((r) => r.source.symptomsCited)) {
+      expect(typeof rule.source.year).toBe('number');
+      expect(rule.source.url).toMatch(/^https:\/\//);
+    }
+  });
+
+  it('anything not fully cited explains what is outstanding', () => {
+    // The point of the flag is to force the gap to be written down. A rule may
+    // be provisional; it may not be provisional and silent about it.
+    for (const rule of rulesNeedingReview()) {
+      expect(rule.source.outstanding).toBeTruthy();
+      expect(rule.source.outstanding!.length).toBeGreaterThan(20);
+    }
+  });
+
+  it('rule ids are unique', () => {
+    const ids = RED_FLAG_RULES.map((r) => r.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('reports the current traceability position', () => {
+    const total = RED_FLAG_RULES.length;
+    const outstanding = rulesNeedingReview();
+    const fullyCited = total - outstanding.length;
+    // Ratchet: this may go up, never down. If a change drops a citation the
+    // suite fails here rather than silently weakening the safety claim.
+    expect(fullyCited).toBeGreaterThanOrEqual(2);
+    expect(outstanding.every((r) => r.source.outstanding)).toBe(true);
+  });
+
+  it('no rule claims a threshold citation without a symptom citation', () => {
+    // thresholdCited implies symptomsCited. The reverse is allowed: guidance
+    // often names the symptom pattern without giving a numeric cut-off.
+    for (const rule of RED_FLAG_RULES) {
+      if (rule.source.thresholdCited) expect(rule.source.symptomsCited).toBe(true);
+    }
   });
 });

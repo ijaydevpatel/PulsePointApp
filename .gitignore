@@ -20,3 +20,14 @@ build/
 *.keystore
 *.jks
 google-services.json
+
+# Working artefacts and documents — code only in this repo.
+.artifacts/
+*.xlsx
+*.docx
+*.pdf
+NEXT_SESSION.md
+*_Work_Plan.md
+*_Feature_Map.md
+*_Progress_Draft.md
+DESIGN.md

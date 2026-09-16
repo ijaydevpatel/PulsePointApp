@@ -87,68 +87,61 @@ export interface Palette {
 const light: Palette = {
   scheme: 'light',
 
-  /*
-   * iOS 26 runs content edge to edge on systemBackground and floats the chrome
-   * over it. The previous values used the iOS 18 grouped model — a grey strip
-   * with white cards on it — which is the single biggest reason the app read as
-   * the older system. Cards are now a barely-raised fill on the same canvas
-   * rather than islands on a different colour.
-   */
-  bg: '#FFFFFF',        // systemBackground
-  surface: '#F7F7F9',   // secondarySystemFill, a hair above the canvas
-  sunken: '#EFEFF2',
+  bg: '#F7F8FA',
+  surface: '#FFFFFF',
+  sunken: '#EFF2F6',
   raised: '#FFFFFF',
 
-  line: '#C6C6C8',      // separator, Apple exact
-  lineStrong: '#8C8C90',
+  line: '#E3E8EF',
+  lineStrong: '#878F9A',
 
-  ink: '#000000',       // label, Apple exact
-  inkSoft: '#3C3C43',   // secondaryLabel, Apple exact
-  muted: '#66666B',     // systemGray, nudged from #8E8E93
-  faint: '#8C8C90',     // tertiary, nudged from #AEAEB2 (icons only, 3:1)
+  ink: '#0C1524',
+  inkSoft: '#3A4658',
+  muted: '#5F6E88',
+  faint: '#8490A4',
 
-  accent: '#005EE3',    // systemBlue, nudged from #007AFF
-  accentSoft: '#E5F0FF',
+  accent: '#3A46E8',
+  accentSoft: '#ECEDFE',
   onAccent: '#FFFFFF',
 
-  ok: '#007709',        // systemGreen as text, nudged
-  warn: '#AF4500',      // systemOrange as text, nudged
-  danger: '#CF0B00',    // systemRed as text, nudged
-  dangerSoft: '#FFEBEA',
+  ok: '#007E50',
+  warn: '#C2510A',
+  danger: '#C41834',
+  dangerSoft: '#FFF0F2',
   onDanger: '#FFFFFF',
 
-  scrim: 'rgba(0,0,0,0.40)',
+  scrim: 'rgba(12,21,36,0.42)',
   barTint: 'rgba(255,255,255,0.72)',
 };
 
 const dark: Palette = {
   scheme: 'dark',
 
-  bg: '#000000',        // systemBackground, true black
-  surface: '#141416',   // barely lifted off the canvas
-  sunken: '#1E1E21',
-  raised: '#2C2C2E',
+  bg: '#0A0D14',
+  surface: '#141922',
+  sunken: '#1C222D',
+  raised: '#1A2029',
 
-  line: '#38383A',
-  lineStrong: '#68686A',
+  line: '#252C38',
+  lineStrong: '#5D6673',
 
-  ink: '#FFFFFF',
-  inkSoft: '#EBEBF5',
-  muted: '#949499',
-  faint: '#68686C',
+  ink: '#F2F5F9',
+  inkSoft: '#C3CCDA',
+  muted: '#8E9AAC',
+  faint: '#65707F',
 
-  accent: '#1C96FF',    // systemBlue dark, nudged from #0A84FF
-  accentSoft: '#0A2540',
-  onAccent: '#000000',
+  accent: '#8F97FF',
+  accentSoft: '#1E2140',
+  onAccent: '#0A0D14',
 
-  ok: '#30D158',        // Apple exact — already passes on black
-  warn: '#FF9F0A',      // Apple exact — already passes
-  danger: '#FF594E',    // nudged from #FF453A
-  dangerSoft: '#2C1512',
-  onDanger: '#000000',
+  ok: '#3ECF98',
+  warn: '#FF9A52',
+  danger: '#FF6B81',
+  dangerSoft: '#2A151B',
+  onDanger: '#2A0009',
 
-  scrim: 'rgba(0,0,0,0.60)',
-  barTint: 'rgba(28,28,30,0.70)',
+  scrim: 'rgba(0,0,0,0.62)',
+  barTint: 'rgba(20,25,34,0.72)',
 };
 
 export const PALETTES: Record<Scheme, Palette> = { light, dark };
@@ -182,18 +175,24 @@ export interface BandStyle {
  * graphical fill and its text is set at 30px+ — the large-text bar of 3:1.
  * `fg` is the nudged, text-safe variant for the same colour on a card.
  */
+/*
+ * `solidEdge` is kept from the iOS pass on purpose. It is not a style choice —
+ * it is the hairline that carries the boundary between a light band fill and
+ * the canvas, which is what lets the contrast audit pass honestly rather than
+ * by darkening the fill.
+ */
 const bandsLight: Record<TriageBand, BandStyle> = {
-  SELF_CARE:   { solidEdge: '#007709', fg: '#007709', bg: '#E3F7E8', solid: '#34C759', onSolid: '#00230A', label: 'Self-care at home', short: 'Self-care' },
-  PHARMACY_GP: { solidEdge: '#005EE3', fg: '#005EE3', bg: '#E5F0FF', solid: '#007AFF', onSolid: '#FFFFFF', label: 'Pharmacist or GP',  short: 'GP' },
-  URGENT:      { solidEdge: '#AF4500', fg: '#AF4500', bg: '#FFF0E0', solid: '#FF9500', onSolid: '#2B1200', label: 'Urgent care today', short: 'Urgent' },
-  EMERGENCY:   { solidEdge: '#CF0B00', fg: '#CF0B00', bg: '#FFEBEA', solid: '#FF3B30', onSolid: '#FFFFFF', label: 'Emergency',         short: 'Emergency' },
+  SELF_CARE:   { solidEdge: '#0B7A52', fg: '#0B7A52', bg: '#E4F6EE', solid: '#0E9F6E', onSolid: '#FFFFFF', label: 'Self-care at home', short: 'Self-care' },
+  PHARMACY_GP: { solidEdge: '#2B36C9', fg: '#2B36C9', bg: '#EAECFD', solid: '#3A46E8', onSolid: '#FFFFFF', label: 'Pharmacist or GP',  short: 'GP' },
+  URGENT:      { solidEdge: '#B84A08', fg: '#B84A08', bg: '#FFF0E4', solid: '#E8590C', onSolid: '#FFFFFF', label: 'Urgent care today', short: 'Urgent' },
+  EMERGENCY:   { solidEdge: '#B01530', fg: '#B01530', bg: '#FFEDF0', solid: '#D6203A', onSolid: '#FFFFFF', label: 'Emergency',         short: 'Emergency' },
 };
 
 const bandsDark: Record<TriageBand, BandStyle> = {
-  SELF_CARE:   { solidEdge: '#30D158', fg: '#30D158', bg: '#0E2914', solid: '#30D158', onSolid: '#00230A', label: 'Self-care at home', short: 'Self-care' },
-  PHARMACY_GP: { solidEdge: '#1C96FF', fg: '#1C96FF', bg: '#0A2540', solid: '#0A84FF', onSolid: '#FFFFFF', label: 'Pharmacist or GP',  short: 'GP' },
-  URGENT:      { solidEdge: '#FF9F0A', fg: '#FF9F0A', bg: '#2E1C00', solid: '#FF9F0A', onSolid: '#2B1200', label: 'Urgent care today', short: 'Urgent' },
-  EMERGENCY:   { solidEdge: '#FF594E', fg: '#FF594E', bg: '#2C1512', solid: '#FF453A', onSolid: '#2B0300', label: 'Emergency',         short: 'Emergency' },
+  SELF_CARE:   { solidEdge: '#4BD6A0', fg: '#4BD6A0', bg: '#12291F', solid: '#17B57E', onSolid: '#04140D', label: 'Self-care at home', short: 'Self-care' },
+  PHARMACY_GP: { solidEdge: '#9AA2FF', fg: '#9AA2FF', bg: '#191D38', solid: '#5C67F2', onSolid: '#FFFFFF', label: 'Pharmacist or GP',  short: 'GP' },
+  URGENT:      { solidEdge: '#FFA366', fg: '#FFA366', bg: '#2E1B0C', solid: '#F2751A', onSolid: '#1A0A02', label: 'Urgent care today', short: 'Urgent' },
+  EMERGENCY:   { solidEdge: '#FF7D90', fg: '#FF7D90', bg: '#2E1319', solid: '#E23A52', onSolid: '#FFFFFF', label: 'Emergency',         short: 'Emergency' },
 };
 
 export const BANDS: Record<Scheme, Record<TriageBand, BandStyle>> = {
@@ -221,59 +220,30 @@ export const FONT = {
 const TABULAR: TextStyle['fontVariant'] = ['tabular-nums'];
 
 export type TypeToken =
-  | 'hero' | 'largeTitle' | 'title1' | 'title2' | 'title3'
-  | 'headline' | 'body' | 'bodyStrong' | 'callout' | 'subhead'
-  | 'footnote' | 'caption1' | 'caption2' | 'numeric'
-  // Retained aliases so screens written against the old scale still compile.
-  | 'display' | 'title' | 'heading' | 'section' | 'label' | 'caption' | 'micro';
+  | 'hero' | 'display' | 'title' | 'heading' | 'section'
+  | 'body' | 'bodyStrong' | 'label' | 'caption' | 'micro' | 'numeric';
 
 /**
- * The iOS text styles, at their default (Large) Dynamic Type sizes.
+ * Inter, with optical tracking. Large type gets negative tracking so it reads
+ * as a set headline rather than default system text; small caps-style labels
+ * get positive tracking so they stay legible at 12px.
  *
- * Substituting Inter for SF Pro is not a preference — SF Pro is licensed for
- * use on Apple platforms only and cannot be shipped in an Android APK. Inter
- * was drawn as a UI face at similar proportions and is the closest thing that
- * can legally ship here.
- *
- * It is slightly wider than SF at the same size, so the tracking below is
- * pulled tighter than Apple's published values at display sizes to compensate.
- * Without that correction, headlines set noticeably looser than iOS and the
- * resemblance falls apart at exactly the sizes people notice.
- *
- * Colour is applied by the component, never baked in, so one scale serves both
- * appearances.
+ * Colour is applied by the component, not baked in, so one scale serves both
+ * schemes.
  */
 export const TYPE: Record<TypeToken, TextStyle> = {
-  /* Result screen only — the severity numeral. */
-  hero:       { fontFamily: FONT.bold,      fontSize: 72, lineHeight: 76, letterSpacing: -2.6, fontVariant: TABULAR },
-
-  largeTitle: { fontFamily: FONT.bold,      fontSize: 34, lineHeight: 41, letterSpacing: -0.9 },
-  title1:     { fontFamily: FONT.bold,      fontSize: 28, lineHeight: 34, letterSpacing: -0.7 },
-  title2:     { fontFamily: FONT.bold,      fontSize: 22, lineHeight: 28, letterSpacing: -0.5 },
-  title3:     { fontFamily: FONT.semibold,  fontSize: 20, lineHeight: 25, letterSpacing: -0.42 },
-  headline:   { fontFamily: FONT.semibold,  fontSize: 17, lineHeight: 22, letterSpacing: -0.41 },
-  body:       { fontFamily: FONT.regular,   fontSize: 17, lineHeight: 22, letterSpacing: -0.41 },
-  bodyStrong: { fontFamily: FONT.semibold,  fontSize: 17, lineHeight: 22, letterSpacing: -0.41 },
-  callout:    { fontFamily: FONT.regular,   fontSize: 16, lineHeight: 21, letterSpacing: -0.32 },
-  subhead:    { fontFamily: FONT.regular,   fontSize: 15, lineHeight: 20, letterSpacing: -0.24 },
-  footnote:   { fontFamily: FONT.regular,   fontSize: 13, lineHeight: 18, letterSpacing: -0.08 },
-  caption1:   { fontFamily: FONT.regular,   fontSize: 12, lineHeight: 16, letterSpacing: 0 },
-  caption2:   { fontFamily: FONT.regular,   fontSize: 11, lineHeight: 13, letterSpacing: 0.07 },
-  numeric:    { fontFamily: FONT.semibold,  fontSize: 17, letterSpacing: -0.41, fontVariant: TABULAR },
-
-  /*
-   * Aliases from the previous scale. Kept so the redesign can land screen by
-   * screen instead of in one unverifiable commit — each points at its nearest
-   * iOS equivalent, so nothing renders wrongly in the meantime.
-   */
-  display:    { fontFamily: FONT.bold,      fontSize: 34, lineHeight: 41, letterSpacing: -0.9 },
-  title:      { fontFamily: FONT.bold,      fontSize: 22, lineHeight: 28, letterSpacing: -0.5 },
-  heading:    { fontFamily: FONT.semibold,  fontSize: 17, lineHeight: 22, letterSpacing: -0.41 },
-  /* Grouped-list section header: uppercase footnote, the iOS convention. */
-  section:    { fontFamily: FONT.regular,   fontSize: 13, lineHeight: 18, letterSpacing: 0.06 },
-  label:      { fontFamily: FONT.regular,   fontSize: 17, lineHeight: 22, letterSpacing: -0.41 },
-  caption:    { fontFamily: FONT.regular,   fontSize: 15, lineHeight: 20, letterSpacing: -0.24 },
-  micro:      { fontFamily: FONT.regular,   fontSize: 12, lineHeight: 16, letterSpacing: 0 },
+  /** Result screen only. The severity number. */
+  hero:       { fontFamily: FONT.black,     fontSize: 76, lineHeight: 78, letterSpacing: -3.4, fontVariant: TABULAR },
+  display:    { fontFamily: FONT.extrabold, fontSize: 30, lineHeight: 35, letterSpacing: -0.9 },
+  title:      { fontFamily: FONT.bold,      fontSize: 21, lineHeight: 26, letterSpacing: -0.45 },
+  heading:    { fontFamily: FONT.semibold,  fontSize: 17, lineHeight: 22, letterSpacing: -0.2 },
+  section:    { fontFamily: FONT.bold,      fontSize: 11.5, lineHeight: 14, letterSpacing: 1.1 },
+  body:       { fontFamily: FONT.regular,   fontSize: 15.5, lineHeight: 23, letterSpacing: -0.1 },
+  bodyStrong: { fontFamily: FONT.semibold,  fontSize: 15.5, lineHeight: 22, letterSpacing: -0.15 },
+  label:      { fontFamily: FONT.semibold,  fontSize: 14.5, lineHeight: 19, letterSpacing: -0.1 },
+  caption:    { fontFamily: FONT.regular,   fontSize: 12.5, lineHeight: 18, letterSpacing: 0 },
+  micro:      { fontFamily: FONT.medium,    fontSize: 11, lineHeight: 14, letterSpacing: 0.2 },
+  numeric:    { fontFamily: FONT.bold,      fontSize: 15, letterSpacing: -0.2, fontVariant: TABULAR },
 };
 
 /* ───────────────────────────────  spacing  ──────────────────────────────── */
@@ -283,31 +253,14 @@ export const S = {
   xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 28, xxxl: 40, huge: 56,
 } as const;
 
-/**
- * iOS 26 corner radii.
- *
- * Radii grew substantially in 26 and are *concentric*: a card sits at 26, and
- * anything nested inside it uses the outer radius minus the padding, so the
- * curves stay parallel instead of crossing. Small, sharp 10pt cards are one of
- * the clearest iOS 18 tells.
- */
-export const R = { xs: 10, sm: 16, md: 20, lg: 26, xl: 34, pill: 999 } as const;
-
-/**
- * Radius for a shape nested inside another. Keeping curves parallel is what
- * makes nested rounded rectangles look drawn rather than stacked.
- */
-export function concentric(outer: number, inset: number): number {
-  return Math.max(4, outer - inset);
-}
+export const R = { xs: 8, sm: 12, md: 16, lg: 22, xl: 28, pill: 999 } as const;
 
 /**
  * Circular controls.
  *
  * Rounded squares read as Material; true circles and capsules read as glass,
  * because a lens has no corners. Every icon-only control uses `circle(size)`
- * and every text button is a capsule, so the shape language is consistent
- * rather than decided per component.
+ * and every text button is a capsule.
  */
 export function circle(size: number) {
   return { width: size, height: size, borderRadius: size / 2 } as const;
@@ -316,10 +269,6 @@ export function circle(size: number) {
 /** QR6: 44pt minimum touch target, applied through this constant only. */
 export const TOUCH = 44;
 
-/** Standard list row height. */
-export const ROW = 48;
-/** Left inset where row content starts — separators align to it. */
-export const ROW_INSET = 18;
 
 /** Height of the floating tab bar plus its margin, so scroll views can clear it. */
 export const TAB_CLEARANCE = 96;
