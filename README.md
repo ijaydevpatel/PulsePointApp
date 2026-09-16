@@ -1,6 +1,6 @@
 # PulsePoint Mobile
 
-COMP826 Mobile Systems Development — Milestone 2 build.
+COMP826 Mobile Systems Development - Milestone 2 build.
 Offline-first symptom triage and care navigation.
 
 ## Quick start
@@ -8,7 +8,7 @@ Offline-first symptom triage and care navigation.
 ```powershell
 npm install
 npx expo prebuild --platform android   # generates the native android/ project
-npm test                               # domain tests — plain Node, no emulator
+npm test                               # domain tests - plain Node, no emulator
 ```
 
 Then **File → Open → `PulsePointApp/android`** in Android Studio and press **Run ▶**.
@@ -23,24 +23,24 @@ Then **File → Open → `PulsePointApp/android`** in Android Studio and press *
 |---|---|
 | `npm test` | Domain + safety tests. No emulator, no device. |
 | `npm run typecheck` | `tsc --noEmit`, strict mode |
-| `npm run lint:boundaries` | Evaluation criterion **E3** — fails if the domain layer imports React, React Native, Expo, SQLite or any network client |
+| `npm run lint:boundaries` | Evaluation criterion **E3** - fails if the domain layer imports React, React Native, Expo, SQLite or any network client |
 | `npm run android` | Build and launch on a connected device/emulator |
 | `npm run prebuild:clean` | Regenerate `android/` from scratch |
 
 ## Dependency security
 
 `npm audit` reports 20 findings. They trace back to **two** upstream packages, and
-neither reaches the shipped APK — Metro only bundles what the app actually imports,
+neither reaches the shipped APK - Metro only bundles what the app actually imports,
 and none of these are imported by app code.
 
 | Package | Severity | Where it lives | Status |
 |---|---|---|---|
-| `postcss` | high + moderate | `@expo/metro-config`, build time | **Fixed** — pinned to `^8.5.26` via `overrides` |
+| `postcss` | high + moderate | `@expo/metro-config`, build time | **Fixed** - pinned to `^8.5.26` via `overrides` |
 | `image-size` | high | `metro` bundler, build time | **No fix exists.** Latest published version (2.0.2) is still within the vulnerable range. Denial-of-service in ICNS/JXL parsers, reachable only by feeding hostile image files to the bundler at build time. |
 | `uuid` | moderate | `xcode`, iOS project generation | **Not overridden on purpose.** `xcode` requires `uuid@^7`; forcing `uuid@11` breaks it. It runs only during iOS prebuild. |
 
 Do not run `npm audit fix --force`. It ignores Expo's version pinning and will break
-the SDK. Re-check with `npm run audit` after each SDK upgrade — the SDK 52 → 54 move
+the SDK. Re-check with `npm run audit` after each SDK upgrade - the SDK 52 → 54 move
 alone took this from 31 findings (1 critical) down to 20.
 
 ## Architecture
@@ -50,7 +50,7 @@ Clean Architecture with a strict inward dependency rule.
 ```
 src/domain/     ← imports NOTHING platform-specific. Enforced by npm run lint:boundaries.
   entities.ts        types + invariants (TriageBand, TriageResult, requiresEscalation)
-  redFlags.ts        FR3/QR5 safety rules — run before scoring, never suppressed
+  redFlags.ts        FR3/QR5 safety rules - run before scoring, never suppressed
   ports.ts           Classifier, EpisodeStore interfaces (requirement L1)
   assessSymptoms.ts  the use case: red flags → classify → combine, escalate-only
 
@@ -83,7 +83,7 @@ low confidence cannot suppress an escalation; and a high score is never pulled d
 ## Scoring model
 
 The classifier uses a **saturating (noisy-OR) aggregate**, not a linear sum. A linear
-sum is wrong here — it is unbounded, so it cannot map onto the 0–100 band thresholds
+sum is wrong here - it is unbounded, so it cannot map onto the 0–100 band thresholds
 without arbitrary rescaling, and it lets many trivial symptoms out-vote one serious
 symptom. Current calibration:
 
