@@ -7,24 +7,22 @@
  * turns a spelling error into a tap instead of an unrecognised entry.
  */
 import React, { useMemo, useState } from 'react';
-import { View, TextInput, StyleSheet, LayoutAnimation, Animated, Pressable } from 'react-native';
-import { Txt, tap } from '../components/Primitives';
+import { View, TextInput, ScrollView, StyleSheet, LayoutAnimation } from 'react-native';
+import { ScreenHeader } from '../components/ScreenHeader';
+import {
+  Button, Card, SectionLabel, EmptyState, Txt, Springy, Enter, tap,
+} from '../components/Primitives';
 import { Icon } from '../components/Icon';
-import { ListSection, ListCustomRow } from '../components/List';
-import { IOSButton } from '../components/Controls';
-import { NavBar, LargeTitle, useNavScroll, useNavInset } from '../components/NavBar';
-import { useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE, ROW_INSET, circle } from '../theme';
+import { useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE, circle } from '../theme';
 import { BundledInteractionTable } from '../../data/interactionTable';
 import { CheckInteractionsUseCase } from '../../domain/checkInteractions';
 import { InteractionReport } from '../../domain/medicines';
 
 export function MedicinesScreen({ onReport }: { onReport: (r: InteractionReport) => void }) {
   const { c: P } = useTheme();
-  const nav = useNavScroll();
-  const topInset = useNavInset();
-
   const [items, setItems] = useState<string[]>([]);
   const [draft, setDraft] = useState('');
+  const [focus, setFocus] = useState(false);
 
   const table = useMemo(() => new BundledInteractionTable(), []);
   const useCase = useMemo(() => new CheckInteractionsUseCase(table), [table]);
@@ -59,140 +57,156 @@ export function MedicinesScreen({ onReport }: { onReport: (r: InteractionReport)
   const recognised = items.filter((i) => table.resolve(i) !== null).length;
 
   return (
-    <Animated.ScrollView
-      onScroll={nav.onScroll}
-      scrollEventThrottle={nav.scrollEventThrottle}
-      contentContainerStyle={{ paddingTop: topInset, paddingBottom: TAB_CLEARANCE + S.xxl }}
-      showsVerticalScrollIndicator={false}
+    <ScrollView
+      contentContainerStyle={{ paddingBottom: TAB_CLEARANCE + S.xxl }}
       keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
     >
-      <NavBar title="Medicines" y={nav.y} />
-      <LargeTitle
+      <ScreenHeader
         title="Medicines"
         subtitle={`${table.drugCount} medicines · ${table.ruleCount} interactions · offline`}
-        y={nav.y}
       />
 
-      <ListSection
-        header="Add a medicine"
-        footer={
-          unknownDraft && suggestions.length === 0
-            ? 'Not in the table. You can still add it — it will be listed as unrecognised rather than quietly skipped.'
-            : 'Brand names work too — Nurofen, Panadol, Losec, Marevan.'
-        }
-      >
-        <ListCustomRow>
-          <TextInput
-            style={[st.input, { color: P.ink, ...TYPE.body }]}
-            value={draft}
-            onChangeText={setDraft}
-            onSubmitEditing={() => add()}
-            placeholder="Brand or generic name"
-            placeholderTextColor={P.faint}
-            autoCapitalize="words"
-            autoCorrect={false}
-            accessibilityLabel="Medicine name"
-            returnKeyType="done"
-          />
-          <Pressable
-            onPress={() => add()}
-            disabled={!draft.trim()}
-            onPressIn={() => tap('medium')}
-            accessibilityLabel="Add medicine"
-            style={({ pressed }) => [
-              circle(30),
-              st.centred,
-              {
+      <View style={{ paddingHorizontal: S.xl }}>
+        <Enter index={1}>
+          <SectionLabel>Your medicines</SectionLabel>
+          <View style={{ flexDirection: 'row', gap: S.sm }}>
+            <TextInput
+              style={[st.input, {
+                borderColor: focus ? P.accent : P.line,
+                backgroundColor: P.surface,
+                color: P.ink,
+                ...TYPE.body,
+              }]}
+              value={draft}
+              onChangeText={setDraft}
+              onSubmitEditing={() => add()}
+              onFocus={() => setFocus(true)}
+              onBlur={() => setFocus(false)}
+              placeholder="Brand or generic name"
+              placeholderTextColor={P.faint}
+              autoCapitalize="words"
+              autoCorrect={false}
+              accessibilityLabel="Medicine name"
+              returnKeyType="done"
+            />
+            <Springy
+              onPress={() => add()}
+              disabled={!draft.trim()}
+              weight="medium"
+              accessibilityLabel="Add medicine"
+              style={[st.add, {
                 backgroundColor: draft.trim() ? P.accent : P.sunken,
-                opacity: pressed ? 0.5 : 1,
-              },
-            ]}
-          >
-            <Icon name="plus" size={18} color={draft.trim() ? P.onAccent : P.faint} weight="bold" />
-          </Pressable>
-        </ListCustomRow>
+                opacity: draft.trim() ? 1 : 0.6,
+              }]}
+            >
+              <Icon name="plus" size={22} color={draft.trim() ? P.onAccent : P.faint} weight="bold" />
+            </Springy>
+          </View>
 
-        {suggestions.length > 0 ? (
-          <ListCustomRow>
+          {suggestions.length > 0 ? (
             <View style={st.suggestions}>
               {suggestions.map((d) => (
-                <Pressable
+                <Springy
                   key={d.id}
                   onPress={() => add(d.name)}
-                  onPressIn={() => tap('select')}
+                  weight="select"
+                  scaleTo={0.94}
                   accessibilityLabel={`Add ${d.name}`}
-                  style={({ pressed }) => [
-                    st.suggestion,
-                    { backgroundColor: P.accentSoft, opacity: pressed ? 0.5 : 1 },
-                  ]}
+                  style={[st.suggestion, { backgroundColor: P.accentSoft }]}
                 >
-                  <Txt t="footnote" c={P.accent}>{d.name}</Txt>
-                </Pressable>
+                  <Icon name="plus" size={13} color={P.accent} weight="bold" />
+                  <Txt t="micro" c={P.accent}>{d.name}</Txt>
+                </Springy>
               ))}
             </View>
-          </ListCustomRow>
-        ) : null}
-      </ListSection>
+          ) : null}
 
-      {items.length > 0 ? (
-        <ListSection header={`Your list · ${items.length}`}>
-          {items.map((m) => {
-            const known = table.resolve(m) !== null;
-            return (
-              <ListCustomRow key={m}>
-                <View style={[st.tile, { backgroundColor: known ? P.accent : '#FF9500' }]}>
-                  <Icon name={known ? 'pill' : 'alert'} size={16} color="#FFFFFF" weight="bold" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Txt t="body" c={P.ink}>{m}</Txt>
-                  {!known ? (
-                    <Txt t="footnote" c={P.warn} style={{ marginTop: 1 }}>Not in the table</Txt>
-                  ) : null}
-                </View>
-                <Pressable
-                  onPress={() => remove(m)}
-                  onPressIn={() => tap('light')}
-                  hitSlop={12}
-                  accessibilityLabel={`Remove ${m}`}
-                  style={({ pressed }) => ({ opacity: pressed ? 0.4 : 1, padding: 4 })}
-                >
-                  <Icon name="close" size={17} color={P.faint} />
-                </Pressable>
-              </ListCustomRow>
-            );
-          })}
-        </ListSection>
-      ) : (
-        <View style={{ alignItems: 'center', paddingTop: S.xl, paddingHorizontal: S.xxl }}>
-          <View style={[circle(72), st.centred, { backgroundColor: P.surface }]}>
-            <Icon name="pill" size={30} color={P.faint} />
-          </View>
-          <Txt t="title3" c={P.ink} center style={{ marginTop: S.lg }}>No medicines added</Txt>
-          <Txt t="subhead" c={P.muted} center style={{ marginTop: S.sm }}>
-            Add two or more and the app checks them against a table stored on your device.
-            It works with no connection.
-          </Txt>
-        </View>
-      )}
+          {unknownDraft && suggestions.length === 0 ? (
+            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: S.sm }}>
+              <Icon name="alert" size={14} color={P.warn} />
+              <Txt t="caption" c={P.warn} style={{ flex: 1 }}>
+                Not in the table. You can still add it — it will be listed as unrecognised
+                rather than quietly skipped.
+              </Txt>
+            </View>
+          ) : null}
+        </Enter>
 
-      {items.length > 0 ? (
-        <View style={{ paddingHorizontal: ROW_INSET }}>
-          <IOSButton
-            title={recognised < 2 ? 'Add another recognised medicine' : `Check ${recognised} medicines`}
-            disabled={recognised < 2}
-            icon={recognised < 2 ? undefined : 'shield'}
-            onPress={() => { tap('medium'); onReport(useCase.execute(items)); }}
+        <View style={{ height: S.xl }} />
+
+        {items.length === 0 ? (
+          <EmptyState
+            icon="pill"
+            title="No medicines added"
+            body="Add two or more and the app will check them against a table stored on your device. It works with no connection."
           />
-        </View>
-      ) : null}
-    </Animated.ScrollView>
+        ) : (
+          <>
+            {items.map((m, i) => {
+              const known = table.resolve(m) !== null;
+              return (
+                <Enter key={m} index={i}>
+                  <Card style={{
+                    marginBottom: S.sm, paddingVertical: S.md,
+                    flexDirection: 'row', alignItems: 'center', gap: S.md,
+                  }}>
+                    <View style={[st.dot, {
+                      backgroundColor: known ? P.accent + '1F' : P.warn + '1F',
+                    }]}>
+                      <Icon name={known ? 'pill' : 'alert'} size={17} color={known ? P.accent : P.warn} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Txt t="bodyStrong">{m}</Txt>
+                      {!known ? (
+                        <Txt t="micro" c={P.warn} style={{ marginTop: 2 }}>Not in the table</Txt>
+                      ) : null}
+                    </View>
+                    <Springy
+                      onPress={() => remove(m)}
+                      scaleTo={0.85}
+                      accessibilityLabel={`Remove ${m}`}
+                      style={st.remove}
+                    >
+                      <Icon name="close" size={17} color={P.faint} />
+                    </Springy>
+                  </Card>
+                </Enter>
+              );
+            })}
+
+            <View style={{ height: S.lg }} />
+            <Button
+              title={
+                recognised < 2
+                  ? 'Add another recognised medicine'
+                  : `Check ${recognised} medicines`
+              }
+              disabled={recognised < 2}
+              icon={recognised < 2 ? undefined : 'shield'}
+              onPress={() => { tap('medium'); onReport(useCase.execute(items)); }}
+            />
+          </>
+        )}
+      </View>
+    </ScrollView>
   );
 }
 
 const st = StyleSheet.create({
-  centred: { alignItems: 'center', justifyContent: 'center' },
-  input: { flex: 1, minHeight: TOUCH - 6, paddingVertical: 0 },
-  tile: { width: 29, height: 29, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
-  suggestions: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', gap: S.sm },
-  suggestion: { paddingHorizontal: S.md, paddingVertical: 7, borderRadius: R.pill },
+  input: {
+    flex: 1, minHeight: TOUCH + 8, borderRadius: R.pill, borderWidth: 1.5,
+    paddingHorizontal: S.xl,
+  },
+  add: {
+    ...circle(TOUCH + 8),
+    alignItems: 'center', justifyContent: 'center',
+  },
+  suggestions: { flexDirection: 'row', flexWrap: 'wrap', gap: S.sm, marginTop: S.md },
+  suggestion: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: S.md, paddingVertical: 9, borderRadius: R.pill,
+  },
+  dot: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  remove: { ...circle(TOUCH - 6), alignItems: 'center', justifyContent: 'center' },
 });

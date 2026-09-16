@@ -221,21 +221,6 @@ for (const scheme of ['light', 'dark']) {
       scheme, what: `tab label (inactive) on glass over ${what}`,
       fg: c.muted, bg: behind, need: 3, got: ratio(c.muted, behind),
     });
-
-    /*
-     * The floating nav title capsule, new in the iOS 26 layout. Unlike the tab
-     * labels this is a *title* — normal text at 17pt — so it carries the full
-     * 4.5 bar, and it can sit over anything that scrolls beneath it.
-     */
-    checks.push({
-      scheme, what: `nav title on glass over ${what}`,
-      fg: c.ink, bg: behind, need: 4.5, got: ratio(c.ink, behind),
-    });
-    // The back chevron is a control glyph on the same material.
-    checks.push({
-      scheme, what: `back chevron on glass over ${what}`,
-      fg: c.accent, bg: behind, need: 3, got: ratio(c.accent, behind),
-    });
   }
 }
 

@@ -26,6 +26,7 @@
       "expo-sqlite",
       "expo-secure-store",
       "expo-font"
-    ]
+    ],
+    "scheme": "pulsepoint"
   }
 }

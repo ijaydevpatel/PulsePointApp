@@ -19,6 +19,9 @@ import { SeveritySpine } from '../components/SeveritySpine';
 import { Card, SectionLabel, Button, Txt, Springy, Enter, tap } from '../components/Primitives';
 import { Icon } from '../components/Icon';
 import { useTheme, TYPE, S, R, TOUCH, TAB_CLEARANCE, MOTION, circle } from '../theme';
+import {
+  RemoteOutcome, SymptomAnalysis, ProbableCondition, MatrixSeverity,
+} from '../../domain/remote';
 
 /** Counts from 0 to `value`, easing out so it decelerates into place. */
 function useCountUp(value: number, duration = 900) {
@@ -38,8 +41,14 @@ function useCountUp(value: number, duration = 900) {
   return shown;
 }
 
-export function ResultScreen({ result, elapsedMs, onBack, onFindCare }: {
+export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }: {
   result: TriageResult; elapsedMs: number | null;
+  /**
+   * The hosted diagnostic matrix. Null means still in flight — the band above
+   * is already decided locally, so this section fills in underneath rather
+   * than holding the whole screen behind a spinner.
+   */
+  analysis?: RemoteOutcome<SymptomAnalysis> | null;
   onBack: () => void; onFindCare: () => void;
 }) {
   const { c: P, band: B, elev } = useTheme();
@@ -156,6 +165,14 @@ export function ResultScreen({ result, elapsedMs, onBack, onFindCare }: {
             </Enter>
           ) : null}
 
+          {/* ── Hosted diagnostic matrix ──────────────────────────────────
+              Sits BELOW the band, never above it. The band is decided on the
+              device from rules that can be audited; these five are a model's
+              ranked guess. Putting probability first is the exact failure this
+              project was built to correct — a meningitis row at 42% buried
+              under four commoner conditions. */}
+          <MatrixSection analysis={analysis} />
+
           <Enter index={5}>
             <View style={{ height: S.lg }} />
             <Button title="Find care near me" tone="ghost" icon="pin" onPress={onFindCare} />
@@ -199,7 +216,151 @@ export function ResultScreen({ result, elapsedMs, onBack, onFindCare }: {
   );
 }
 
+/* ═════════════════ hosted diagnostic matrix ═════════════════════════════ */
+
+/**
+ * Severity word -> colour. Critical and High share the danger colour on
+ * purpose: at a glance the only question that matters is "is this the serious
+ * one", and two near-identical reds would blur that.
+ *
+ * The word is always rendered alongside the swatch. Colour alone would fail
+ * WCAG 1.4.1, and this is precisely the information you cannot afford a
+ * colour-blind reader to miss.
+ */
+function severityColour(s: MatrixSeverity, P: ReturnType<typeof useTheme>['c']): string {
+  switch (s) {
+    case 'Critical':
+    case 'High':     return P.danger;
+    case 'Medium':   return P.warn;
+    default:         return P.muted;
+  }
+}
+
+function ConditionRow({ item, rank }: { item: ProbableCondition; rank: number }) {
+  const { c: P } = useTheme();
+  const colour = severityColour(item.severity, P);
+  const width = Math.max(2, Math.min(100, item.confidence));
+
+  return (
+    <View style={[st.condRow, rank === 0 && { marginTop: 0 }]}>
+      <View style={st.condHead}>
+        <Txt t="bodyStrong" style={{ flex: 1 }} numberOfLines={2}>{item.name}</Txt>
+        <Txt t="numeric" c={P.muted}>{`${Math.round(item.confidence)}%`}</Txt>
+      </View>
+
+      {/* Confidence bar. Graphical, so the 3:1 bar applies, and it is never the
+          only carrier of the number — the percentage is printed beside it. */}
+      <View style={[st.track, { backgroundColor: P.sunken }]}>
+        <View style={[st.fill, { width: `${width}%`, backgroundColor: colour }]} />
+      </View>
+
+      <View style={st.condFoot}>
+        <View style={[st.sevDot, { backgroundColor: colour }]} />
+        <Txt t="micro" c={colour}>{item.severity.toUpperCase()}</Txt>
+      </View>
+    </View>
+  );
+}
+
+function Pathway({ title, items }: { title: string; items: readonly string[] }) {
+  const { c: P } = useTheme();
+  if (items.length === 0) return null;
+  return (
+    <View style={{ marginTop: S.md }}>
+      <Txt t="micro" c={P.accent} style={st.pathHead}>{title.toUpperCase()}</Txt>
+      {items.map((line, i) => (
+        <View key={`${line}-${i}`} style={st.flagRow}>
+          <View style={[st.bullet, { backgroundColor: P.faint }]} />
+          <Txt t="body" style={{ flex: 1 }}>{line}</Txt>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function hasAnyPathway(p: SymptomAnalysis['treatmentPathways']): boolean {
+  return p.allopathy.length > 0 || p.homeRemedies.length > 0 || p.homeopathic.length > 0;
+}
+
+function MatrixSection({ analysis }: { analysis?: RemoteOutcome<SymptomAnalysis> | null }) {
+  const { c: P } = useTheme();
+
+  // Still in flight. Say so rather than rendering nothing — an absent section
+  // reads as "there is no more information", which is a different claim.
+  if (analysis === null || analysis === undefined) {
+    return (
+      <Enter index={4}>
+        <View style={{ height: S.xxl }} />
+        <SectionLabel>Possible conditions</SectionLabel>
+        <Card>
+          <Txt t="caption" c={P.muted}>Checking against the clinical engine…</Txt>
+        </Card>
+      </Enter>
+    );
+  }
+
+  if (analysis.status !== 'OK' || !analysis.data) {
+    return (
+      <Enter index={4}>
+        <View style={{ height: S.xxl }} />
+        <SectionLabel>Possible conditions</SectionLabel>
+        <Card>
+          <Txt t="caption" c={P.muted}>{analysis.notice}</Txt>
+        </Card>
+      </Enter>
+    );
+  }
+
+  const { probabilityMatrix, treatmentPathways, summaryText } = analysis.data;
+
+  return (
+    <Enter index={4}>
+      <View style={{ height: S.xxl }} />
+      <SectionLabel>Possible conditions</SectionLabel>
+      <Card>
+        {probabilityMatrix.map((item, i) => (
+          <ConditionRow key={`${item.name}-${i}`} item={item} rank={i} />
+        ))}
+        <Txt t="micro" c={P.faint} style={{ marginTop: S.md }}>
+          Ranked by likelihood, not by urgency. The band above decides what to do.
+        </Txt>
+      </Card>
+
+      {summaryText ? (
+        <>
+          <View style={{ height: S.xxl }} />
+          <SectionLabel>Synopsis</SectionLabel>
+          <Card><Txt t="body">{summaryText}</Txt></Card>
+        </>
+      ) : null}
+
+      {hasAnyPathway(treatmentPathways) ? (
+        <>
+          <View style={{ height: S.xxl }} />
+          <SectionLabel>Treatment options</SectionLabel>
+          <Card>
+            <Pathway title="Medical" items={treatmentPathways.allopathy} />
+            <Pathway title="Home remedies" items={treatmentPathways.homeRemedies} />
+            <Pathway title="Homeopathic" items={treatmentPathways.homeopathic} />
+            <Txt t="micro" c={P.faint} style={{ marginTop: S.md }}>
+              Suggestions only. Confirm any medicine or dose with a pharmacist
+              or doctor before taking it.
+            </Txt>
+          </Card>
+        </>
+      ) : null}
+    </Enter>
+  );
+}
+
 const st = StyleSheet.create({
+  condRow: { marginTop: S.md },
+  condHead: { flexDirection: 'row', alignItems: 'flex-start', gap: S.sm },
+  track: { height: 6, borderRadius: 3, marginTop: 6, overflow: 'hidden' },
+  fill: { height: '100%', borderRadius: 3 },
+  condFoot: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 5 },
+  sevDot: { width: 6, height: 6, borderRadius: 3 },
+  pathHead: { letterSpacing: 1.4, marginBottom: 2 },
   hero: {
     borderBottomWidth: StyleSheet.hairlineWidth * 2,
     paddingHorizontal: S.xl,
