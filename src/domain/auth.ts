@@ -23,11 +23,23 @@ export const GUEST: Session = {
   state: 'GUEST', userId: null, displayName: null, cachedAt: null,
 };
 
-/** IAuthGateway — Clerk in Phase 8; a fake drives the UI until then. */
+/** IAuthGateway — Production-ready identity provider interface. */
 export interface AuthGateway {
   current(): Promise<Session>;
   signIn(email: string, password: string): Promise<Session>;
   signUp(email: string, password: string): Promise<Session>;
+  verify(code: string): Promise<Session>;
+  resendCode(): Promise<void>;
+  /**
+   * Starts a password reset for an address.
+   *
+   * Returns void rather than a result on purpose. Whether the address is
+   * registered is not information the caller should be able to act on — a
+   * reset form that distinguishes the two cases becomes a way to test whether
+   * a named person uses a health app. The UI reports the same neutral message
+   * either way, so there is nothing for this to return.
+   */
+  requestPasswordReset(email: string): Promise<void>;
   signOut(): Promise<void>;
   /**
    * Bearer token for the backend, or null when there is none.

@@ -9,6 +9,9 @@ import {
   Inter_400Regular, Inter_500Medium, Inter_600SemiBold,
   Inter_700Bold, Inter_800ExtraBold, Inter_900Black,
 } from '@expo-google-fonts/inter';
+import {
+  PlayfairDisplay_400Regular, PlayfairDisplay_500Medium,
+} from '@expo-google-fonts/playfair-display';
 // @ts-ignore
 import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-expo';
 
@@ -26,6 +29,7 @@ import { TabBar } from './nav/TabBar';
 import { DEFAULT_TAB, RouteKey, TabKey } from './nav/routes';
 import { OfflineBanner } from './components/ScreenHeader';
 import { BottomScrim } from './components/BottomScrim';
+import { GlassBackground } from './components/LiquidGlass';
 import { TriageScreen } from './screens/TriageScreen';
 import { ResultScreen } from './screens/ResultScreen';
 import { MedicinesScreen } from './screens/MedicinesScreen';
@@ -47,6 +51,7 @@ function AppContent() {
   const [fontsLoaded, fontError] = useFonts({
     Inter_400Regular, Inter_500Medium, Inter_600SemiBold,
     Inter_700Bold, Inter_800ExtraBold, Inter_900Black,
+    PlayfairDisplay_400Regular, PlayfairDisplay_500Medium,
   });
 
   const osScheme = useColorScheme();
@@ -114,13 +119,22 @@ function AppContent() {
     );
   }
 
+  /*
+   * No session means the onboarding flow, which opens on its welcome screen
+   * and ends when Clerk reports a session. A restored session skips the whole
+   * thing and lands on the tabs, which is why this is a plain guest check
+   * rather than an onboarding flag: welcome is the door, not a reward, and
+   * someone who is already inside should not be shown the door again.
+   */
   if (session.state === 'GUEST') {
     return (
       <View style={[s.root, { backgroundColor: theme.c.bg }]}>
-        <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
+        {/* The auth composition is a fixed light one, so its status bar icons
+            are dark regardless of the OS theme. */}
+        <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
         <AuthScreen
-          onBack={() => {}}
-          onDone={() => { /* Clerk hooks will trigger re-render */ }}
+          onEnterApp={() => { /* Clerk's session change drives the swap */ }}
+          onDone={() => { /* Clerk hooks drive the re-render */ }}
         />
       </View>
     );
@@ -154,7 +168,8 @@ function AppContent() {
       case 'auth':
         return (
           <AuthScreen
-            onBack={pop}
+            initialMode="login"
+            onEnterApp={pop}
             onDone={() => { setStack([]); }}
           />
         );
@@ -167,11 +182,10 @@ function AppContent() {
             onToggleScheme={() => setOverride(scheme === 'dark' ? 'light' : 'dark')}
           />
         );
+      case 'chat':      return <ChatScreen service={services.chat} onBack={pop} />;
+      case 'news':      return <NewsScreen service={services.news} onBack={pop} />;
+      case 'documents': return <AnalyzerScreen service={services.reports} onBack={pop} />;
       case 'checkin':   return <CheckInScreen onBack={pop} />;
-      // chat, news and documents are tab roots now — they render in renderTab
-      // below, not here. Leaving push cases for them would give two ways to
-      // reach one screen, one of which draws a back chevron that pops to
-      // whatever happened to be underneath.
       default:          return null;
     }
   }
@@ -202,9 +216,15 @@ function AppContent() {
         );
       case 'care':      return <CareScreen />;
       case 'records':   return <RecordsScreen store={store} refreshKey={historyKey} />;
-      case 'chat':      return <ChatScreen service={services.chat} />;
-      case 'news':      return <NewsScreen service={services.news} />;
-      case 'documents': return <AnalyzerScreen service={services.reports} />;
+      case 'more':
+        return (
+          <MoreScreen
+            session={session}
+            onOpen={push}
+            scheme={scheme}
+            onToggleScheme={() => setOverride(scheme === 'dark' ? 'light' : 'dark')}
+          />
+        );
     }
   }
 
@@ -212,23 +232,27 @@ function AppContent() {
 
   return (
     <ThemeContext.Provider value={theme}>
-      <SafeAreaProvider>
-        <SafeAreaView style={[s.root, { backgroundColor: theme.c.bg }]} edges={['top']}>
-          <StatusBar
-            barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'}
-            backgroundColor="transparent"
-            translucent
-          />
-          <OfflineBanner visible={offline} />
-          <View style={{ flex: 1 }}>{overlay ?? renderTab()}</View>
-          {overlay ? null : (
-            <>
-              <BottomScrim />
-              <TabBar active={tab} onSelect={(k) => { setStack([]); setTab(k); }} />
-            </>
-          )}
-        </SafeAreaView>
-      </SafeAreaProvider>
+      {/* SafeAreaProvider lives at the root now — see the note on App(). */}
+      <>
+        <View style={[s.root, { backgroundColor: theme.c.bg }]}>
+          <GlassBackground />
+          <SafeAreaView style={s.root} edges={['top']}>
+            <StatusBar
+              barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'}
+              backgroundColor="transparent"
+              translucent
+            />
+            <OfflineBanner visible={offline} />
+            <View style={{ flex: 1 }}>{overlay ?? renderTab()}</View>
+            {overlay ? null : (
+              <>
+                <BottomScrim />
+                <TabBar active={tab} onSelect={(k) => { setStack([]); setTab(k); }} />
+              </>
+            )}
+          </SafeAreaView>
+        </View>
+      </>
     </ThemeContext.Provider>
   );
 }
@@ -247,10 +271,22 @@ export default function App() {
     );
   }
 
+  /*
+   * SafeAreaProvider wraps everything, above the auth gate rather than below
+   * it.
+   *
+   * It used to sit inside AppContent's signed-in return, which meant the auth
+   * and onboarding branch — which returns earlier — rendered with no provider
+   * above it. Any useSafeAreaInsets() call down there threw on mount. Insets
+   * matter most on exactly those screens, since they draw edge to edge, so the
+   * provider belongs at the root where every branch can see it.
+   */
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-      <AppContent />
-    </ClerkProvider>
+    <SafeAreaProvider>
+      <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+        <AppContent />
+      </ClerkProvider>
+    </SafeAreaProvider>
   );
 }
 

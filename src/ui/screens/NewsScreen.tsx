@@ -19,7 +19,7 @@ import { Icon } from '../components/Icon';
 import { useTheme, S, R, TAB_CLEARANCE } from '../theme';
 import { NewsService, NewsItem, NewsFeed } from '../../domain/remote';
 
-export function NewsScreen({ service }: { service: NewsService }) {
+export function NewsScreen({ service, onBack }: { service: NewsService; onBack?: () => void }) {
   const { c: P } = useTheme();
 
   const [feed, setFeed] = useState<NewsFeed | null>(null);
@@ -53,7 +53,7 @@ export function NewsScreen({ service }: { service: NewsService }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: P.bg }}>
-      <ScreenHeader title="Health News" subtitle="Aggregated clinical briefs" />
+      <ScreenHeader title="Health News" subtitle="Aggregated clinical briefs" onBack={onBack} />
 
       <ScrollView
         contentContainerStyle={st.list}

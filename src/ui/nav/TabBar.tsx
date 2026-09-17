@@ -124,7 +124,7 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
       ]}
       pointerEvents="box-none"
     >
-      <LiquidGlass radius={R.pill} style={st.bar}>
+      <LiquidGlass radius={R.pill} style={st.bar} weight="heavy">
         <View style={st.row} accessibilityRole="tablist">
           {measured ? (
             <Animated.View

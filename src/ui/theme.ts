@@ -214,6 +214,22 @@ export const FONT = {
   bold: 'Inter_700Bold',
   extrabold: 'Inter_800ExtraBold',
   black: 'Inter_900Black',
+
+  /**
+   * Playfair Display, for auth and onboarding headlines only.
+   *
+   * A transitional face with high stroke contrast and fine bracketed serifs —
+   * it sets a headline the way a magazine does, which is the register those
+   * screens are after. Deliberately not used anywhere in the product itself:
+   * a symptom list wants a face that is legible at a glance and boring, and
+   * that is Inter's job.
+   *
+   * SIL Open Font License 1.1, so bundling and shipping it is permitted.
+   * Regular weight is the one to reach for — Playfair's bold loses the thin
+   * strokes that make it worth using.
+   */
+  serif: 'PlayfairDisplay_400Regular',
+  serifMedium: 'PlayfairDisplay_500Medium',
 } as const;
 
 /** RN wants a mutable FontVariant[], not a readonly tuple. */
@@ -233,16 +249,16 @@ export type TypeToken =
  */
 export const TYPE: Record<TypeToken, TextStyle> = {
   /** Result screen only. The severity number. */
-  hero:       { fontFamily: FONT.black,     fontSize: 76, lineHeight: 78, letterSpacing: -3.4, fontVariant: TABULAR },
-  display:    { fontFamily: FONT.extrabold, fontSize: 30, lineHeight: 35, letterSpacing: -0.9 },
-  title:      { fontFamily: FONT.bold,      fontSize: 21, lineHeight: 26, letterSpacing: -0.45 },
-  heading:    { fontFamily: FONT.semibold,  fontSize: 17, lineHeight: 22, letterSpacing: -0.2 },
-  section:    { fontFamily: FONT.bold,      fontSize: 11.5, lineHeight: 14, letterSpacing: 1.1 },
-  body:       { fontFamily: FONT.regular,   fontSize: 15.5, lineHeight: 23, letterSpacing: -0.1 },
-  bodyStrong: { fontFamily: FONT.semibold,  fontSize: 15.5, lineHeight: 22, letterSpacing: -0.15 },
-  label:      { fontFamily: FONT.semibold,  fontSize: 14.5, lineHeight: 19, letterSpacing: -0.1 },
-  caption:    { fontFamily: FONT.regular,   fontSize: 12.5, lineHeight: 18, letterSpacing: 0 },
-  micro:      { fontFamily: FONT.medium,    fontSize: 11, lineHeight: 14, letterSpacing: 0.2 },
+  hero:       { fontFamily: FONT.black,     fontSize: 76, lineHeight: 78, letterSpacing: -3.5, fontVariant: TABULAR },
+  display:    { fontFamily: FONT.extrabold, fontSize: 30, lineHeight: 34, letterSpacing: -1.2 },
+  title:      { fontFamily: FONT.bold,      fontSize: 21, lineHeight: 26, letterSpacing: -0.6 },
+  heading:    { fontFamily: FONT.semibold,  fontSize: 17, lineHeight: 22, letterSpacing: -0.3 },
+  section:    { fontFamily: FONT.bold,      fontSize: 11.5, lineHeight: 14, letterSpacing: 1.2 },
+  body:       { fontFamily: FONT.regular,   fontSize: 15.5, lineHeight: 24, letterSpacing: 0.15 },
+  bodyStrong: { fontFamily: FONT.semibold,  fontSize: 15.5, lineHeight: 22, letterSpacing: 0.1 },
+  label:      { fontFamily: FONT.semibold,  fontSize: 14.5, lineHeight: 19, letterSpacing: 0.1 },
+  caption:    { fontFamily: FONT.regular,   fontSize: 12.5, lineHeight: 18, letterSpacing: 0.2 },
+  micro:      { fontFamily: FONT.medium,    fontSize: 11, lineHeight: 14, letterSpacing: 0.4 },
   numeric:    { fontFamily: FONT.bold,      fontSize: 15, letterSpacing: -0.2, fontVariant: TABULAR },
 };
 
@@ -283,18 +299,34 @@ export const TAB_CLEARANCE = 96;
 export function elevation(scheme: Scheme, step: 0 | 1 | 2 | 3) {
   if (step === 0) return {};
   const dark = scheme === 'dark';
-  const spec = [
+
+  // Layered shadows: a sharp "key" shadow and a soft "ambient" shadow.
+  // This replicates the depth of physical objects better than a single blur.
+  const specs = [
     null,
-    { o: dark ? 0.34 : 0.055, r: 10, y: 3, e: 2 },
-    { o: dark ? 0.42 : 0.085, r: 20, y: 8, e: 6 },
-    { o: dark ? 0.52 : 0.13,  r: 34, y: 16, e: 14 },
+    {
+      key:     { o: dark ? 0.30 : 0.04, r: 2,  y: 1 },
+      ambient: { o: dark ? 0.20 : 0.02, r: 8,  y: 4 },
+      e: 2
+    },
+    {
+      key:     { o: dark ? 0.40 : 0.06, r: 4,  y: 2 },
+      ambient: { o: dark ? 0.25 : 0.04, r: 16, y: 8 },
+      e: 6
+    },
+    {
+      key:     { o: dark ? 0.50 : 0.10, r: 12, y: 6 },
+      ambient: { o: dark ? 0.30 : 0.08, r: 32, y: 16 },
+      e: 14
+    },
   ][step]!;
+
   return {
     shadowColor: '#000000',
-    shadowOpacity: spec.o,
-    shadowRadius: spec.r,
-    shadowOffset: { width: 0, height: spec.y },
-    elevation: spec.e,
+    shadowOpacity: specs.key.o + specs.ambient.o,
+    shadowRadius: specs.ambient.r,
+    shadowOffset: { width: 0, height: specs.ambient.y },
+    elevation: specs.e,
   };
 }
 
@@ -424,20 +456,19 @@ export function composite(overlay: string, backdrop: string): string {
  * that an interface starts to feel like it is thinking rather than responding.
  */
 export const MOTION = {
-  press: { scale: 0.965, damping: 18, stiffness: 420 },
-  spring: { damping: 20, stiffness: 260, mass: 0.9 },
+  /** Instant response for touch-down. */
+  press: { scale: 0.955, damping: 20, stiffness: 520 },
+  /** Default UI transition: critically damped, no overshoot. */
+  spring: { damping: 26, stiffness: 210, mass: 1 },
+  /** Momentum-based flick: under-damped, slight organic bounce. */
+  flick: { damping: 0.8, response: 0.4 },
+
   fast: 140,
   base: 220,
   slow: 320,
-  /** Delay between items in a staggered entrance. */
   stagger: 45,
-  /**
-   * The "liquid" in liquid glass. A moving element stretches along its
-   * direction of travel and settles back — the way a droplet does. Without
-   * this the material is just a static texture; the deformation is what makes
-   * it read as a substance rather than a panel.
-   */
-  liquid: { stretch: 1.35, squash: 0.86, damping: 14, stiffness: 190 },
+  /** Optical "liquid" deformation during travel. */
+  liquid: { stretch: 1.25, squash: 0.9, damping: 15, stiffness: 180 },
 } as const;
 
 /* ────────────────────────────────  context  ─────────────────────────────── */

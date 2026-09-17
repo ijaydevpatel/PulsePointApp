@@ -36,7 +36,7 @@ function riskTone(risk: ReportRisk, P: ReturnType<typeof useTheme>['c']) {
   }
 }
 
-export function AnalyzerScreen({ service }: { service: ReportService }) {
+export function AnalyzerScreen({ service, onBack }: { service: ReportService; onBack?: () => void }) {
   const { c: P } = useTheme();
 
   const [fileName, setFileName] = useState<string | null>(null);
@@ -82,7 +82,7 @@ export function AnalyzerScreen({ service }: { service: ReportService }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: P.bg }}>
-      <ScreenHeader title="Analyzer" subtitle="Read a report or scan" />
+      <ScreenHeader title="Analyzer" subtitle="Read a report or scan" onBack={onBack} />
 
       <ScrollView contentContainerStyle={st.body}>
         {!report && !busy ? (
@@ -200,7 +200,7 @@ const st = StyleSheet.create({
   legal: { marginTop: S.sm, paddingHorizontal: S.md },
   actions: {
     paddingHorizontal: S.md, paddingTop: S.sm,
-    paddingBottom: TAB_CLEARANCE - 40,
+    paddingBottom: TAB_CLEARANCE + S.md,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
 });

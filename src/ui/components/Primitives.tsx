@@ -18,6 +18,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useTheme, TYPE, TypeToken, S, R, TOUCH, MOTION, circle } from '../theme';
 import { Icon, IconName } from './Icon';
+import { LiquidGlass } from './LiquidGlass';
 
 /* ────────────────────────────────  haptics  ─────────────────────────────── */
 
@@ -83,7 +84,7 @@ export function Springy({
       toValue: v,
       damping: MOTION.press.damping,
       stiffness: MOTION.press.stiffness,
-      mass: 0.6,
+      mass: 1,
       useNativeDriver: true,
     }).start();
 
@@ -119,7 +120,8 @@ export function Springy({
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: !!disabled, ...accessibilityState }}
-      onPressIn={() => { to(scaleTo ?? MOTION.press.scale); tap(weight); }}
+      // Instant response on touch-down.
+      onPressIn={() => { if (!disabled) { to(scaleTo ?? MOTION.press.scale); tap(weight); } }}
       onPressOut={() => to(1)}
       onPress={onPress}
       style={rootStyle}
@@ -166,21 +168,36 @@ export function Enter({
 /* ─────────────────────────────────  card  ───────────────────────────────── */
 
 export function Card({
-  children, style, onPress, elevated = 1, padded = true,
+  children, style, onPress, elevated = 1, padded = true, glass = false,
 }: {
   children: ReactNode; style?: StyleProp<ViewStyle>; onPress?: () => void;
-  elevated?: 0 | 1 | 2 | 3; padded?: boolean;
+  elevated?: 0 | 1 | 2 | 3; padded?: boolean; glass?: boolean;
 }) {
   const { c: P, elev } = useTheme();
   const base: ViewStyle = {
-    backgroundColor: P.surface,
+    backgroundColor: glass ? 'transparent' : P.surface,
     borderRadius: R.lg,
     padding: padded ? S.lg : 0,
-    borderWidth: StyleSheet.hairlineWidth * 2,
+    borderWidth: glass ? 0 : StyleSheet.hairlineWidth * 2,
     borderColor: P.line,
-    ...elev(elevated),
+    ...(glass ? {} : elev(elevated)),
   };
-  if (!onPress) return <View style={[base, style]}>{children}</View>;
+
+  const content = (
+    <View style={[base, style]}>{children}</View>
+  );
+
+  if (glass) {
+    const wrapped = (
+      <LiquidGlass radius={R.lg} style={style} contentStyle={{ padding: padded ? S.lg : 0 }}>
+        {children}
+      </LiquidGlass>
+    );
+    if (!onPress) return wrapped;
+    return <Springy onPress={onPress} style={style}>{wrapped}</Springy>;
+  }
+
+  if (!onPress) return content;
   return <Springy onPress={onPress} style={[base, style]}>{children}</Springy>;
 }
 
@@ -214,10 +231,10 @@ export function Button({
   title, onPress, tone = 'primary', disabled, busy, icon, full = true,
 }: {
   title: string; onPress: () => void;
-  tone?: 'primary' | 'quiet' | 'ghost' | 'danger';
+  tone?: 'primary' | 'quiet' | 'ghost' | 'danger' | 'glass';
   disabled?: boolean; busy?: boolean; icon?: IconName; full?: boolean;
 }) {
-  const { c: P, elev } = useTheme();
+  const { c: P, elev, scheme } = useTheme();
 
   const inactive = disabled || busy;
 
@@ -226,13 +243,46 @@ export function Button({
     : tone === 'primary' ? P.accent
     : tone === 'danger' ? P.danger
     : tone === 'quiet' ? P.sunken
+    : tone === 'glass' ? 'transparent'
     : 'transparent';
 
   const fg =
     inactive ? P.faint
     : tone === 'primary' ? P.onAccent
     : tone === 'danger' ? P.onDanger
+    : tone === 'glass' ? (scheme === 'dark' ? '#FFFFFF' : P.accent)
     : P.ink;
+
+  const btnContent = (
+    <View style={st.btnRow}>
+      {icon && !busy ? <Icon name={icon} size={19} color={fg} weight="bold" /> : null}
+      <Text style={[TYPE.label, { fontSize: 16, color: fg, letterSpacing: -0.2, fontWeight: '700' }]}>
+        {busy ? 'Working…' : title}
+      </Text>
+    </View>
+  );
+
+  const baseStyle: ViewStyle = {
+    backgroundColor: bg,
+    alignSelf: full ? 'stretch' : 'flex-start',
+    minHeight: TOUCH + 8,
+    borderRadius: R.pill,
+    overflow: 'hidden',
+  };
+
+  if (tone === 'glass' && !inactive) {
+    return (
+      <Springy onPress={onPress} style={baseStyle}>
+        <LiquidGlass
+          radius={R.pill}
+          style={{ flex: 1 }}
+          contentStyle={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.xl }}
+        >
+          {btnContent}
+        </LiquidGlass>
+      </Springy>
+    );
+  }
 
   return (
     <Springy
@@ -243,16 +293,21 @@ export function Button({
       style={[
         st.btn,
         { backgroundColor: bg, alignSelf: full ? 'stretch' : 'flex-start' },
-        tone === 'primary' || inactive ? elev(2) : null,
+        (tone === 'primary' || inactive) ? elev(2) : null,
         tone === 'ghost' ? { borderWidth: 1.5, borderColor: inactive ? P.line : P.lineStrong } : null,
       ]}
     >
-      <View style={st.btnRow}>
-        {icon && !busy ? <Icon name={icon} size={19} color={fg} weight="bold" /> : null}
-        <Text style={[TYPE.label, { fontSize: 16, color: fg, letterSpacing: -0.2 }]}>
-          {busy ? 'Working…' : title}
-        </Text>
-      </View>
+      {/* 3D Highlight for primary buttons */}
+      {!inactive && tone === 'primary' && (
+        <View style={[StyleSheet.absoluteFill, {
+          borderRadius: R.pill,
+          borderTopWidth: 1.5,
+          borderTopColor: 'rgba(255,255,255,0.25)',
+          borderLeftWidth: 1,
+          borderLeftColor: 'rgba(255,255,255,0.1)'
+        }]} pointerEvents="none" />
+      )}
+      {btnContent}
     </Springy>
   );
 }

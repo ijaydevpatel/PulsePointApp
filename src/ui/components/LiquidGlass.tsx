@@ -38,7 +38,7 @@ import {
   View, StyleSheet, Platform, ViewStyle, StyleProp, LayoutChangeEvent,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Stop, Rect, Pattern, Circle } from 'react-native-svg';
 import { useTheme, R } from '../theme';
 
 const androidBlur = Platform.OS === 'android'
@@ -49,7 +49,7 @@ const androidBlur = Platform.OS === 'android'
 let seq = 0;
 
 export function LiquidGlass({
-  children, style, radius = R.pill, contentStyle, intensity,
+  children, style, radius = R.pill, contentStyle, intensity, weight = 'light',
 }: {
   children?: ReactNode;
   style?: StyleProp<ViewStyle>;
@@ -57,6 +57,8 @@ export function LiquidGlass({
   radius?: number;
   contentStyle?: StyleProp<ViewStyle>;
   intensity?: number;
+  /** Material hierarchy: heavy for toolbars, light for interactive items. */
+  weight?: 'light' | 'heavy';
   /** Accepted for call-site compatibility; the rim is no longer a band. */
   edgeWidth?: number;
 }) {
@@ -73,19 +75,25 @@ export function LiquidGlass({
   // A capsule's true radius is half its height, never the 999 sentinel.
   const r = size.h > 0 ? Math.min(radius, size.h / 2) : radius;
 
+  // Higher intensity for heavy materials to ensure legibility.
+  const baseIntensity = weight === 'heavy' ? (dark ? 55 : 50) : (dark ? 34 : 28);
+  const blurIntensity = Platform.OS === 'android'
+    ? (intensity ?? (baseIntensity + 15))
+    : (intensity ?? baseIntensity);
+
   return (
     <View
       style={[{ borderRadius: radius, overflow: 'hidden' }, style]}
       onLayout={onLayout}
     >
       <BlurView
-        intensity={intensity ?? (dark ? 30 : 26)}
+        intensity={blurIntensity}
         tint={dark ? 'dark' : 'light'}
         experimentalBlurMethod={androidBlur}
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Sheen — a gradient FILL, which renders correctly on Android. */}
+      {/* Sheen & Grain — gradient and texture to simulate high-end glass. */}
       {size.w > 0 && size.h > 0 ? (
         <Svg
           width={size.w}
@@ -95,11 +103,30 @@ export function LiquidGlass({
         >
           <Defs>
             <LinearGradient id={`${uid}-sheen`} x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0" stopColor="#FFFFFF" stopOpacity={dark ? 0.16 : 0.55} />
-              <Stop offset="0.45" stopColor="#FFFFFF" stopOpacity={dark ? 0.04 : 0.14} />
+              <Stop offset="0" stopColor="#FFFFFF" stopOpacity={dark ? 0.20 : 0.60} />
+              <Stop offset="0.4" stopColor="#FFFFFF" stopOpacity={dark ? 0.04 : 0.16} />
               <Stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
             </LinearGradient>
+
+            {/* Subtle physical texture */}
+            <Pattern
+              id={`${uid}-grain`}
+              width="60"
+              height="60"
+              patternUnits="userSpaceOnUse"
+            >
+              <Circle cx="2" cy="2" r="0.6" fill={dark ? "#FFFFFF" : "#000000"} fillOpacity="0.02" />
+              <Circle cx="25" cy="40" r="0.4" fill={dark ? "#FFFFFF" : "#000000"} fillOpacity="0.015" />
+              <Circle cx="48" cy="12" r="0.5" fill={dark ? "#FFFFFF" : "#000000"} fillOpacity="0.02" />
+            </Pattern>
           </Defs>
+
+          <Rect
+            x={0} y={0} width={size.w} height={size.h}
+            rx={r} ry={r}
+            fill={`url(#${uid}-grain)`}
+          />
+
           <Rect
             x={0} y={0} width={size.w} height={size.h}
             rx={r} ry={r}
@@ -108,34 +135,17 @@ export function LiquidGlass({
         </Svg>
       ) : null}
 
-      {/*
-        Rim. White in both schemes — a lit edge is white by definition. If this
-        ever renders dark, something has failed; it is not a light-mode variant.
-      */}
+      {/* 1px Edge Highlight — simulates light catching the rim */}
       <View
         pointerEvents="none"
         style={[
           StyleSheet.absoluteFill,
           {
             borderRadius: radius,
-            borderWidth: StyleSheet.hairlineWidth * 2,
-            borderColor: dark ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.85)',
+            borderWidth: 1.2,
+            borderColor: dark ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.70)',
           },
         ]}
-      />
-
-      {/* Specular highlight just inside the top edge. */}
-      <View
-        pointerEvents="none"
-        style={{
-          position: 'absolute',
-          top: 1.5,
-          left: '20%',
-          right: '20%',
-          height: StyleSheet.hairlineWidth * 2,
-          borderRadius: 1,
-          backgroundColor: dark ? 'rgba(255,255,255,0.30)' : 'rgba(255,255,255,1)',
-        }}
       />
 
       <View style={contentStyle}>{children}</View>
@@ -160,3 +170,27 @@ export function GlassCircle({
     </LiquidGlass>
   );
 }
+
+/**
+ * Decorative background with blurred blobs to provide content for
+ * glass components to refract.
+ */
+export function GlassBackground() {
+  const { c: P, scheme } = useTheme();
+  const dark = scheme === 'dark';
+
+  return (
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: dark ? '#000000' : '#F2F4F7' }]} pointerEvents="none">
+      <View style={[st.bubble, st.bubbleTop, { backgroundColor: P.accent, opacity: dark ? 0.12 : 0.08 }]} />
+      <View style={[st.bubble, st.bubbleMid, { backgroundColor: '#38BDF8', opacity: dark ? 0.07 : 0.05 }]} />
+      <View style={[st.bubble, st.bubbleBottom, { backgroundColor: P.accent, opacity: dark ? 0.10 : 0.06 }]} />
+    </View>
+  );
+}
+
+const st = StyleSheet.create({
+  bubble: { position: 'absolute', borderRadius: 999 },
+  bubbleTop:    { width: 460, height: 460, top: -210, left: -170 },
+  bubbleMid:    { width: 300, height: 300, top: 210,  right: -140 },
+  bubbleBottom: { width: 420, height: 420, bottom: -200, right: -130 },
+});

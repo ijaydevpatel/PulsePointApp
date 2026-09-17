@@ -29,7 +29,7 @@ import { ChatService, ChatTurn } from '../../domain/remote';
 let seq = 0;
 const nextId = () => `t${++seq}`;
 
-export function ChatScreen({ service }: { service: ChatService }) {
+export function ChatScreen({ service, onBack }: { service: ChatService; onBack?: () => void }) {
   const { c: P } = useTheme();
 
   const [turns, setTurns] = useState<readonly ChatTurn[]>([]);
@@ -88,7 +88,7 @@ export function ChatScreen({ service }: { service: ChatService }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: P.bg }}>
-      <ScreenHeader title="AI Doctor" subtitle="Ask a health question" />
+      <ScreenHeader title="AI Doctor" subtitle="Ask a health question" onBack={onBack} />
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -204,7 +204,7 @@ const st = StyleSheet.create({
   composer: {
     flexDirection: 'row', alignItems: 'flex-end', gap: S.sm,
     paddingHorizontal: S.md, paddingTop: S.sm,
-    paddingBottom: TAB_CLEARANCE - 40,
+    paddingBottom: TAB_CLEARANCE + S.md,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   input: {

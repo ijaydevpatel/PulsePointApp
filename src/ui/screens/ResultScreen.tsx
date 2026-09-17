@@ -150,7 +150,7 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
             </Enter>
           ) : (
             <Enter index={3}>
-              <Card elevated={2}>
+              <Card elevated={2} glass={true}>
                 <Txt t="body">{BAND_ADVICE[result.band]}</Txt>
               </Card>
             </Enter>
@@ -159,7 +159,7 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
           {escalate ? (
             <Enter index={4}>
               <View style={{ height: S.lg }} />
-              <Card elevated={1}>
+              <Card elevated={1} glass={true}>
                 <Txt t="body">{BAND_ADVICE[result.band]}</Txt>
               </Card>
             </Enter>
@@ -175,14 +175,14 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
 
           <Enter index={5}>
             <View style={{ height: S.lg }} />
-            <Button title="Find care near me" tone="ghost" icon="pin" onPress={onFindCare} />
+            <Button title="Find care near me" tone="glass" icon="pin" onPress={onFindCare} />
           </Enter>
 
           {result.rationale.length > 0 ? (
             <Enter index={6}>
               <View style={{ height: S.xxl }} />
               <SectionLabel>What this looked at</SectionLabel>
-              <Card>
+              <Card glass={true}>
                 {result.rationale.map((r, i) => (
                   <View key={r} style={[st.flagRow, i === 0 && { marginTop: 0 }]}>
                     <View style={[st.bullet, { backgroundColor: P.faint }]} />
@@ -292,7 +292,7 @@ function MatrixSection({ analysis }: { analysis?: RemoteOutcome<SymptomAnalysis>
       <Enter index={4}>
         <View style={{ height: S.xxl }} />
         <SectionLabel>Possible conditions</SectionLabel>
-        <Card>
+        <Card glass={true}>
           <Txt t="caption" c={P.muted}>Checking against the clinical engine…</Txt>
         </Card>
       </Enter>
@@ -304,7 +304,7 @@ function MatrixSection({ analysis }: { analysis?: RemoteOutcome<SymptomAnalysis>
       <Enter index={4}>
         <View style={{ height: S.xxl }} />
         <SectionLabel>Possible conditions</SectionLabel>
-        <Card>
+        <Card glass={true}>
           <Txt t="caption" c={P.muted}>{analysis.notice}</Txt>
         </Card>
       </Enter>
@@ -317,7 +317,7 @@ function MatrixSection({ analysis }: { analysis?: RemoteOutcome<SymptomAnalysis>
     <Enter index={4}>
       <View style={{ height: S.xxl }} />
       <SectionLabel>Possible conditions</SectionLabel>
-      <Card>
+      <Card glass={true}>
         {probabilityMatrix.map((item, i) => (
           <ConditionRow key={`${item.name}-${i}`} item={item} rank={i} />
         ))}
@@ -330,7 +330,7 @@ function MatrixSection({ analysis }: { analysis?: RemoteOutcome<SymptomAnalysis>
         <>
           <View style={{ height: S.xxl }} />
           <SectionLabel>Synopsis</SectionLabel>
-          <Card><Txt t="body">{summaryText}</Txt></Card>
+          <Card glass={true}><Txt t="body">{summaryText}</Txt></Card>
         </>
       ) : null}
 
@@ -338,7 +338,7 @@ function MatrixSection({ analysis }: { analysis?: RemoteOutcome<SymptomAnalysis>
         <>
           <View style={{ height: S.xxl }} />
           <SectionLabel>Treatment options</SectionLabel>
-          <Card>
+          <Card glass={true}>
             <Pathway title="Medical" items={treatmentPathways.allopathy} />
             <Pathway title="Home remedies" items={treatmentPathways.homeRemedies} />
             <Pathway title="Homeopathic" items={treatmentPathways.homeopathic} />

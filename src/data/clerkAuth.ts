@@ -81,17 +81,41 @@ export class ClerkAuthGateway implements AuthGateway {
     const { isLoaded, signIn, setActive } = this.signInHook;
     if (!isLoaded || !signIn) throw new Error('Sign-in is not ready yet.');
 
+    console.log('Attempting sign-in for:', email);
     const attempt = await signIn.create({ identifier: email, password });
+    console.log('SignIn attempt result status:', attempt.status);
 
-    // Anything other than 'complete' means Clerk wants another factor — a
-    // verification code, say. Surfacing that plainly beats leaving the user on
-    // a spinner that never resolves.
-    if (attempt.status !== 'complete') {
-      throw new Error('Additional verification is required to finish signing in.');
+    if (attempt.status === 'complete') {
+      if (setActive) await setActive({ session: attempt.createdSessionId });
+      return this.toSession(attempt.createdSessionId);
     }
 
-    if (setActive) await setActive({ session: attempt.createdSessionId });
-    return this.toSession(attempt.createdSessionId);
+    if (attempt.status === 'needs_first_factor' || attempt.status === 'needs_second_factor') {
+      console.log('Factors available:', JSON.stringify(attempt.status === 'needs_first_factor' ? attempt.supportedFirstFactors : attempt.supportedSecondFactors));
+
+      const factors = attempt.status === 'needs_first_factor'
+        ? attempt.supportedFirstFactors
+        : attempt.supportedSecondFactors;
+
+      const factor = factors.find((f: any) => f.strategy === 'email_code');
+
+      if (factor) {
+        console.log('Triggering email_code for:', factor.emailAddressId);
+        if (attempt.status === 'needs_first_factor') {
+          await attempt.prepareFirstFactor({
+            strategy: 'email_code',
+            emailAddressId: factor.emailAddressId,
+          });
+        } else {
+          await attempt.prepareSecondFactor({ strategy: 'email_code' });
+        }
+      }
+      throw new Error('VERIFICATION_REQUIRED');
+    }
+
+    // If it's not complete and doesn't need a factor we know, it's an error state
+    console.error('Unexpected sign-in status:', attempt.status);
+    throw new Error(`Clerk requires ${attempt.status.replace(/_/g, ' ')}. Please check your dashboard settings.`);
   }
 
   async signUp(email: string, password: string): Promise<Session> {
@@ -100,15 +124,113 @@ export class ClerkAuthGateway implements AuthGateway {
 
     const attempt = await signUp.create({ emailAddress: email, password });
 
-    // Clerk instances commonly require email verification before the session
-    // becomes active. That is a legitimate state, not a failure, so it gets its
-    // own message rather than a generic error.
-    if (attempt.status !== 'complete') {
-      throw new Error('Check your email to verify the account, then sign in.');
+    if (attempt.status === 'complete') {
+      if (setActive) await setActive({ session: attempt.createdSessionId });
+      return this.toSession(attempt.createdSessionId);
     }
 
-    if (setActive) await setActive({ session: attempt.createdSessionId });
-    return this.toSession(attempt.createdSessionId);
+    // Prepare for email verification if needed
+    if (attempt.status === 'missing_requirements') {
+      await attempt.prepareEmailAddressVerification({ strategy: 'email_code' });
+    }
+
+    throw new Error('VERIFICATION_REQUIRED');
+  }
+
+  async verify(code: string): Promise<Session> {
+    const { signIn, setActive: setSignInActive } = this.signInHook;
+    const { signUp, setActive: setSignUpActive } = this.signUpHook;
+
+    // Try sign-in verification first
+    if (signIn && signIn.status !== 'complete') {
+      let attempt;
+      if (signIn.status === 'needs_first_factor') {
+        attempt = await signIn.attemptFirstFactor({ strategy: 'email_code', code });
+      } else {
+        attempt = await signIn.attemptSecondFactor({ strategy: 'email_code', code });
+      }
+
+      if (attempt.status === 'complete') {
+        if (setSignInActive) await setSignInActive({ session: attempt.createdSessionId });
+        return this.toSession(attempt.createdSessionId);
+      }
+      throw new Error('Verification failed. Please check the code.');
+    }
+
+    // Try sign-up verification
+    if (signUp && signUp.status !== 'complete') {
+      const attempt = await signUp.attemptEmailAddressVerification({ code });
+      if (attempt.status === 'complete') {
+        if (setSignUpActive) await setSignUpActive({ session: attempt.createdSessionId });
+        return this.toSession(attempt.createdSessionId);
+      }
+      throw new Error('Verification failed. Please check the code.');
+    }
+
+    throw new Error('No verification in progress.');
+  }
+
+  async resendCode(): Promise<void> {
+    const { signIn } = this.signInHook;
+    const { signUp } = this.signUpHook;
+
+    console.log('Resend requested. SignIn status:', signIn?.status, 'SignUp status:', signUp?.status);
+
+    if (!signIn && !signUp) {
+      console.error('No signIn or signUp objects found in hooks');
+      throw new Error('Verification session lost. Please go back and try logging in again.');
+    }
+
+    // Try to resend for sign-in
+    if (signIn && (signIn.status === 'needs_first_factor' || signIn.status === 'needs_second_factor')) {
+      const factor = signIn.supportedFirstFactors?.find(
+        (f: any) => f.strategy === 'email_code'
+      );
+      if (factor) {
+        console.log('Resending email code for sign-in factor:', factor.emailAddressId);
+        await signIn.prepareFirstFactor({
+          strategy: 'email_code',
+          emailAddressId: factor.emailAddressId,
+        });
+        return;
+      }
+    }
+
+    // Handle session timeout/needs_identifier during resend
+    if (signIn && signIn.status === 'needs_identifier') {
+      throw new Error('Your session has expired. Please go back and enter your email again.');
+    }
+
+    // Try to resend for sign-up
+    if (signUp && (signUp.status === 'missing_requirements' || signUp.status === 'unverified')) {
+      console.log('Resending email code for sign-up');
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      return;
+    }
+
+    throw new Error('No active verification session found. Please try logging in again.');
+  }
+
+  /**
+   * Sends a reset code to an address, if one is registered to it.
+   *
+   * Clerk answers `form_identifier_not_found` for an unknown address. That
+   * error is swallowed rather than surfaced: distinguishing "no such account"
+   * from "sent" lets anyone holding the phone test whether a given person uses
+   * a health app. Every other failure still throws, so a genuine outage is not
+   * reported to the person as a success.
+   */
+  async requestPasswordReset(email: string): Promise<void> {
+    const { isLoaded, signIn } = this.signInHook;
+    if (!isLoaded || !signIn) throw new Error('Sign-in is not ready yet.');
+
+    try {
+      await signIn.create({ strategy: 'reset_password_email_code', identifier: email });
+    } catch (e: any) {
+      const code = e?.errors?.[0]?.code;
+      if (code === 'form_identifier_not_found') return;
+      throw e;
+    }
   }
 
   async signOut(): Promise<void> {

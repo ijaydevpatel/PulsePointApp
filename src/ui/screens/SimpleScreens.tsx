@@ -61,49 +61,51 @@ export function ProfileScreen({ session, onBack, onSignIn, onSignOut }: {
   const { c: P } = useTheme();
   const signedIn = session.state === 'SIGNED_IN';
   return (
-    <ScrollView contentContainerStyle={{ paddingBottom: S.huge }} showsVerticalScrollIndicator={false}>
-      <ScreenHeader title="Account" onBack={onBack} />
-      <View style={{ paddingHorizontal: S.xl }}>
-        <Enter index={1}>
-          <Card elevated={2}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
-              <View style={[circle(54), {
-                backgroundColor: signedIn ? P.accent : P.sunken,
-                alignItems: 'center', justifyContent: 'center',
-              }]}>
-                <Icon name="user" size={25} color={signedIn ? P.onAccent : P.faint} />
+    <View style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: S.huge }} showsVerticalScrollIndicator={false}>
+        <ScreenHeader title="Account" onBack={onBack} />
+        <View style={{ paddingHorizontal: S.xl }}>
+          <Enter index={1}>
+            <Card elevated={2} glass={true}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
+                <View style={[circle(54), {
+                  backgroundColor: signedIn ? P.accent : P.sunken,
+                  alignItems: 'center', justifyContent: 'center',
+                }]}>
+                  <Icon name="user" size={25} color={signedIn ? P.onAccent : P.faint} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Txt t="heading">{signedIn ? session.displayName : 'Guest'}</Txt>
+                  <Txt t="caption" style={{ marginTop: 3 }}>
+                    {signedIn ? 'Signed in' : 'Using PulsePoint without an account'}
+                  </Txt>
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Txt t="heading">{signedIn ? session.displayName : 'Guest'}</Txt>
-                <Txt t="caption" style={{ marginTop: 3 }}>
-                  {signedIn ? 'Signed in' : 'Using PulsePoint without an account'}
-                </Txt>
-              </View>
+              <Txt t="body" style={{ marginTop: S.lg }}>
+                {signedIn
+                  ? 'Your history can sync across devices.'
+                  : 'Symptom checks, red-flag alerts and the medicine checker all work exactly the same.'}
+              </Txt>
+            </Card>
+          </Enter>
+
+          <Enter index={2}>
+            <View style={{ height: S.xl }} />
+            {signedIn
+              ? <Button title="Sign out" tone="glass" onPress={onSignOut} />
+              : <Button title="Sign in or create an account" tone="glass" icon="user" onPress={onSignIn} />}
+
+            <View style={{ height: S.xxl }} />
+            <View style={{ flexDirection: 'row', gap: S.sm, alignItems: 'flex-start' }}>
+              <Icon name="shield" size={16} color={P.ok} />
+              <Txt t="caption" style={{ flex: 1 }}>
+                Health data stays on this device, encrypted. Nothing is sent anywhere unless you
+                sign in and turn on sync.
+              </Txt>
             </View>
-            <Txt t="body" style={{ marginTop: S.lg }}>
-              {signedIn
-                ? 'Your history can sync across devices.'
-                : 'Symptom checks, red-flag alerts and the medicine checker all work exactly the same.'}
-            </Txt>
-          </Card>
-        </Enter>
-
-        <Enter index={2}>
-          <View style={{ height: S.xl }} />
-          {signedIn
-            ? <Button title="Sign out" tone="ghost" onPress={onSignOut} />
-            : <Button title="Sign in or create an account" icon="user" onPress={onSignIn} />}
-
-          <View style={{ height: S.xxl }} />
-          <View style={{ flexDirection: 'row', gap: S.sm, alignItems: 'flex-start' }}>
-            <Icon name="shield" size={16} color={P.ok} />
-            <Txt t="caption" style={{ flex: 1 }}>
-              Health data stays on this device, encrypted. Nothing is sent anywhere unless you
-              sign in and turn on sync.
-            </Txt>
-          </View>
-        </Enter>
-      </View>
-    </ScrollView>
+          </Enter>
+        </View>
+      </ScrollView>
+    </View>
   );
 }

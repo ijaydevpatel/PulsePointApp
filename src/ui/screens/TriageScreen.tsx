@@ -198,10 +198,11 @@ export function TriageScreen({ classifier, store, onResult, analysis, onAnalysis
                 <Card
                   padded={false}
                   elevated={on ? 2 : 1}
+                  glass={true}
                   style={{
                     marginBottom: S.sm,
-                    borderColor: on ? P.accent : P.line,
-                    borderWidth: on ? 1.5 : StyleSheet.hairlineWidth * 2,
+                    borderColor: on ? P.accent : 'transparent',
+                    borderWidth: on ? 1.5 : 0,
                   }}
                 >
                   <Springy

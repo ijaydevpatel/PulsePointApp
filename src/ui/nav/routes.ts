@@ -31,12 +31,13 @@ export type TabKey =
   | 'medicines'   // web: /dashboard/medicine
   | 'care'        // web: /dashboard/map
   | 'records'     // app-only: encrypted on-device history (FR5)
-  | 'chat'        // web: /dashboard/chat
-  | 'news'        // web: /dashboard/news
-  | 'documents';  // web: /dashboard/report
+  | 'more';       // Consolidated hub for other features
 
 export type RouteKey =
   | TabKey
+  | 'chat'         // moved from tabs to stack/hub
+  | 'news'         // moved from tabs to stack/hub
+  | 'documents'    // moved from tabs to stack/hub
   | 'result'       // pushed from triage
   | 'interactions' // pushed from medicines
   | 'episode'      // pushed from records
@@ -57,11 +58,9 @@ export interface TabDef {
 export const TABS: readonly TabDef[] = [
   { key: 'triage',    label: 'Symptoms',  icon: 'pulse',     web: '/dashboard/symptoms' },
   { key: 'medicines', label: 'Medicines', icon: 'pill',      web: '/dashboard/medicine' },
-  { key: 'chat',      label: 'Doctor',    icon: 'message',   web: '/dashboard/chat' },
-  { key: 'documents', label: 'Analyzer',  icon: 'file',      web: '/dashboard/report' },
-  { key: 'news',      label: 'News',      icon: 'newspaper', web: '/dashboard/news' },
   { key: 'care',      label: 'Map',       icon: 'pin',       web: '/dashboard/map' },
   { key: 'records',   label: 'Records',   icon: 'records',   web: null },
+  { key: 'more',      label: 'More',      icon: 'more',      web: null },
 ];
 
 export const DEFAULT_TAB: TabKey = 'triage';
