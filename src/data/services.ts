@@ -10,8 +10,9 @@
 import { ApiClient, TokenProvider } from './apiClient';
 import {
   RemoteSymptomAnalysis, RemoteMedicineCheck,
-  RemoteChat, RemoteNews, RemoteReportAnalyzer,
+  RemoteChat, RemoteNews, RemoteReportAnalyzer, RemoteDashboard,
 } from './remoteServices';
+import { OpenMeteoConditions } from './conditionsService';
 
 export interface Services {
   readonly api: ApiClient;
@@ -20,6 +21,14 @@ export interface Services {
   readonly chat: RemoteChat;
   readonly news: RemoteNews;
   readonly reports: RemoteReportAnalyzer;
+  readonly dashboard: RemoteDashboard;
+  /**
+   * Not built on the ApiClient: conditions come from Open-Meteo directly
+   * rather than from our backend, whose values for them are hard-coded. It
+   * needs no token, so it needs nothing from the container except a place to
+   * live beside the others.
+   */
+  readonly conditions: OpenMeteoConditions;
 }
 
 /**
@@ -42,5 +51,7 @@ export function createServices(getToken: TokenProvider): Services {
     chat: new RemoteChat(api),
     news: new RemoteNews(api),
     reports: new RemoteReportAnalyzer(api),
+    dashboard: new RemoteDashboard(api),
+    conditions: new OpenMeteoConditions(),
   };
 }

@@ -12,7 +12,10 @@
       "adaptiveIcon": {
         "backgroundColor": "#12263A"
       },
-      "permissions": []
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "plugins": [
       [
@@ -25,7 +28,13 @@
       ],
       "expo-sqlite",
       "expo-secure-store",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "PulsePoint uses your location only to show local air quality, UV and humidity. It is never stored or sent to our servers."
+        }
+      ]
     ],
     "scheme": "pulsepoint"
   }

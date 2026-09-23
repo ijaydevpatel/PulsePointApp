@@ -84,24 +84,45 @@ export interface Palette {
  * grouped background. That single change is most of what makes a screen read
  * as iOS rather than as a generic app.
  */
+/*
+ * Light, and the same light as the auth screens.
+ *
+ * The two halves of the app used to disagree: onboarding was warm off-white
+ * with near-black type, and signing in dropped you into a cooler grey-blue
+ * with an indigo accent. Crossing that boundary read as entering a different
+ * product. The canvas, surface and ink below are now literally the auth
+ * values, and the accent is the crimson from the brand mark rather than a
+ * blue that appears nowhere else in the identity.
+ */
 const light: Palette = {
   scheme: 'light',
 
-  bg: '#F7F8FA',
+  bg: '#F7F7F9',        // auth canvas
   surface: '#FFFFFF',
-  sunken: '#EFF2F6',
+  sunken: '#F0F0F3',
   raised: '#FFFFFF',
 
-  line: '#E3E8EF',
-  lineStrong: '#878F9A',
+  line: '#ECECEF',
+  lineStrong: '#8E8E95',
 
-  ink: '#0C1524',
-  inkSoft: '#3A4658',
-  muted: '#5F6E88',
-  faint: '#8490A4',
+  ink: '#0A0A0A',       // auth ink
+  inkSoft: '#222222',
+  muted: '#5C6273',
+  faint: '#6B6B70',
 
-  accent: '#3A46E8',
-  accentSoft: '#ECEDFE',
+  /*
+   * The ECG trace from the mark, darkened by the smallest amount that clears
+   * AA everywhere it lands.
+   *
+   * #D92544 exactly measures 4.89:1 on white and 4.57:1 on the canvas — fine —
+   * but 4.30:1 on `sunken`, and the accent carries text on recessed wells.
+   * Lightening `sunken` to fix it would have made the well invisible against
+   * the canvas (1.01:1), so the accent moved instead. #D42140 is two steps
+   * darker, clears 4.5 on all three grounds, and is indistinguishable from the
+   * mark's colour side by side. The mark itself still uses #D92544.
+   */
+  accent: '#D42140',
+  accentSoft: '#FDEEF1',
   onAccent: '#FFFFFF',
 
   ok: '#007E50',
@@ -110,7 +131,7 @@ const light: Palette = {
   dangerSoft: '#FFF0F2',
   onDanger: '#FFFFFF',
 
-  scrim: 'rgba(12,21,36,0.42)',
+  scrim: 'rgba(10,10,10,0.42)',
   barTint: 'rgba(255,255,255,0.72)',
 };
 
@@ -130,9 +151,15 @@ const dark: Palette = {
   muted: '#8E9AAC',
   faint: '#65707F',
 
-  accent: '#8F97FF',
-  accentSoft: '#1E2140',
-  onAccent: '#0A0D14',
+  /*
+   * The same crimson, lifted for a dark ground. #D92544 measures 3.4:1 on the
+   * dark surface — fine for a graphic, short of AA for the text and glyphs the
+   * accent carries — so the dark scheme uses a lighter tint of the same hue
+   * rather than a different colour.
+   */
+  accent: '#FF7A8F',
+  accentSoft: '#2B141A',
+  onAccent: '#1A0308',
 
   ok: '#3ECF98',
   warn: '#FF9A52',

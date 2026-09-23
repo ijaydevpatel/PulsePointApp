@@ -9,6 +9,7 @@ import {
   RemoteOutcome, RemoteStatus, REMOTE_NOTICE,
   SymptomAnalysis, SymptomAnalysisRequest, SymptomAnalysisService,
   ProbableCondition, MatrixSeverity,
+  DailyStatus, DashboardService, Intelligence, RiskTrend,
 } from '../domain/remote';
 import { ApiClient, ApiError } from './apiClient';
 
@@ -264,4 +265,70 @@ export class RemoteReportAnalyzer implements ReportService {
 
 function str(v: unknown, fallback: string): string {
   return typeof v === 'string' && v.trim() !== '' ? v.trim() : fallback;
+}
+
+
+/* ─────────────────────────── dashboard intelligence ─────────────────────── */
+
+/** Only the three values the route's prompt asks for; anything else is noise. */
+function readStatus(v: unknown): DailyStatus {
+  return v === 'Optimal' || v === 'Caution' || v === 'Alert' ? v : 'Unknown';
+}
+
+function readTrend(v: unknown): RiskTrend {
+  return v === 'Stable' || v === 'Rising' || v === 'Falling' ? v : 'Unknown';
+}
+
+/** Trim-or-empty. Distinct from the two-argument `str` above, which defaults. */
+const text = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+
+/**
+ * GET /api/dashboard/intel.
+ *
+ * The route asks Groq for strict JSON and extracts it with a regex, so the
+ * shape that arrives is whatever the model produced that round. Every field is
+ * therefore read defensively: an unexpected enum becomes 'Unknown' rather than
+ * being passed through to a UI that would style it as though it were valid.
+ *
+ * A response with no tip and no brief is treated as a failure. An empty card
+ * that looks like it loaded is worse than one that admits it did not.
+ */
+export class RemoteDashboard implements DashboardService {
+  constructor(private readonly api: ApiClient) {}
+
+  async intel(): Promise<RemoteOutcome<Intelligence>> {
+    const started = Date.now();
+    try {
+      const raw = await this.api.get<any>('/api/dashboard/intel');
+      const i = raw?.intelligence ?? {};
+      const twin = i?.digitalTwin ?? {};
+
+      const dailyTip = text(i.dailyTip);
+      const intelligenceBrief = text(i.intelligenceBrief);
+      if (!dailyTip && !intelligenceBrief) return fail('FAILED', started);
+
+      const genMs = raw?.neuralPulse?.generationTime;
+
+      return {
+        status: 'OK',
+        data: {
+          dailyTip,
+          dailyStatus: readStatus(i.dailyStatus),
+          intelligenceBrief,
+          digitalTwin: {
+            pattern: text(twin.pattern),
+            riskTrend: readTrend(twin.riskTrend),
+            medInsight: text(twin.medInsight),
+          },
+          environmentalAnalysis: text(i.environmentalAnalysis),
+          model: text(raw?.neuralPulse?.model) || null,
+          generationMs: typeof genMs === 'number' && Number.isFinite(genMs) ? genMs : null,
+        },
+        notice: null,
+        elapsedMs: Date.now() - started,
+      };
+    } catch (error) {
+      return fail(classify(error, this.api.configured), started);
+    }
+  }
 }

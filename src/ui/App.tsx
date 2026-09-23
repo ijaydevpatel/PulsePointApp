@@ -27,6 +27,7 @@ import { ENV } from '../config/env';
 
 import { TabBar } from './nav/TabBar';
 import { TopBar } from './nav/TopBar';
+import { TabTransition } from './nav/TabTransition';
 import { DEFAULT_TAB, RouteKey, TabKey } from './nav/routes';
 import { OfflineBanner } from './components/ScreenHeader';
 import { BottomScrim } from './components/BottomScrim';
@@ -206,6 +207,8 @@ function AppContent() {
             store={store}
             session={session}
             refreshKey={historyKey}
+            dashboard={services.dashboard}
+            conditions={services.conditions}
             onStartTriage={() => setTab('triage')}
           />
         );
@@ -251,7 +254,11 @@ function AppContent() {
               translucent
             />
             <OfflineBanner visible={offline} />
-            <View style={{ flex: 1 }}>{overlay ?? renderTab()}</View>
+            {/* Keyed on the tab so each root mounts fresh and the transition
+                has something new to animate in. */}
+            <View style={{ flex: 1 }}>
+              {overlay ?? <TabTransition key={tab} tabKey={tab}>{renderTab()}</TabTransition>}
+            </View>
             {overlay ? null : (
               <>
                 {/* Floating chrome. Both bars sit above the content rather
