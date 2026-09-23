@@ -229,7 +229,15 @@ export interface Intelligence {
   readonly environmentalAnalysis: string;
   /** Which model produced it, and how long it took. Shown, not hidden. */
   readonly model: string | null;
-  readonly generationMs: number | null;
+  /**
+   * Seconds, not milliseconds.
+   *
+   * groqService computes `(Date.now() - startTime) / 1000`, so the wire value
+   * is already in seconds. This was named `generationMs` and divided by 1000
+   * again at render — a 2.5s generation displayed as "0.0s". The unit is in
+   * the name now so the next reader cannot make the same assumption.
+   */
+  readonly generationSeconds: number | null;
 }
 
 export interface DashboardService {

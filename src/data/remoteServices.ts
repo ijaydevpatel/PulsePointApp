@@ -351,7 +351,7 @@ export class RemoteDashboard implements DashboardService {
           },
           environmentalAnalysis: text(i.environmentalAnalysis),
           model: text(raw?.neuralPulse?.model) || null,
-          generationMs: typeof genMs === 'number' && Number.isFinite(genMs) ? genMs : null,
+          generationSeconds: typeof genMs === 'number' && Number.isFinite(genMs) ? genMs : null,
         },
         notice: null,
         elapsedMs: Date.now() - started,
