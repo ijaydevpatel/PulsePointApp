@@ -270,7 +270,11 @@ export function HomeScreen({
       <Enter index={7}>
         <View style={{ height: S.xxl }} />
         <SectionLabel>Environmental pulse</SectionLabel>
-        <EnvCard env={env} analysis={i?.environmentalAnalysis ?? ''} />
+        <EnvCard
+          env={env}
+          analysis={i?.environmentalAnalysis ?? ''}
+          onRetry={() => { setEnv(null); void conditions.current().then(setEnv); }}
+        />
       </Enter>
     </ScrollView>
   );
@@ -342,10 +346,11 @@ function IntelCard({ outcome }: { outcome: RemoteOutcome<Intelligence> | null })
 /* ──────────────────────────── environment ───────────────────────────────── */
 
 function EnvCard({
-  env, analysis,
+  env, analysis, onRetry,
 }: {
   env: { state: LocationState; data: Conditions | null; notice: string | null } | null;
   analysis: string;
+  onRetry: () => void;
 }) {
   const { c: P } = useTheme();
 
@@ -358,6 +363,13 @@ function EnvCard({
   }
 
   if (env.state !== 'OK' || !env.data) {
+    /*
+      Retry lives on the card, not only on pull-to-refresh. This card sits
+      mid-screen, so the gesture that fixes it is both invisible and easy to
+      miss — and the common causes (location toggled on, stepping near a
+      window) are resolved in seconds, which makes an explicit retry the
+      difference between a card that recovers and one that looks broken.
+    */
     return (
       <Card style={{ padding: S.lg }}>
         <View style={st.noticeRow}>
@@ -366,6 +378,15 @@ function EnvCard({
             {env.notice ?? 'Conditions are unavailable.'}
           </Txt>
         </View>
+        <Pressable
+          onPress={onRetry}
+          accessibilityRole="button"
+          accessibilityLabel="Retry reading conditions"
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={({ pressed }) => [{ marginTop: S.md }, pressed && { opacity: 0.6 }]}
+        >
+          <Txt t="label" c={P.accent}>Try again</Txt>
+        </Pressable>
       </Card>
     );
   }

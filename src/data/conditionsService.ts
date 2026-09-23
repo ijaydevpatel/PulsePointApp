@@ -29,6 +29,15 @@ const WEATHER = 'https://api.open-meteo.com/v1/forecast';
 /** Beyond this a reading is not worth waiting for on a dashboard. */
 const TIMEOUT_MS = 8000;
 
+/**
+ * A live fix gets longer than a network request.
+ *
+ * Nothing blocks on this — the rest of Home has already rendered — and 8s was
+ * short enough that a cold radio lost the race even when it was about to
+ * succeed.
+ */
+const FIX_TIMEOUT_MS = 15000;
+
 async function getJson(url: string): Promise<any | null> {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
@@ -89,6 +98,32 @@ export class OpenMeteoConditions implements ConditionsService {
     }
 
     /*
+     * Permission granted is not the same as location being on.
+     *
+     * Android keeps the app grant and the device-wide toggle separate, so a
+     * user can have said yes to PulsePoint while Location itself is switched
+     * off — or be on an emulator that has never had a position set. In that
+     * state the cached fix is null and the live one never resolves, which is
+     * precisely the stall this card was showing, under a message that blamed
+     * the fix rather than the setting.
+     *
+     * Checking first means the notice can say the one thing that actually
+     * helps.
+     */
+    try {
+      const servicesOn = await Location.hasServicesEnabledAsync();
+      if (!servicesOn) {
+        return {
+          state: 'UNAVAILABLE',
+          data: null,
+          notice: 'Location is switched off on this device. Turn it on to see local conditions.',
+        };
+      }
+    } catch {
+      // Older platforms can throw here; fall through and let the fix decide.
+    }
+
+    /*
      * Last known position first, then a live fix.
      *
      * getCurrentPositionAsync waits for the radio to produce a reading. On an
@@ -111,16 +146,25 @@ export class OpenMeteoConditions implements ConditionsService {
         maxAge: 60 * 60 * 1000,
       });
 
+      /*
+       * Accuracy.Low, not Balanced.
+       *
+       * Balanced asks for a GPS-grade fix, which needs sky and can take tens
+       * of seconds indoors. Low is satisfied by cell towers and wifi — it
+       * resolves in a second or two, works inside a building, and is accurate
+       * to a few hundred metres, which is far more than a city-scale air
+       * quality lookup needs.
+       */
       const pos = cached ?? await Promise.race([
-        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), TIMEOUT_MS)),
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), FIX_TIMEOUT_MS)),
       ]);
 
       if (!pos) {
         return {
           state: 'UNAVAILABLE',
           data: null,
-          notice: 'Waiting on a location fix. Pull down to retry.',
+          notice: 'Could not get a position. Pull down to retry.',
         };
       }
 
