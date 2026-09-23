@@ -315,10 +315,20 @@ const text = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
 export class RemoteDashboard implements DashboardService {
   constructor(private readonly api: ApiClient) {}
 
-  async intel(): Promise<RemoteOutcome<Intelligence>> {
+  /**
+   * @param fresh Skip the server's 30-minute cache.
+   *
+   * Home passes true on every open. The tip is meant to be a new piece of
+   * guidance each time the app is launched, and the cache made it the same
+   * sentence all afternoon. The server still writes the cache, so a failed
+   * regeneration falls back to the last good tip rather than to nothing.
+   */
+  async intel(fresh = false): Promise<RemoteOutcome<Intelligence>> {
     const started = Date.now();
     try {
-      const raw = await this.api.get<any>('/api/dashboard/intel');
+      const raw = await this.api.get<any>(
+        fresh ? '/api/dashboard/intel?fresh=1' : '/api/dashboard/intel',
+      );
       const i = raw?.intelligence ?? {};
       const twin = i?.digitalTwin ?? {};
 

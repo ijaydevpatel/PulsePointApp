@@ -233,7 +233,8 @@ export interface Intelligence {
 }
 
 export interface DashboardService {
-  intel(): Promise<RemoteOutcome<Intelligence>>;
+  /** `fresh` bypasses the server's cache, for a new tip on each app open. */
+  intel(fresh?: boolean): Promise<RemoteOutcome<Intelligence>>;
 }
 
 /* ───────────────────────────── environment ──────────────────────────────── */

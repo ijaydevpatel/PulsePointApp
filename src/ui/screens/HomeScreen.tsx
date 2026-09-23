@@ -7,12 +7,16 @@
  *
  * ── What is real, and what the site got wrong ────────────────────────────────
  *
- * Today's Intelligence, the pattern and the risk trend are genuine: Groq
- * generates them from the signed-in profile and the backend caches the result
- * for thirty minutes, which is why the wording changes between sessions rather
- * than on every open. The model and generation time are shown rather than
- * hidden, because it is model output about someone's health and pretending
- * otherwise is the problem.
+ * Today's Intelligence, the pattern and the risk trend are genuine: GPT-OSS-120B
+ * on Groq generates them from the signed-in profile. Home asks for a fresh one
+ * on every open — the route caches for thirty minutes by default, which made
+ * the tip the same sentence all afternoon — and the server keeps the last good
+ * value so a failed regeneration falls back rather than showing nothing. The
+ * last twenty tips are withheld from the model so it cannot circle the same
+ * three suggestions.
+ *
+ * The model and generation time are shown rather than hidden, because it is
+ * model output about someone's health and pretending otherwise is the problem.
  *
  * Two cards work differently here than on the site:
  *
@@ -99,7 +103,9 @@ export function HomeScreen({
    * the slowest.
    */
   const loadRemote = useCallback(async () => {
-    void dashboard.intel().then(setIntel);
+    // fresh: the tip should be new guidance each time the app is opened, not
+    // the same sentence for half an hour.
+    void dashboard.intel(true).then(setIntel);
     void conditions.current().then(setEnv);
   }, [dashboard, conditions]);
 
