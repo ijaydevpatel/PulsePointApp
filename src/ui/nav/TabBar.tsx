@@ -1,201 +1,224 @@
 /**
- * Floating liquid-glass tab bar.
+ * Floating navigation bar.
  *
- * ── How the active indicator is positioned, and why it changed ───────────────
+ * A dark capsule carrying five icons. The selected one expands into a light
+ * pill and reveals its label; the rest stay as glyphs. Only one label is ever
+ * on screen, which is what lets the bar stay this short — five permanent
+ * labels would need either tiny type or a taller bar.
  *
- * It used to be placed by arithmetic: measure the row, divide by the tab count,
- * offset by the padding, subtract half the indicator. That is three assumptions
- * about layout, and it was wrong twice — first because onLayout reports the box
- * *including* padding while the tabs sit inside it, then again once the icon
- * offset was folded in.
+ * ── Colour ───────────────────────────────────────────────────────────────────
  *
- * It is now positioned from measurement instead of derivation: every tab
- * reports its own x and width via onLayout, and the indicator simply adopts
- * them. There is no padding term, no divide, and nothing to get wrong — if the
- * tab moves, the indicator moves with it by definition.
+ * Ink and white, taken from the welcome screen rather than from the product
+ * theme's blue. The bar is the brand hull colour (#1A1A1A, the hexagon in the
+ * mark), the selected pill is the same white as the auth surfaces, and the
+ * selected glyph and label are the same near-black as the headlines. It is
+ * deliberately monochrome: this sits above every screen in the app, including
+ * the triage result where colour carries clinical meaning, and a coloured
+ * chrome element competing with a red EMERGENCY band is a real hazard rather
+ * than a style preference.
  *
- * The indicator is also a capsule behind the whole item rather than a circle
- * around the glyph. A circle has to be centred on *something* — the icon, or
- * the item, or the slot — and those three differ. A capsule that adopts the
- * tab's own bounds has no such ambiguity.
+ * This is why the bar does not read the theme palette. It is fixed light-on-
+ * dark in both schemes, like a system navigation bar.
  *
- * The stretch on travel is kept: it is interpolated from the same animated
- * value that drives translation, so the deformation cannot fall out of sync
- * with the movement.
+ * ── Why the selection is laid out with flex, not measured ────────────────────
+ *
+ * The previous version measured every tab and drove an indicator from the
+ * measurements. That was right for an indicator that had to *track* tabs of
+ * unknown width. Here the selected tab changes width itself, so measurement
+ * would mean laying out, reading back, then animating to a number that the
+ * next layout invalidates.
+ *
+ * Flex weights state the relationship directly instead: unselected tabs take
+ * one unit, the selected one takes SELECTED_UNITS, and the row divides itself.
+ * No measurement, no arithmetic, and it cannot drift — the expanded pill is
+ * exactly as wide as the layout says it is.
+ *
+ * The touch-target floor falls out of the same arithmetic rather than being
+ * hoped for; see MIN_BAR_WIDTH below.
  */
-import React, { useEffect, useRef, useState } from 'react';
-import { View, StyleSheet, Animated, LayoutChangeEvent } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import {
+  View, Text, StyleSheet, Pressable, Animated, Easing,
+  LayoutAnimation, Platform, UIManager, AccessibilityInfo,
+  useWindowDimensions,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { TABS, TabKey } from './routes';
-import { useTheme, TYPE, S, R, TOUCH, MOTION } from '../theme';
+import {
+  BAR_PAD, BAR_SIDE_MARGIN, MIN_BAR_WIDTH, SELECTED_UNITS, TABS, TabKey,
+} from './routes';
+import { TYPE, S, R, TOUCH } from '../theme';
 import { Icon } from '../components/Icon';
-import { Springy } from '../components/Primitives';
-import { LiquidGlass } from '../components/LiquidGlass';
 
-const PAD_V = S.sm + 2;
-const PAD_H = S.xs;
-/** Inset of the capsule inside the tab's measured bounds. */
-const GAP = 5;
+// Only needed on the old architecture; under Fabric layout animations are on
+// by default and the setter does not exist. Guarded rather than assumed.
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
-interface Slot { x: number; w: number }
+/* ─────────────────────────────── palette ────────────────────────────────── */
+
+/** The hexagon in the brand mark. */
+const BAR = '#1A1A1A';
+/** Selected pill. Same white as the auth surfaces. */
+const PILL = '#FFFFFF';
+/** Selected glyph and label on that pill. 18.4:1. */
+const ON_PILL = '#0A0A0A';
+/**
+ * Unselected glyphs. 7.2:1 against the bar — comfortably past the 3:1 that
+ * WCAG 1.4.11 asks of a control you have to be able to find.
+ */
+const OFF_PILL = '#A6A6A6';
+
+/* ─────────────────────────────── geometry ───────────────────────────────── */
+
+/*
+ * SELECTED_UNITS, BAR_PAD, BAR_SIDE_MARGIN and MIN_BAR_WIDTH now live in
+ * routes.ts alongside TABS. The touch-target floor is a consequence of how
+ * many destinations there are, so it belongs with the destinations — and the
+ * test suite can then check the arithmetic without importing a component.
+ */
+const PAD = BAR_PAD;
+const SIDE_MARGIN = BAR_SIDE_MARGIN;
 
 export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: TabKey) => void }) {
-  const { c: P, scheme } = useTheme();
   const insets = useSafeAreaInsets();
-
-  const index = Math.max(0, TABS.findIndex((t) => t.key === active));
-  const [slots, setSlots] = useState<Slot[]>([]);
-  const measured = slots.length === TABS.length && slots.every((s) => s && s.w > 0);
-
-  /** Animated position, in tab index units. */
-  const pos = useRef(new Animated.Value(index)).current;
-  const from = useRef(index);
-
-  useEffect(() => {
-    Animated.spring(pos, {
-      toValue: index,
-      damping: MOTION.liquid.damping,
-      stiffness: MOTION.liquid.stiffness,
-      mass: 1,
-      useNativeDriver: true,
-    }).start(() => { from.current = index; });
-  }, [index, pos]);
-
-  const onTabLayout = (i: number) => (e: LayoutChangeEvent) => {
-    const { x, width } = e.nativeEvent.layout;
-    setSlots((prev) => {
-      const cur = prev[i];
-      if (cur && Math.abs(cur.x - x) < 0.5 && Math.abs(cur.w - width) < 0.5) return prev;
-      const next = [...prev];
-      next[i] = { x, w: width };
-      return next;
-    });
-  };
-
-  const a = Math.min(from.current, index);
-  const b = Math.max(from.current, index);
-  const moving = b > a;
-
-  const stretchX = moving
-    ? pos.interpolate({
-        inputRange: [a, (a + b) / 2, b],
-        outputRange: [1, MOTION.liquid.stretch, 1],
-        extrapolate: 'clamp',
-      })
-    : 1;
-  const squashY = moving
-    ? pos.interpolate({
-        inputRange: [a, (a + b) / 2, b],
-        outputRange: [1, MOTION.liquid.squash, 1],
-        extrapolate: 'clamp',
-      })
-    : 1;
+  const { width } = useWindowDimensions();
 
   /*
-   * Translation interpolates across the measured x of every tab, so the
-   * indicator tracks real positions even if the tabs are unequal widths.
+   * Reduce-motion is read once and cached. The expand is a width change, which
+   * is the kind of motion the setting exists for; when it is on the pill snaps
+   * instead, and nothing else about the bar changes.
    */
-  const translateX = measured
-    ? pos.interpolate({
-        inputRange: TABS.map((_, i) => i),
-        outputRange: slots.map((s) => s.x + GAP),
-      })
-    : 0;
+  const reduceMotion = useRef(false);
+  useEffect(() => {
+    let alive = true;
+    AccessibilityInfo.isReduceMotionEnabled().then((r) => { if (alive) reduceMotion.current = r; });
+    return () => { alive = false; };
+  }, []);
 
-  const capsuleW = measured ? slots[index]!.w - GAP * 2 : 0;
+  /** Fades the label in slightly behind the width change, so it does not
+   *  appear in a pill that has not finished opening. */
+  const labelIn = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (reduceMotion.current) { labelIn.setValue(1); return; }
+
+    LayoutAnimation.configureNext({
+      duration: 260,
+      update: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.scaleXY },
+    });
+
+    labelIn.setValue(0);
+    Animated.timing(labelIn, {
+      toValue: 1,
+      duration: 180,
+      delay: 90,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  }, [active, labelIn]);
+
+  /*
+   * Below the floor the bar would have to shrink its targets. It drops the
+   * side margins first — losing the floating inset is a far smaller loss than
+   * losing a tappable control.
+   */
+  const margin = width < MIN_BAR_WIDTH ? S.xs : SIDE_MARGIN;
 
   return (
     <View
       style={[
         st.wrap,
-        { bottom: Math.max(insets.bottom, S.sm) + S.xs, left: S.lg, right: S.lg },
-        /*
-         * Android draws elevation as a real shadow; at high values on a rounded
-         * shape it collapses into a hard dark ring that reads as an outline
-         * rather than depth. Wide and low-opacity instead.
-         */
-        {
-          shadowColor: '#000',
-          shadowOpacity: scheme === 'dark' ? 0.44 : 0.10,
-          shadowRadius: 24,
-          shadowOffset: { width: 0, height: 10 },
-          elevation: 4,
-        },
+        { bottom: Math.max(insets.bottom, S.sm) + S.xs, left: margin, right: margin },
       ]}
       pointerEvents="box-none"
     >
-      <LiquidGlass radius={R.pill} style={st.bar} weight="heavy">
-        <View style={st.row} accessibilityRole="tablist">
-          {measured ? (
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                st.capsule,
-                {
-                  width: capsuleW,
-                  backgroundColor: P.accent + (scheme === 'dark' ? '2E' : '18'),
-                  transform: [
-                    { translateX },
-                    { scaleX: stretchX },
-                    { scaleY: squashY },
-                  ],
-                },
+      <View style={st.bar} accessibilityRole="tablist">
+        {TABS.map((t) => {
+          const on = t.key === active;
+          return (
+            <Pressable
+              key={t.key}
+              onPress={() => onSelect(t.key)}
+              accessibilityRole="tab"
+              accessibilityLabel={t.label}
+              accessibilityState={{ selected: on }}
+              android_ripple={null}
+              style={({ pressed }) => [
+                st.tab,
+                { flex: on ? SELECTED_UNITS : 1 },
+                on && st.tabOn,
+                pressed && { opacity: 0.75 },
               ]}
-            />
-          ) : null}
+            >
+              <Icon
+                name={t.icon}
+                size={21}
+                color={on ? ON_PILL : OFF_PILL}
+                weight={on ? 'bold' : 'regular'}
+              />
 
-          {TABS.map((t, i) => {
-            const on = t.key === active;
-            return (
-              <View key={t.key} style={{ flex: 1 }} onLayout={onTabLayout(i)}>
-                <Springy
-                  onPress={() => onSelect(t.key)}
-                  weight="select"
-                  scaleTo={0.9}
-                  accessibilityRole="tab"
-                  accessibilityLabel={t.label}
-                  accessibilityState={{ selected: on }}
-                  style={st.tab}
+              {on ? (
+                <Animated.Text
+                  numberOfLines={1}
+                  style={[st.label, { opacity: labelIn }]}
+                  // The Pressable already carries the label for screen
+                  // readers; announcing it twice is noise.
+                  accessibilityElementsHidden
+                  importantForAccessibility="no"
                 >
-                  <Icon
-                    name={t.icon}
-                    size={23}
-                    color={on ? P.accent : P.muted}
-                    weight={on ? 'bold' : 'regular'}
-                  />
-                  <Animated.Text
-                    numberOfLines={1}
-                    style={[
-                      TYPE.micro,
-                      { color: on ? P.accent : P.muted, fontSize: 10.5, marginTop: 3 },
-                    ]}
-                  >
-                    {t.label}
-                  </Animated.Text>
-                </Springy>
-              </View>
-            );
-          })}
-        </View>
-      </LiquidGlass>
+                  {t.label}
+                </Animated.Text>
+              ) : null}
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 const st = StyleSheet.create({
   wrap: { position: 'absolute' },
-  bar: { borderRadius: R.pill },
-  row: { flexDirection: 'row', paddingVertical: PAD_V, paddingHorizontal: PAD_H },
-  capsule: {
-    position: 'absolute',
-    left: 0,
-    top: GAP,
-    bottom: GAP,
+
+  bar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: BAR,
     borderRadius: R.pill,
+    padding: PAD,
+    /*
+     * Android draws elevation as a real shadow, and at high values on a
+     * rounded shape it collapses into a hard dark ring that reads as an
+     * outline rather than as depth. Wide, soft and low-opacity instead.
+     */
+    shadowColor: '#000',
+    shadowOpacity: 0.22,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
   },
+
   tab: {
-    minHeight: TOUCH + 4,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: TOUCH,
+    borderRadius: R.pill,
+    paddingHorizontal: 4,
+  },
+  tabOn: {
+    backgroundColor: PILL,
+    paddingHorizontal: 12,
+  },
+
+  label: {
+    ...TYPE.label,
+    color: ON_PILL,
+    fontSize: 13.5,
+    marginLeft: 7,
+    // Keeps a long label from pushing the glyph out of the pill; it ellipsises
+    // instead, which only ever happens on a viewport below the floor.
+    flexShrink: 1,
   },
 });

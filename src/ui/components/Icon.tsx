@@ -13,7 +13,7 @@ import React from 'react';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 
 export type IconName =
-  | 'pulse' | 'pill' | 'pin' | 'records' | 'more'
+  | 'home' | 'pulse' | 'pill' | 'pin' | 'records' | 'more'
   | 'chevronRight' | 'chevronLeft' | 'close' | 'check' | 'plus'
   | 'alert' | 'shield' | 'clock' | 'trash' | 'user'
   | 'sun' | 'moon' | 'search' | 'arrowRight'
@@ -136,6 +136,17 @@ function glyph(name: IconName, p: object, color: string, sw: number) {
           <Path {...p} d="M13.4 3.4V9H19" opacity={0.45} />
           <Line {...p} x1="8.6" y1="13.4" x2="15.4" y2="13.4" opacity={0.45} />
           <Line {...p} x1="8.6" y1="16.6" x2="12.8" y2="16.6" opacity={0.45} />
+        </>
+      );
+
+    /* Home — a roof over a doorway. Same 24-unit box, same stroke weight and
+       rounded joins as the rest of the set, so it sits in the tab bar without
+       looking imported. */
+    case 'home':
+      return (
+        <>
+          <Path {...p} d="M3.6 10.4 12 3.6l8.4 6.8v8.2a1.8 1.8 0 0 1-1.8 1.8H5.4a1.8 1.8 0 0 1-1.8-1.8Z" />
+          <Path {...p} d="M9.4 20.4v-6.2h5.2v6.2" />
         </>
       );
 

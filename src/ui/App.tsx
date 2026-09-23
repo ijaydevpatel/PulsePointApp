@@ -26,6 +26,7 @@ import { createServices } from '../data/services';
 import { ENV } from '../config/env';
 
 import { TabBar } from './nav/TabBar';
+import { TopBar } from './nav/TopBar';
 import { DEFAULT_TAB, RouteKey, TabKey } from './nav/routes';
 import { OfflineBanner } from './components/ScreenHeader';
 import { BottomScrim } from './components/BottomScrim';
@@ -38,10 +39,12 @@ import { CareScreen } from './screens/CareScreen';
 import { RecordsScreen } from './screens/RecordsScreen';
 import { MoreScreen } from './screens/MoreScreen';
 import { AuthScreen } from './screens/AuthScreen';
+import { HomeScreen } from './screens/HomeScreen';
+import { ProfileSheet } from './screens/ProfileSheet';
 import { ChatScreen } from './screens/ChatScreen';
 import { NewsScreen } from './screens/NewsScreen';
 import { AnalyzerScreen } from './screens/AnalyzerScreen';
-import { CheckInScreen, ProfileScreen } from './screens/SimpleScreens';
+import { CheckInScreen } from './screens/SimpleScreens';
 import { ThemeContext, buildTheme, Scheme } from './theme';
 
 function AppContent() {
@@ -159,10 +162,14 @@ function AppContent() {
         ) : null;
       case 'profile':
         return (
-          <ProfileScreen
-            session={session} onBack={pop}
-            onSignIn={() => push('auth')}
-            onSignOut={async () => { await signOut(); }}
+          <ProfileSheet
+            session={session}
+            onBack={pop}
+            // Replaces the current sheet rather than stacking on it, so
+            // backing out of Records returns to the screen behind the sheet
+            // instead of to the sheet itself.
+            onOpen={(r) => setStack((st) => [...st.slice(0, -1), r])}
+            onSignOut={async () => { await signOut(); setStack([]); }}
           />
         );
       case 'auth':
@@ -182,6 +189,7 @@ function AppContent() {
             onToggleScheme={() => setOverride(scheme === 'dark' ? 'light' : 'dark')}
           />
         );
+      case 'records':   return <RecordsScreen store={store} refreshKey={historyKey} onBack={pop} />;
       case 'chat':      return <ChatScreen service={services.chat} onBack={pop} />;
       case 'news':      return <NewsScreen service={services.news} onBack={pop} />;
       case 'documents': return <AnalyzerScreen service={services.reports} onBack={pop} />;
@@ -192,6 +200,15 @@ function AppContent() {
 
   function renderTab() {
     switch (tab) {
+      case 'home':
+        return (
+          <HomeScreen
+            store={store}
+            session={session}
+            refreshKey={historyKey}
+            onStartTriage={() => setTab('triage')}
+          />
+        );
       case 'triage':
         return (
           <TriageScreen
@@ -214,17 +231,8 @@ function AppContent() {
             onReport={(r) => { setReport(r); push('interactions'); }}
           />
         );
+      case 'documents': return <AnalyzerScreen service={services.reports} />;
       case 'care':      return <CareScreen />;
-      case 'records':   return <RecordsScreen store={store} refreshKey={historyKey} />;
-      case 'more':
-        return (
-          <MoreScreen
-            session={session}
-            onOpen={push}
-            scheme={scheme}
-            onToggleScheme={() => setOverride(scheme === 'dark' ? 'light' : 'dark')}
-          />
-        );
     }
   }
 
@@ -246,6 +254,14 @@ function AppContent() {
             <View style={{ flex: 1 }}>{overlay ?? renderTab()}</View>
             {overlay ? null : (
               <>
+                {/* Floating chrome. Both bars sit above the content rather
+                    than reserving bands of their own, so the screen underneath
+                    scrolls the full height. */}
+                <TopBar
+                  session={session}
+                  onOpenProfile={() => push('profile')}
+                  onOpenHome={tab === 'home' ? undefined : () => setTab('home')}
+                />
                 <BottomScrim />
                 <TabBar active={tab} onSelect={(k) => { setStack([]); setTab(k); }} />
               </>

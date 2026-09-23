@@ -20,7 +20,13 @@ function when(iso: string): string {
   return d.toLocaleDateString();
 }
 
-export function RecordsScreen({ store, refreshKey }: { store: EpisodeStore; refreshKey: number }) {
+export function RecordsScreen({ store, refreshKey, onBack }: {
+  store: EpisodeStore;
+  refreshKey: number;
+  /** Present now that Records is reached from the account sheet rather than
+   *  from a tab — a pushed screen needs a way back. */
+  onBack?: () => void;
+}) {
   const { c: P, band: B } = useTheme();
   const [rows, setRows] = useState<readonly HistoryEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -42,7 +48,7 @@ export function RecordsScreen({ store, refreshKey }: { store: EpisodeStore; refr
 
   return (
     <View style={{ flex: 1 }}>
-      <ScreenHeader title="Records" subtitle="Stored encrypted on this device only" />
+      <ScreenHeader title="Records" subtitle="Stored encrypted on this device only" onBack={onBack} />
       <FlatList
         data={rows}
         keyExtractor={(r) => r.episode.id}
