@@ -96,8 +96,18 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
     return () => { alive = false; };
   }, []);
 
-  /** Fades the label in slightly behind the width change, so it does not
-   *  appear in a pill that has not finished opening. */
+  /**
+   * Fades the label in as the pill opens.
+   *
+   * It used to reset to 0 and start after a 90ms delay, on the reasoning that
+   * the label should not appear in a pill that had not finished opening. The
+   * effect on a real device was a visible blink: for those 90ms the selected
+   * tab was an expanded white pill with nothing in it, so switching tabs
+   * looked like the name had been lost. It now starts partly visible and has
+   * no delay — the label is legible for the whole transition, and the pill
+   * clipping it while it opens reads as the label arriving rather than as a
+   * gap.
+   */
   const labelIn = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -108,11 +118,10 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
       update: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.scaleXY },
     });
 
-    labelIn.setValue(0);
+    labelIn.setValue(0.35);
     Animated.timing(labelIn, {
       toValue: 1,
-      duration: 180,
-      delay: 90,
+      duration: 140,
       easing: Easing.out(Easing.quad),
       useNativeDriver: true,
     }).start();

@@ -254,10 +254,16 @@ function AppContent() {
               translucent
             />
             <OfflineBanner visible={offline} />
-            {/* Keyed on the tab so each root mounts fresh and the transition
-                has something new to animate in. */}
+            {/*
+              No key on TabTransition. Keying it on the tab remounted the
+              component on every switch, which reset its "previous tab" ref to
+              the tab it was already showing — so it always measured a
+              zero-length move and skipped the animation entirely. It has to
+              survive the change in order to animate it; the children swap on
+              their own because renderTab() returns a different element.
+            */}
             <View style={{ flex: 1 }}>
-              {overlay ?? <TabTransition key={tab} tabKey={tab}>{renderTab()}</TabTransition>}
+              {overlay ?? <TabTransition tabKey={tab}>{renderTab()}</TabTransition>}
             </View>
             {overlay ? null : (
               <>

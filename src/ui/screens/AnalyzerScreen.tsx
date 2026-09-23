@@ -25,6 +25,33 @@ import { Icon } from '../components/Icon';
 import { useTheme, S, R, TAB_CLEARANCE } from '../theme';
 import { ReportService, ReportAnalysis, ReportRisk } from '../../domain/remote';
 
+/**
+ * Splits the advice field into its preamble and its numbered steps.
+ *
+ * The synthesis prompt asks for 1–2 sentences of context followed by numbered
+ * points each on its own line. Rendering that as one paragraph buries the
+ * steps — which are the part someone acts on — inside the explanation. Parsed
+ * rather than trusted: if no numbered lines are found, everything stays as
+ * preamble and nothing is lost.
+ */
+function splitAdvice(advice: string): { preamble: string; steps: string[] } {
+  const lines = advice.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const steps: string[] = [];
+  const preamble: string[] = [];
+
+  for (const line of lines) {
+    const m = /^(\d+)[.)]\s*(.+)$/.exec(line);
+    if (m && m[2]) steps.push(m[2].trim());
+    else if (steps.length === 0) preamble.push(line);
+    else if (steps.length > 0) {
+      // A wrapped continuation of the previous step, not a new one.
+      steps[steps.length - 1] += ` ${line}`;
+    }
+  }
+
+  return { preamble: preamble.join(' '), steps };
+}
+
 /** Risk word -> palette role. Unknown stays neutral rather than guessing. */
 function riskTone(risk: ReportRisk, P: ReturnType<typeof useTheme>['c']) {
   switch (risk) {
@@ -154,10 +181,40 @@ export function AnalyzerScreen({ service, onBack }: { service: ReportService; on
               </Card>
             ) : null}
 
-            {report.advice ? (
+            {report.advice ? (() => {
+              const { preamble, steps } = splitAdvice(report.advice);
+              return (
+                <Card style={st.card}>
+                  <SectionLabel>What to do next</SectionLabel>
+                  {preamble ? <Txt t="body">{preamble}</Txt> : null}
+                  {steps.map((step, i) => (
+                    <View key={`${i}-${step.slice(0, 24)}`} style={st.step}>
+                      <View style={[st.stepNum, { backgroundColor: P.sunken }]}>
+                        <Txt t="numeric" c={P.ink}>{i + 1}</Txt>
+                      </View>
+                      <Txt t="body" style={{ flex: 1 }}>{step}</Txt>
+                    </View>
+                  ))}
+                </Card>
+              );
+            })() : null}
+
+            {/* Attribution. Two models read this document; which ones, and how
+                long each took, is part of what the reading is worth. */}
+            {report.stages.length > 0 ? (
               <Card style={st.card}>
-                <SectionLabel>Suggested next steps</SectionLabel>
-                <Txt t="body">{report.advice}</Txt>
+                <SectionLabel>How this was read</SectionLabel>
+                {report.stages.map((stg) => (
+                  <View key={stg.stage + stg.model} style={st.stageRow}>
+                    <Txt t="caption" c={P.muted} style={{ flex: 1 }}>
+                      {stg.stage === 'extraction' ? 'Read from the document' : 'Clinical synthesis'}
+                    </Txt>
+                    <Txt t="caption" numberOfLines={1}>{stg.model}</Txt>
+                    {stg.seconds !== null ? (
+                      <Txt t="caption" c={P.muted}>{` ${stg.seconds.toFixed(1)}s`}</Txt>
+                    ) : null}
+                  </View>
+                ))}
               </Card>
             ) : null}
 
@@ -198,6 +255,12 @@ const st = StyleSheet.create({
   bullet: { flexDirection: 'row', alignItems: 'flex-start', gap: S.sm, marginTop: S.xs },
   dot: { width: 6, height: 6, borderRadius: 3, marginTop: 8 },
   legal: { marginTop: S.sm, paddingHorizontal: S.md },
+  step: { flexDirection: 'row', alignItems: 'flex-start', gap: S.sm, marginTop: S.md },
+  stepNum: {
+    width: 24, height: 24, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center', marginTop: 1,
+  },
+  stageRow: { flexDirection: 'row', alignItems: 'center', gap: S.sm, marginTop: S.xs },
   actions: {
     paddingHorizontal: S.md, paddingTop: S.sm,
     paddingBottom: TAB_CLEARANCE + S.md,

@@ -160,14 +160,31 @@ export interface NewsService {
 
 export type ReportRisk = 'Low' | 'Moderate' | 'High' | 'Critical' | 'Unknown';
 
+/** One leg of the two-stage vision pipeline. */
+export interface ReportStage {
+  readonly stage: string;
+  readonly model: string;
+  readonly seconds: number | null;
+}
+
 export interface ReportAnalysis {
   readonly documentType: string;
   readonly patientIdentity: string;
   readonly findings: string;
   readonly abnormalMarkers: readonly string[];
   readonly implications: string;
+  /** Free text: a short preamble, then numbered steps on their own lines. */
   readonly advice: string;
   readonly riskLevel: ReportRisk;
+  /**
+   * Which models read the document, and how long each took.
+   *
+   * Extraction runs on Gemini 2.5 Flash and synthesis on Gemini 3; the reader
+   * of a clinical summary is entitled to know that it came from a model and
+   * which one, so this is rendered rather than logged.
+   */
+  readonly stages: readonly ReportStage[];
+  readonly totalSeconds: number | null;
 }
 
 /** A file chosen on the device, in the shape React Native's FormData wants. */

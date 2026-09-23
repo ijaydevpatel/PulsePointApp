@@ -10,6 +10,7 @@ import {
   SymptomAnalysis, SymptomAnalysisRequest, SymptomAnalysisService,
   ProbableCondition, MatrixSeverity,
   DailyStatus, DashboardService, Intelligence, RiskTrend,
+  ReportStage,
 } from '../domain/remote';
 import { ApiClient, ApiError } from './apiClient';
 
@@ -230,6 +231,20 @@ function readNews(v: unknown): readonly NewsItem[] {
 
 const RISKS: readonly ReportRisk[] = ['Low', 'Moderate', 'High', 'Critical'];
 
+/** Defensive: the pipeline's shape is set by the backend, not guaranteed. */
+function readStages(v: unknown): ReportStage[] {
+  if (!Array.isArray(v)) return [];
+  return v.flatMap((x: any) => {
+    const model = typeof x?.model === 'string' ? x.model.trim() : '';
+    if (!model) return [];
+    return [{
+      stage: typeof x?.stage === 'string' ? x.stage : '',
+      model,
+      seconds: typeof x?.seconds === 'number' && Number.isFinite(x.seconds) ? x.seconds : null,
+    }];
+  });
+}
+
 export class RemoteReportAnalyzer implements ReportService {
   constructor(private readonly api: ApiClient) {}
 
@@ -253,6 +268,10 @@ export class RemoteReportAnalyzer implements ReportService {
           implications: str(raw?.implications, ''),
           advice: str(raw?.advice, ''),
           riskLevel: RISKS.includes(raw?.riskLevel) ? raw.riskLevel as ReportRisk : 'Unknown',
+          stages: readStages(raw?.neuralPulse?.stages),
+          totalSeconds: typeof raw?.neuralPulse?.generationTime === 'number'
+            ? raw.neuralPulse.generationTime
+            : null,
         },
         notice: null,
         elapsedMs: Date.now() - started,

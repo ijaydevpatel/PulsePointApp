@@ -119,3 +119,61 @@ describe('every tab stays tappable', () => {
     }
   });
 });
+
+/* ───────────────────────── advice step parsing ──────────────────────────── */
+
+/**
+ * The synthesis prompt asks for a preamble then numbered steps on their own
+ * lines. The screen renders the steps as a list, so the split has to survive
+ * whatever the model actually emits — which is not always what was asked for.
+ */
+function splitAdvice(advice: string): { preamble: string; steps: string[] } {
+  const lines = advice.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const steps: string[] = [];
+  const preamble: string[] = [];
+
+  for (const line of lines) {
+    const m = /^(\d+)[.)]\s*(.+)$/.exec(line);
+    if (m && m[2]) steps.push(m[2].trim());
+    else if (steps.length === 0) preamble.push(line);
+    else if (steps.length > 0) steps[steps.length - 1] += ` ${line}`;
+  }
+
+  return { preamble: preamble.join(' '), steps };
+}
+
+describe('next-step parsing', () => {
+  it('separates the preamble from the numbered steps', () => {
+    const { preamble, steps } = splitAdvice(
+      'Your results show mild anaemia.\n1. Book a GP appointment this week.\n2. Repeat the blood test in a month.',
+    );
+    expect(preamble).toBe('Your results show mild anaemia.');
+    expect(steps).toEqual([
+      'Book a GP appointment this week.',
+      'Repeat the blood test in a month.',
+    ]);
+  });
+
+  it('accepts "1)" as well as "1."', () => {
+    expect(splitAdvice('1) See a pharmacist.').steps).toEqual(['See a pharmacist.']);
+  });
+
+  it('joins a wrapped line onto the step it belongs to', () => {
+    // Models break long steps across lines despite the prompt. A continuation
+    // must not become a step of its own with no number.
+    const { steps } = splitAdvice('1. Book a GP appointment\nwithin the next seven days.');
+    expect(steps).toEqual(['Book a GP appointment within the next seven days.']);
+  });
+
+  it('keeps everything when the model ignores the format', () => {
+    // No numbering at all: nothing may be dropped on the floor.
+    const advice = 'Take this report to your GP. They will interpret it properly.';
+    const { preamble, steps } = splitAdvice(advice);
+    expect(steps).toEqual([]);
+    expect(preamble).toBe(advice);
+  });
+
+  it('survives empty advice', () => {
+    expect(splitAdvice('')).toEqual({ preamble: '', steps: [] });
+  });
+});
