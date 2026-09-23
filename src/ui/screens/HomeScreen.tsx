@@ -47,7 +47,7 @@ import {
   Conditions, ConditionsService, DashboardService, Intelligence,
   LocationState, RemoteOutcome,
 } from '../../domain/remote';
-import { Card, Txt, SectionLabel, Button, Enter } from '../components/Primitives';
+import { Card, Txt, SectionLabel, Enter } from '../components/Primitives';
 import { Icon } from '../components/Icon';
 import { useTheme, S, R, TAB_CLEARANCE } from '../theme';
 import { TOP_BAR_HEIGHT } from '../nav/TopBar';
@@ -164,19 +164,6 @@ export function HomeScreen({
             stale={stale}
           />
         </Enter>
-      ) : history !== null ? (
-        <Enter index={2}>
-          <View style={{ height: S.xxl }} />
-          <Card style={{ padding: S.lg }}>
-            <Txt t="bodyStrong">No assessments yet</Txt>
-            <Txt t="caption" c={P.muted} style={{ marginTop: 6 }}>
-              Check how you're feeling and the summary here will fill in.
-            </Txt>
-            <View style={{ marginTop: S.lg }}>
-              <Button title="Check symptoms" onPress={onStartTriage} icon="arrowRight" />
-            </View>
-          </Card>
-        </Enter>
       ) : null}
 
       {/* ── today's intelligence ──────────────────────────────────────── */}
@@ -186,24 +173,19 @@ export function HomeScreen({
         <IntelCard outcome={intel} />
       </Enter>
 
-      {/* ── digital twin pair ─────────────────────────────────────────── */}
-      {i && (i.digitalTwin.pattern || i.digitalTwin.riskTrend !== 'Unknown') ? (
+      {/*
+        Health pattern, full width.
+        Risk trend was beside it and is gone: the model returns one of three
+        words, which is not enough to earn half a row, and the pattern name it
+        was crowding regularly runs to three lines in a half-width card.
+      */}
+      {i && i.digitalTwin.pattern ? (
         <Enter index={4}>
           <View style={{ height: S.lg }} />
-          <View style={st.pair}>
-            <Card style={st.half}>
-              <Txt t="micro" c={P.muted} style={st.eyebrowTight}>HEALTH PATTERN</Txt>
-              <Txt t="bodyStrong" style={{ marginTop: 6 }}>
-                {i.digitalTwin.pattern || '—'}
-              </Txt>
-            </Card>
-            <Card style={st.half}>
-              <Txt t="micro" c={P.muted} style={st.eyebrowTight}>RISK TREND</Txt>
-              <Txt t="bodyStrong" style={{ marginTop: 6 }}>
-                {i.digitalTwin.riskTrend === 'Unknown' ? '—' : i.digitalTwin.riskTrend}
-              </Txt>
-            </Card>
-          </View>
+          <Card style={st.wide}>
+            <Txt t="micro" c={P.muted} style={st.eyebrowTight}>HEALTH PATTERN</Txt>
+            <Txt t="bodyStrong" style={{ marginTop: 6 }}>{i.digitalTwin.pattern}</Txt>
+          </Card>
         </Enter>
       ) : null}
 
@@ -224,10 +206,28 @@ export function HomeScreen({
                 </Txt>
               </>
             ) : (
-              <>
-                <Txt t="title" c={P.muted} style={{ marginTop: 4 }}>—</Txt>
-                <Txt t="micro" c={P.muted}>Nothing recorded yet</Txt>
-              </>
+              /*
+                No episodes means there is genuinely nothing to score — the
+                figure is derived from recorded assessments, so inventing one
+                would be the exact failure this replaced on the website, where
+                every account reads 100/100 on no data.
+
+                A bare em dash said that badly: it read as broken rather than
+                as empty. The card now states the requirement and doubles as
+                the way to meet it, which is also why the separate "no
+                assessments yet" prompt above could go.
+              */
+              <Pressable
+                onPress={onStartTriage}
+                accessibilityRole="button"
+                accessibilityLabel="Check symptoms to start your health score"
+                style={({ pressed }) => [{ marginTop: 4 }, pressed && { opacity: 0.6 }]}
+              >
+                <Txt t="bodyStrong" c={P.accent}>Check in</Txt>
+                <Txt t="micro" c={P.muted} style={{ marginTop: 2 }}>
+                  Your score starts after one assessment
+                </Txt>
+              </Pressable>
             )}
           </Card>
 
@@ -452,6 +452,7 @@ const st = StyleSheet.create({
   eyebrowTight: { letterSpacing: 1.4 },
 
   pair: { flexDirection: 'row', gap: S.md },
+  wide: { padding: S.lg },
   half: { flex: 1, padding: S.lg, minHeight: 104, justifyContent: 'center' },
 
   scoreRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 2 },

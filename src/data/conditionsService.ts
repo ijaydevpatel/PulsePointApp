@@ -88,21 +88,49 @@ export class OpenMeteoConditions implements ConditionsService {
       };
     }
 
+    /*
+     * Last known position first, then a live fix.
+     *
+     * getCurrentPositionAsync waits for the radio to produce a reading. On an
+     * emulator with no simulated route, and on a real phone indoors or
+     * straight after boot, that can hang until it throws — which is what put
+     * "Could not get a location fix just now" on the dashboard even with
+     * permission granted.
+     *
+     * The cached fix is returned by the OS instantly and is easily precise
+     * enough: this is a lookup for city-scale air quality, not navigation. A
+     * live fix is only attempted when there is no cached one, and it is raced
+     * against a timeout so a silent radio degrades to a notice rather than to
+     * a card that spins forever.
+     */
     let lat: number;
     let lon: number;
     try {
-      // Balanced accuracy: a dashboard needs the right city, not the right
-      // street, and high accuracy costs a GPS fix and several seconds.
-      const pos = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
+      const cached = await Location.getLastKnownPositionAsync({
+        // Anything from the last hour is fine for weather and AQI.
+        maxAge: 60 * 60 * 1000,
       });
+
+      const pos = cached ?? await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), TIMEOUT_MS)),
+      ]);
+
+      if (!pos) {
+        return {
+          state: 'UNAVAILABLE',
+          data: null,
+          notice: 'Waiting on a location fix. Pull down to retry.',
+        };
+      }
+
       lat = pos.coords.latitude;
       lon = pos.coords.longitude;
     } catch {
       return {
         state: 'UNAVAILABLE',
         data: null,
-        notice: 'Could not get a location fix just now.',
+        notice: 'Location is unavailable on this device.',
       };
     }
 
