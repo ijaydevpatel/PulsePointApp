@@ -293,7 +293,10 @@ function MatrixSection({ analysis }: { analysis?: RemoteOutcome<SymptomAnalysis>
         <View style={{ height: S.xxl }} />
         <SectionLabel>Possible conditions</SectionLabel>
         <Card glass={true}>
-          <Txt t="caption" c={P.muted}>Checking against the clinical engine…</Txt>
+          <Txt t="caption" c={P.muted}>
+            Checking against the clinical engine. This can take up to a minute -
+            your result above is already complete.
+          </Txt>
         </Card>
       </Enter>
     );

@@ -35,6 +35,21 @@ function fail<T>(status: Failure, started: number): RemoteOutcome<T> {
 
 /* ─────────────────────── POST /api/symptoms/analyze ─────────────────────── */
 
+/**
+ * How long the diagnostic matrix is allowed to take.
+ *
+ * The default thirty seconds was why this section never appeared: the request
+ * asks a 120B model for five ranked conditions, three treatment pathways and a
+ * written synopsis, which does not finish in thirty seconds. The app aborted
+ * and rendered "did not respond in time" while the server went on to produce a
+ * perfectly good answer that nothing was left to receive.
+ *
+ * Ninety seconds is chosen against the server, not guessed: Render's own
+ * request ceiling is shorter than this, so a genuinely stuck call still ends -
+ * this only stops the client giving up first.
+ */
+const ANALYSIS_TIMEOUT_MS = 90000;
+
 export class RemoteSymptomAnalysis implements SymptomAnalysisService {
   constructor(private readonly api: ApiClient) {}
 
@@ -44,7 +59,7 @@ export class RemoteSymptomAnalysis implements SymptomAnalysisService {
       const raw = await this.api.post<any>('/api/symptoms/analyze', {
         activeSymptoms: request.activeSymptoms,
         customSymptom: request.customSymptom,
-      });
+      }, ANALYSIS_TIMEOUT_MS);
 
       const matrix = readMatrix(raw?.probabilityMatrix);
       const summary = typeof raw?.summaryText === 'string' ? raw.summaryText.trim() : '';
@@ -82,9 +97,11 @@ export class RemoteMedicineCheck implements MedicineCheckService {
   async check(request: MedicineCheckRequest): Promise<RemoteOutcome<MedicineCheck>> {
     const started = Date.now();
     try {
+      // Also a model generation, so also past the default. See the note on
+      // ANALYSIS_TIMEOUT_MS.
       const raw = await this.api.post<any>('/api/medicine/check', {
         med1: request.med1, med2: request.med2,
-      });
+      }, ANALYSIS_TIMEOUT_MS);
 
       const verdict = typeof raw?.compatibilityVerdict === 'string'
         ? raw.compatibilityVerdict.trim() : '';

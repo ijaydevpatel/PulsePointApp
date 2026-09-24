@@ -120,14 +120,26 @@ export class ApiClient {
     }
   }
 
-  async post<T>(endpoint: string, body: unknown): Promise<T> {
+  /**
+   * @param timeoutMs Override for generations that legitimately take longer
+   *   than the default.
+   *
+   *   Thirty seconds is right for a request that reads a database. It is not
+   *   right for one that waits on a 120B model to produce five ranked
+   *   conditions, three treatment lists and a written synopsis - that runs
+   *   past thirty seconds routinely, and the caller was being handed a
+   *   timeout for a request the server was still working on and would have
+   *   completed. The daily briefing hit the same wall and was given the same
+   *   treatment.
+   */
+  async post<T>(endpoint: string, body: unknown, timeoutMs = this.timeoutMs): Promise<T> {
     if (!this.baseUrl) throw new ApiError('No API URL configured', 0);
 
     const token = this.tokenProvider ? await this.tokenProvider() : null;
     if (!token) throw new ApiError('No session token', 401);
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await this.fetchImpl(`${this.baseUrl}${endpoint}`, {
         method: 'POST',
