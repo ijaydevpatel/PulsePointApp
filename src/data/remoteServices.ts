@@ -129,7 +129,13 @@ export class RemoteMedicineCheck implements MedicineCheckService {
           riskPercentage: num(raw?.riskPercentage, 0, 100),
           dangerDetected: raw?.dangerDetected === true,
           conflictFlags: strings(raw?.conflictFlags),
-          explanation: typeof raw?.explanation === 'string' ? raw.explanation : '',
+          // Same cap as the synopsis, for the same reason: the model writes a
+          // pharmacology essay and the screen has room for a paragraph. The
+          // conflict flags and warnings are separate fields and are not
+          // touched, so nothing cautionary depends on this string.
+          explanation: typeof raw?.explanation === 'string'
+            ? limitSentences(raw.explanation, SYNOPSIS_SENTENCES)
+            : '',
           safeAlternatives: strings(raw?.safeAlternatives),
           warnings: strings(raw?.warnings),
         },

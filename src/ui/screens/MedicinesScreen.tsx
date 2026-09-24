@@ -17,8 +17,17 @@ import { useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE, circle } from '../theme';
 import { BundledInteractionTable } from '../../data/interactionTable';
 import { CheckInteractionsUseCase } from '../../domain/checkInteractions';
 import { InteractionReport } from '../../domain/medicines';
+import {
+  MedicineCheck, MedicineCheckService, RemoteOutcome,
+} from '../../domain/remote';
 
-export function MedicinesScreen({ onReport }: { onReport: (r: InteractionReport) => void }) {
+export function MedicinesScreen({ onReport, check, onCheck }: {
+  onReport: (r: InteractionReport) => void;
+  /** The hosted collision check. Optional: the screen works without it. */
+  check?: MedicineCheckService;
+  /** null while in flight, undefined when no check was started at all. */
+  onCheck?: (outcome: RemoteOutcome<MedicineCheck> | null | undefined) => void;
+}) {
   const { c: P } = useTheme();
   const [items, setItems] = useState<string[]>([]);
   const [draft, setDraft] = useState('');
@@ -62,9 +71,17 @@ export function MedicinesScreen({ onReport }: { onReport: (r: InteractionReport)
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
+      {/*
+        Named for what it does, not for what it holds.
+        "Medicines" described the list on this screen; the screen is a conflict
+        checker and the list is how you feed it. The old subtitle counted the
+        bundled table - 67 medicines, 35 interactions, offline - which was a
+        statement about the implementation, and became wrong the moment the
+        hosted check was wired in beside it.
+      */}
       <ScreenHeader
-        title="Medicines"
-        subtitle={`${table.drugCount} medicines · ${table.ruleCount} interactions · offline`}
+        title="Medicine conflict checker"
+        subtitle="Check medicine collision"
       />
 
       <View style={{ paddingHorizontal: S.xl }}>
@@ -184,7 +201,45 @@ export function MedicinesScreen({ onReport }: { onReport: (r: InteractionReport)
               }
               disabled={recognised < 2}
               icon={recognised < 2 ? undefined : 'shield'}
-              onPress={() => { tap('medium'); onReport(useCase.execute(items)); }}
+              onPress={() => {
+                tap('medium');
+
+                /*
+                 * On-device table first, exactly as the symptom check does it:
+                 * the answer arrives at the speed of the phone, and the hosted
+                 * opinion fills in underneath when it arrives. Making someone
+                 * watch a spinner for a network call they may not need is the
+                 * behaviour being designed out.
+                 */
+                onReport(useCase.execute(items));
+
+                if (!onCheck) return;
+
+                /*
+                 * Cleared on every run, including the runs that do not start a
+                 * check. Without this the previous pair's verdict would still
+                 * be on screen beside the new pair's table result, which is
+                 * the worst kind of wrong: plausible and stale.
+                 */
+                onCheck(undefined);
+                if (!check) return;
+
+                /*
+                 * The endpoint compares exactly two agents, so this sends the
+                 * first two the table recognised. Resolved to their canonical
+                 * names rather than what was typed, so "Dolo 650" and
+                 * "dolo650" reach the model as the same thing.
+                 */
+                const pair = items
+                  .map((i) => table.resolve(i)?.name)
+                  .filter((n): n is string => typeof n === 'string')
+                  .slice(0, 2);
+                const [med1, med2] = pair;
+                if (!med1 || !med2) return;
+
+                onCheck(null);   // in flight
+                void check.check({ med1, med2 }).then(onCheck);
+              }}
             />
           </>
         )}

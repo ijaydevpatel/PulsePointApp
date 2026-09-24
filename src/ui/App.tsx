@@ -18,7 +18,7 @@ import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-expo';
 import { TriageResult } from '../domain/entities';
 import { InteractionReport } from '../domain/medicines';
 import { Session, GUEST } from '../domain/auth';
-import { SymptomAnalysis, RemoteOutcome } from '../domain/remote';
+import { SymptomAnalysis, MedicineCheck, RemoteOutcome } from '../domain/remote';
 import { RuleClassifier } from '../data/ruleClassifier';
 import { InMemoryEpisodeStore } from '../data/memoryStore';
 import { tokenCache } from '../data/clerkAuth';
@@ -86,6 +86,14 @@ function AppContent() {
    */
   const [analysis, setAnalysis] = useState<RemoteOutcome<SymptomAnalysis> | null>(null);
   const [report, setReport] = useState<InteractionReport | null>(null);
+  /**
+   * The hosted collision check for the current pair.
+   *
+   * Undefined means none was started - no service, or fewer than two
+   * recognised medicines. Null means one is in flight. The screen renders
+   * those two differently, so the distinction is kept.
+   */
+  const [check, setCheck] = useState<RemoteOutcome<MedicineCheck> | null | undefined>(undefined);
   const [historyKey, setHistoryKey] = useState(0);
   const [offline] = useState(false);
 
@@ -159,7 +167,7 @@ function AppContent() {
         ) : null;
       case 'interactions':
         return report ? (
-          <InteractionScreen report={report} onBack={pop} onEdit={pop} />
+          <InteractionScreen report={report} check={check} onBack={pop} onEdit={pop} />
         ) : null;
       case 'profile':
         return (
@@ -232,7 +240,12 @@ function AppContent() {
       case 'medicines':
         return (
           <MedicinesScreen
+            check={services.medicines}
             onReport={(r) => { setReport(r); push('interactions'); }}
+            // The screen clears this on every run before deciding whether to
+            // start a check, so a previous pair's verdict can never appear
+            // beside a new pair's table result.
+            onCheck={setCheck}
           />
         );
       case 'documents': return <AnalyzerScreen service={services.reports} />;

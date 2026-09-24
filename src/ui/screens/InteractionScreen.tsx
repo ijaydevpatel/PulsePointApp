@@ -19,6 +19,7 @@ import {
   InteractionReport, InteractionFinding, InteractionSeverity,
   SEVERITY_LABEL, ACTION_LABEL,
 } from '../../domain/medicines';
+import { MedicineCheck, RemoteOutcome } from '../../domain/remote';
 import { Card, SectionLabel, Button, Txt, Springy, Enter } from '../components/Primitives';
 import { Icon } from '../components/Icon';
 import { useTheme, S, R, TOUCH, TAB_CLEARANCE, Palette, circle } from '../theme';
@@ -37,8 +38,17 @@ function severityColour(P: Palette, s: InteractionSeverity) {
   }
 }
 
-export function InteractionScreen({ report, onBack, onEdit }: {
-  report: InteractionReport; onBack: () => void; onEdit: () => void;
+export function InteractionScreen({ report, check, onBack, onEdit }: {
+  report: InteractionReport;
+  /**
+   * The hosted collision check for the first recognised pair.
+   *
+   * Null while it is in flight. Undefined when it was never started - two
+   * different things, and the section says which.
+   */
+  check?: RemoteOutcome<MedicineCheck> | null;
+  onBack: () => void;
+  onEdit: () => void;
 }) {
   const { c: P, elev } = useTheme();
 
@@ -166,6 +176,8 @@ export function InteractionScreen({ report, onBack, onEdit }: {
             </Enter>
           ) : null}
 
+          <CollisionSection check={check} />
+
           {report.recognised.length > 0 ? (
             <Enter index={9}>
               <View style={{ height: S.xxl }} />
@@ -188,8 +200,9 @@ export function InteractionScreen({ report, onBack, onEdit }: {
             <View style={[st.meta, { borderColor: P.line }]}>
               <Icon name="shield" size={16} color={P.ok} />
               <Txt t="caption" style={{ flex: 1 }}>
-                Checked on this device against a bundled table. Nothing was sent anywhere,
-                and the check works with no connection.
+                {check === undefined
+                  ? 'Checked on this device against a bundled table. Nothing was sent anywhere, and the check works with no connection.'
+                  : 'The table check runs on this device and works with no connection. The collision check above sends the two medicine names to the analysis service - nothing else about you goes with them.'}
               </Txt>
             </View>
 
@@ -236,7 +249,129 @@ function FindingCard({ finding }: { finding: InteractionFinding }) {
   );
 }
 
+/**
+ * The hosted opinion, underneath the table's.
+ *
+ * Two checks with different characters sit on this screen and must not be
+ * mistaken for one another. The table is deterministic, offline, and says
+ * nothing it cannot support - but it knows 35 rules. The model has read far
+ * more and will comment on any pair, including the one the table has never
+ * heard of, and it is a model: it can be confidently wrong.
+ *
+ * So this is a separate section with its own heading and its own caveat,
+ * below the table's findings rather than merged into them. A reader can tell
+ * which check said what, which they could not if the two were interleaved.
+ */
+function CollisionSection({ check }: { check?: RemoteOutcome<MedicineCheck> | null }) {
+  const { c: P } = useTheme();
+
+  // Never started. Say nothing rather than implying a check that is not coming.
+  if (check === undefined) return null;
+
+  if (check === null) {
+    return (
+      <Enter index={8}>
+        <View style={{ height: S.xxl }} />
+        <SectionLabel>Collision check</SectionLabel>
+        <Card elevated={1}>
+          <Txt t="caption" c={P.muted}>
+            Running the collision check. This can take up to a minute - the table
+            result above is already complete.
+          </Txt>
+        </Card>
+      </Enter>
+    );
+  }
+
+  if (check.status !== 'OK' || !check.data) {
+    return (
+      <Enter index={8}>
+        <View style={{ height: S.xxl }} />
+        <SectionLabel>Collision check</SectionLabel>
+        <Card elevated={1}>
+          <Txt t="caption" c={P.muted}>{check.notice}</Txt>
+        </Card>
+      </Enter>
+    );
+  }
+
+  const d = check.data;
+  const tone = d.dangerDetected ? P.danger : P.ok;
+
+  return (
+    <Enter index={8}>
+      <View style={{ height: S.xxl }} />
+      <SectionLabel>Collision check</SectionLabel>
+
+      <Card elevated={2}>
+        <View style={st.warnHead}>
+          <Icon name={d.dangerDetected ? 'alert' : 'shield'} size={18} color={tone} weight="bold" />
+          <Txt t="heading" c={tone} style={{ flex: 1 }}>{d.compatibilityVerdict}</Txt>
+        </View>
+
+        {d.riskLevel ? (
+          <Txt t="caption" c={P.muted} style={{ marginTop: 2 }}>
+            {`Risk: ${d.riskLevel}`}
+          </Txt>
+        ) : null}
+
+        {d.explanation ? (
+          <Txt t="body" style={{ marginTop: S.md }}>{d.explanation}</Txt>
+        ) : null}
+
+        {d.conflictFlags.length > 0 ? (
+          <>
+            <Txt t="micro" c={P.accent} style={st.blockHead}>WHAT TO WATCH</Txt>
+            {d.conflictFlags.map((f, i) => (
+              <View key={`${f}-${i}`} style={st.bulletRow}>
+                <View style={[st.dot, { backgroundColor: P.warn }]} />
+                <Txt t="body" style={{ flex: 1 }}>{f}</Txt>
+              </View>
+            ))}
+          </>
+        ) : null}
+
+        {d.warnings.length > 0 ? (
+          <>
+            <Txt t="micro" c={P.accent} style={st.blockHead}>WARNINGS</Txt>
+            {d.warnings.map((w, i) => (
+              <View key={`${w}-${i}`} style={st.bulletRow}>
+                <View style={[st.dot, { backgroundColor: P.danger }]} />
+                <Txt t="body" style={{ flex: 1 }}>{w}</Txt>
+              </View>
+            ))}
+          </>
+        ) : null}
+
+        {d.safeAlternatives.length > 0 ? (
+          <>
+            <Txt t="micro" c={P.accent} style={st.blockHead}>ALTERNATIVES TO ASK ABOUT</Txt>
+            {d.safeAlternatives.map((a, i) => (
+              <View key={`${a}-${i}`} style={st.bulletRow}>
+                <View style={[st.dot, { backgroundColor: P.ok }]} />
+                <Txt t="body" style={{ flex: 1 }}>{a}</Txt>
+              </View>
+            ))}
+            {/*
+              "Safe alternatives" is the field name on the wire and it is not a
+              claim this screen will repeat. Nothing here has been checked
+              against the reader's other medicines, allergies or conditions.
+            */}
+            <Txt t="micro" c={P.faint} style={{ marginTop: S.sm }}>
+              Suggestions to raise with a pharmacist, not substitutions to make
+              on your own.
+            </Txt>
+          </>
+        ) : null}
+      </Card>
+    </Enter>
+  );
+}
+
 const st = StyleSheet.create({
+  blockHead: { letterSpacing: 1.4, marginTop: S.lg, marginBottom: 2 },
+  bulletRow: { flexDirection: 'row', gap: S.sm, marginTop: S.sm, alignItems: 'flex-start' },
+  dot: { width: 5, height: 5, borderRadius: 3, marginTop: 9 },
   hero: {
     borderBottomWidth: StyleSheet.hairlineWidth * 2,
     paddingHorizontal: S.xl, paddingTop: S.lg, paddingBottom: S.xxl,
