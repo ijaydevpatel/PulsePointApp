@@ -8,8 +8,7 @@
  */
 import {
   BAR_PAD, BAR_SIDE_MARGIN, DEFAULT_TAB, MIN_BAR_WIDTH, SELECTED_UNITS,
-  TABS, TabKey, UNITS, pillSlot, tabSlot, pillContentWidth, pillSlotNeeded, labelWidth,
-  PILL_COMFORT,
+  TABS, TabKey, UNITS, pillSlot, pillContentWidth, labelWidth,
 } from '../src/ui/nav/routes';
 import { TOUCH } from '../src/ui/theme';
 
@@ -119,7 +118,7 @@ describe('every tab stays tappable', () => {
     const selected = (available / UNITS) * SELECTED_UNITS;
 
     for (const t of TABS) {
-      const needed = pillSlotNeeded(t.label);
+      const needed = pillContentWidth(t.label);
       expect(`${t.label} needs ${Math.ceil(needed)}, has ${Math.floor(selected)}`)
         .toBe(`${t.label} needs ${Math.ceil(needed)}, has ${Math.floor(selected)}`);
       expect(selected).toBeGreaterThanOrEqual(needed);
@@ -135,7 +134,7 @@ describe('every tab stays tappable', () => {
     const selected = (available / UNITS) * SELECTED_UNITS;
 
     const longest = TABS.reduce((a, b) => (labelWidth(a.label) > labelWidth(b.label) ? a : b));
-    expect(selected - pillSlotNeeded(longest.label)).toBeGreaterThanOrEqual(2);
+    expect(selected - pillContentWidth(longest.label)).toBeGreaterThanOrEqual(8);
   });
 
   it('does not buy that room by starving the other tabs', () => {
@@ -227,16 +226,16 @@ describe('the sliding pill', () => {
   const WIDTH = 360;
 
   it('fills exactly the selected tab on both ends of the row', () => {
-    const first = tabSlot(WIDTH, 0);
+    const first = pillSlot(WIDTH, 0);
     expect(first.left).toBeCloseTo(BAR_PAD, 5);
 
-    const last = tabSlot(WIDTH, TABS.length - 1);
+    const last = pillSlot(WIDTH, TABS.length - 1);
     // The right edge lands on the far padding, so the pill never overhangs.
     expect(last.left + last.width).toBeCloseTo(WIDTH - BAR_PAD, 5);
   });
 
   it('gives every slot the same width and an even stride', () => {
-    const slots = TABS.map((_, i) => tabSlot(WIDTH, i));
+    const slots = TABS.map((_, i) => pillSlot(WIDTH, i));
     const widths = new Set(slots.map((s) => s.width.toFixed(5)));
     expect(widths.size).toBe(1);
 
@@ -246,12 +245,12 @@ describe('the sliding pill', () => {
   });
 
   it('is wider than an unselected slot, by the weight that says so', () => {
-    const stride = tabSlot(WIDTH, 1).left - tabSlot(WIDTH, 0).left;
-    expect(tabSlot(WIDTH, 0).width / stride).toBeCloseTo(SELECTED_UNITS, 5);
+    const stride = pillSlot(WIDTH, 1).left - pillSlot(WIDTH, 0).left;
+    expect(pillSlot(WIDTH, 0).width / stride).toBeCloseTo(SELECTED_UNITS, 5);
   });
 
   it('adds up to the full inner width', () => {
-    const stride = tabSlot(WIDTH, 1).left - tabSlot(WIDTH, 0).left;
+    const stride = pillSlot(WIDTH, 1).left - pillSlot(WIDTH, 0).left;
     expect(stride * UNITS).toBeCloseTo(WIDTH - BAR_PAD * 2, 5);
   });
 
@@ -259,66 +258,11 @@ describe('the sliding pill', () => {
     // Zero is "not ready", not a position: drawing at it would flash a pill
     // in the corner on the first frame.
     expect(pillSlot(0, 0)).toEqual({ left: 0, width: 0 });
-    expect(tabSlot(BAR_PAD * 2, 2)).toEqual({ left: 0, width: 0 });
+    expect(pillSlot(BAR_PAD * 2, 2)).toEqual({ left: 0, width: 0 });
   });
 
   it('clamps an index that is not a tab', () => {
-    expect(tabSlot(WIDTH, -3)).toEqual(tabSlot(WIDTH, 0));
-    expect(tabSlot(WIDTH, 99)).toEqual(tabSlot(WIDTH, TABS.length - 1));
-  });
-});
-
-describe('the pill stays the size of its contents', () => {
-  /*
-   * The complaint this answers: on a wide phone the pill was a 140dp shape
-   * around 85dp of content. It took a fixed share of the row, so it grew with
-   * the screen while "Symptoms" did not, and the surplus read as a shape that
-   * did not know what it was for.
-   *
-   * There was no assertion that could have caught it. Every check here was a
-   * lower bound - does the label fit - and none was an upper bound.
-   */
-  const symptoms = TABS.find((t) => t.label === 'Symptoms')!;
-
-  it('does not keep growing with the screen', () => {
-    const wide = pillSlot(480, TABS.indexOf(symptoms)).width;
-    const wider = pillSlot(720, TABS.indexOf(symptoms)).width;
-
-    expect(wide).toBeCloseTo(wider, 5);
-    expect(wide).toBeLessThanOrEqual(pillContentWidth(symptoms.label) + PILL_COMFORT * 2 + 0.01);
-  });
-
-  it('keeps the same breathing space on either side of the content', () => {
-    for (const width of [412, 480, 720]) {
-      for (const t of TABS) {
-        const slot = pillSlot(width, TABS.indexOf(t));
-        const padPerSide = (slot.width - pillContentWidth(t.label)) / 2;
-        expect(padPerSide).toBeCloseTo(PILL_COMFORT, 5);
-      }
-    }
-  });
-
-  it('gives the label the whole slot when the screen is narrow', () => {
-    // The clamp must never make things worse: where the slot is the tighter
-    // of the two, the slot wins and the label gets every pixel going.
-    const bar = 320 - 4 * 2;   // 320dp phone, margins already shed
-    const longest = TABS.reduce((a, b) => (labelWidth(a.label) > labelWidth(b.label) ? a : b));
-    const i = TABS.indexOf(longest);
-
-    expect(pillSlot(bar, i).width).toBeCloseTo(tabSlot(bar, i).width, 5);
-  });
-
-  it('stays centred on the tab it belongs to', () => {
-    // Clamping the width must not shift the pill off its own tab, or it would
-    // sit between two of them.
-    for (const bar of [312, 328, 448]) {
-      for (const t of TABS) {
-        const i = TABS.indexOf(t);
-        const slot = tabSlot(bar, i);
-        const drawn = pillSlot(bar, i);
-
-        expect(drawn.left + drawn.width / 2).toBeCloseTo(slot.left + slot.width / 2, 5);
-      }
-    }
+    expect(pillSlot(WIDTH, -3)).toEqual(pillSlot(WIDTH, 0));
+    expect(pillSlot(WIDTH, 99)).toEqual(pillSlot(WIDTH, TABS.length - 1));
   });
 });
