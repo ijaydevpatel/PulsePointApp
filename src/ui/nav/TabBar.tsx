@@ -38,7 +38,7 @@
  */
 import React, { useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, Pressable, Animated, Easing,
+  View, Text, StyleSheet, Pressable,
   LayoutAnimation, Platform, UIManager, AccessibilityInfo,
   useWindowDimensions,
 } from 'react-native';
@@ -46,7 +46,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BAR_PAD, BAR_SIDE_MARGIN, MIN_BAR_WIDTH, SELECTED_UNITS, TABS, TabKey,
 } from './routes';
-import { useReveal } from '../useReveal';
 import { TYPE, S, R, TOUCH } from '../theme';
 import { Icon } from '../components/Icon';
 
@@ -98,38 +97,39 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
   }, []);
 
   /**
-   * Fades the label in as the pill opens.
+   * The label appears and disappears with the pill, and nothing animates it
+   * directly.
    *
-   * It used to reset to 0 and start after a 90ms delay, on the reasoning that
-   * the label should not appear in a pill that had not finished opening. The
-   * effect on a real device was a visible blink: for those 90ms the selected
-   * tab was an expanded white pill with nothing in it, so switching tabs
-   * looked like the name had been lost. It now starts partly visible and has
-   * no delay - the label is legible for the whole transition, and the pill
-   * clipping it while it opens reads as the label arriving rather than as a
-   * gap.
+   * It has been through three versions. First it faded from 0 after a 90ms
+   * delay, which left the expanded pill visibly empty for those 90ms. Then it
+   * faded from 0.35 with no delay, which removed the gap but still dipped the
+   * text on every switch. Then that fade was moved onto an animated value
+   * whose hook object was listed as an effect dependency - so the effect ran
+   * on every render, restarted the fade every time, and the label and icons
+   * flickered continuously.
+   *
+   * There is no animated value here now. The label is mounted when its tab is
+   * selected and unmounted when it is not, and LayoutAnimation's create and
+   * delete phases fade it in and out as part of the same transition that opens
+   * the pill. One mechanism instead of two, and nothing to restart.
    */
-  /*
-   * Through useReveal. Left as a bare Animated.Value this was the persistent
-   * form of the label glitch: the fade ends at 1 natively but stays 0.35 in
-   * JavaScript, so the next re-render left the selected tab's name at 35%
-   * opacity for good.
-   */
-  const label = useReveal(0.35, 1);
-  // Literal 1 once the fade is over, so a re-attached label cannot come back
-  // at 35% - the same guarantee Enter gets.
-  const labelIn: Animated.Value | number = label.finished ? 1 : label.value;
-
   useEffect(() => {
-    if (reduceMotion.current) { label.settle(); return; }
+    if (reduceMotion.current) return;
 
     LayoutAnimation.configureNext({
       duration: 260,
-      update: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.scaleXY },
+      /*
+       * No scaleXY on the update phase. It applies a scale transform to views
+       * whose bounds are changing, so the pill's icon and text were being
+       * squashed and redrawn through the whole 260ms - legible as a shimmer
+       * even when nothing else was wrong. Animating the frame alone moves the
+       * pill open without touching what is inside it.
+       */
+      update: { type: LayoutAnimation.Types.easeInEaseOut },
+      create: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
+      delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
     });
-
-    label.play({ duration: 140, easing: Easing.out(Easing.quad) });
-  }, [active, label]);
+  }, [active]);
 
   /*
    * Below the floor the bar would have to shrink its targets. It drops the
@@ -172,16 +172,16 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
               />
 
               {on ? (
-                <Animated.Text
+                <Text
                   numberOfLines={1}
-                  style={[st.label, { opacity: labelIn }]}
+                  style={st.label}
                   // The Pressable already carries the label for screen
                   // readers; announcing it twice is noise.
                   accessibilityElementsHidden
                   importantForAccessibility="no"
                 >
                   {t.label}
-                </Animated.Text>
+                </Text>
               ) : null}
             </Pressable>
           );

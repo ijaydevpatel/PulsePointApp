@@ -42,7 +42,7 @@
  * slightly the wrong size, which is not the same class of failure as content
  * that is not there.
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Easing } from 'react-native';
 
 export interface RevealConfig {
@@ -155,5 +155,24 @@ export function useReveal(from = 0, to = 1, options: RevealOptions = {}) {
     value.setValue(v);
   }, [value]);
 
-  return { value, play, animateTo, settle, set, finished };
+  /*
+   * Memoised, and this matters more than it looks.
+   *
+   * Returned as a fresh object literal, this hook put a new reference in
+   * callers' hands on every render. A caller that then listed the whole object
+   * in an effect's dependency array got that effect re-run every render:
+   * play() restarted the animation, which set `finished` false, which caused a
+   * render, which re-ran the effect. The tab bar's label and icons flickered
+   * continuously because the entrance was starting over several times a
+   * second.
+   *
+   * The memo stops the object churning for the common case. It does not make
+   * the object safe to put in a dependency array - `finished` changing still
+   * produces a new reference, by design - so depend on the individual
+   * functions, which are stable, and read `finished` only while rendering.
+   */
+  return useMemo(
+    () => ({ value, play, animateTo, settle, set, finished }),
+    [value, play, animateTo, settle, set, finished],
+  );
 }

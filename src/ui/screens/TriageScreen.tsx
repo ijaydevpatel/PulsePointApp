@@ -119,22 +119,25 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
    *
    * This moves both ways, so it uses animateTo rather than play.
    */
-  const fade = useReveal();
-  const pop = useReveal(0.6, 1);
-  const fabIn = fade.value;
-  const fabScale = pop.value;
+  const { value: fabIn, animateTo: fadeTo } = useReveal();
+  const { value: fabScale, animateTo: popTo } = useReveal(0.6, 1);
 
+  /*
+   * The dependencies are the two animateTo functions, which are stable, not
+   * the hook objects they came from. Listing the objects re-ran this on every
+   * render and restarted the animation each time.
+   */
   useEffect(() => {
-    fade.animateTo(canSubmit ? 1 : 0, {
+    fadeTo(canSubmit ? 1 : 0, {
       duration: MOTION.fast,
       easing: Easing.out(Easing.quad),
     });
-    pop.animateTo(canSubmit ? 1 : 0.6, {
+    popTo(canSubmit ? 1 : 0.6, {
       damping: MOTION.spring.damping,
       stiffness: MOTION.spring.stiffness,
       mass: MOTION.spring.mass,
     });
-  }, [canSubmit, fade, pop]);
+  }, [canSubmit, fadeTo, popTo]);
 
   const toggle = (code: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.create(180, 'easeInEaseOut', 'opacity'));

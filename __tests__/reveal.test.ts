@@ -43,6 +43,35 @@ describe('animation', () => {
     expect(files.length).toBeGreaterThan(10);
   });
 
+  /*
+   * The hook object is a new reference whenever `finished` changes, so listing
+   * it in a dependency array re-runs the effect, which restarts the animation,
+   * which changes `finished` again. The tab bar flickered continuously on
+   * exactly this: the entrance was starting over several times a second, and
+   * with it five SVG icons were re-rendering.
+   *
+   * The functions the hook returns are stable. Depend on those.
+   */
+  it.each(files.map((f) => [f.slice(UI.length + 1), f]))(
+    '%s keeps useReveal objects out of dependency arrays',
+    (_name, path) => {
+      const src = readFileSync(path as string, 'utf8');
+
+      // Only whole-object bindings can be misused this way; a destructured
+      // `const { play } = useReveal()` hands over stable functions.
+      const bound = [...src.matchAll(/const\s+(\w+)\s*=\s*useReveal\(/g)].map((m) => m[1]);
+      if (bound.length === 0) return;
+
+      const deps = [...src.matchAll(/\}\s*,\s*\[([^\]]*)\]\s*\)/g)].map((m) => m[1]);
+
+      for (const name of bound) {
+        for (const list of deps) {
+          expect(list).not.toMatch(new RegExp(`\\b${name}\\b`));
+        }
+      }
+    },
+  );
+
   it.each(files.map((f) => [f.slice(UI.length + 1), f]))(
     '%s animates only through useReveal',
     (_name, path) => {
