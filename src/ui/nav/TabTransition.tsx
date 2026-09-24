@@ -25,8 +25,9 @@
  * the opacity crossfade stays.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, Easing, StyleSheet } from 'react-native';
+import { AccessibilityInfo, Animated, StyleSheet } from 'react-native';
 import { TABS, TabKey } from './routes';
+import { useReveal } from '../useReveal';
 
 /** How far the incoming screen travels. Deliberately short — see above. */
 const SLIDE = 24;
@@ -41,7 +42,17 @@ export function TabTransition({
   tabKey: TabKey;
   children: React.ReactNode;
 }) {
-  const progress = useRef(new Animated.Value(1)).current;
+  /*
+   * Through useReveal rather than Animated directly.
+   *
+   * This component wraps every tab root, and it had the native-driver bug in
+   * its most damaging form: after a tab switch the JS-side value sat at 0
+   * while the native side showed 1, so the next re-render blanked the entire
+   * screen. Closing the keyboard was enough to cause one, because that changes
+   * the window height and the bars read useWindowDimensions — which is why it
+   * looked like scrolling caused it.
+   */
+  const { value: progress, play, settle } = useReveal();
   const previous = useRef<TabKey>(tabKey);
   const [reduceMotion, setReduceMotion] = useState(false);
 
@@ -66,20 +77,13 @@ export function TabTransition({
 
     // Unknown index on either side — nothing sensible to slide from.
     if (from === -1 || to === -1 || from === to) {
-      progress.setValue(1);
+      settle();
       return;
     }
 
     direction.current = to > from ? 1 : -1;
-
-    progress.setValue(0);
-    Animated.timing(progress, {
-      toValue: 1,
-      duration: DURATION,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [tabKey, progress]);
+    play({ duration: DURATION });
+  }, [tabKey, play, settle]);
 
   const translateX = progress.interpolate({
     inputRange: [0, 1],

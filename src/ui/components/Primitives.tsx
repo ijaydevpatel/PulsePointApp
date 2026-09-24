@@ -16,6 +16,7 @@ import {
   AccessibilityRole, Platform,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useReveal } from '../useReveal';
 import { useTheme, TYPE, TypeToken, S, R, TOUCH, MOTION, circle } from '../theme';
 import { Icon, IconName } from './Icon';
 import { LiquidGlass } from './LiquidGlass';
@@ -77,16 +78,21 @@ export function Springy({
   accessibilityRole?: AccessibilityRole; accessibilityLabel?: string;
   accessibilityState?: object; scaleTo?: number;
 }) {
-  const scale = useRef(new Animated.Value(1)).current;
+  /*
+   * Through useReveal for the same reason as everything else here: the spring
+   * is native-driven, so releasing a press returned the scale to 1 on screen
+   * while JavaScript still held 0.97. A render landing after that left the
+   * control permanently shrunk.
+   */
+  const press = useReveal(1, 1);
+  const scale = press.value;
 
   const to = (v: number) =>
-    Animated.spring(scale, {
-      toValue: v,
+    press.animateTo(v, {
       damping: MOTION.press.damping,
       stiffness: MOTION.press.stiffness,
       mass: 1,
-      useNativeDriver: true,
-    }).start();
+    });
 
   // Split layout styles to the root Pressable so flex/margins work as expected.
   const flat = StyleSheet.flatten(style) || {};
@@ -136,51 +142,25 @@ export function Springy({
 /* ───────────────────────────────  entrance  ─────────────────────────────── */
 
 /**
- * Fades and lifts a child into place. Staggering these down a screen is what
- * makes content feel like it arrives rather than blinks — the trick every feed
- * app uses. Kept short so it never delays reading.
- */
-/**
  * Entrance fade-and-rise for content as a screen appears.
  *
- * ── Why it pins itself open ──────────────────────────────────────────────────
- *
- * The animation is native-driven, and the effect that starts it runs once on
- * mount. That combination has a failure mode: a native-driven value lives on
- * the UI thread, so a later re-render can re-apply the JS-side style — where
- * the value is still its initial 0 — and the content vanishes. The effect does
- * not re-run, so nothing brings it back until the screen is remounted.
- *
- * That is exactly what happened when a text input was added to the symptom
- * screen. Every keystroke re-rendered the screen, every Enter block dropped to
- * opacity 0, and the only way back was to leave the tab and return.
- *
- * `played` records that the entrance is finished. Once it is, every subsequent
- * render sets the value straight to 1 rather than trusting the native side to
- * still be holding it. It costs one ref and makes the component impossible to
- * leave invisible.
+ * The reveal is native-driven, which is why it goes through useReveal rather
+ * than Animated directly — see that file for the failure this avoids. In
+ * short: a native-driven value does not write back to JavaScript, so without
+ * it a re-render re-applies the initial 0 and the content disappears.
  */
 export function Enter({
   children, index = 0, style,
 }: { children: ReactNode; index?: number; style?: StyleProp<ViewStyle> }) {
-  const v = useRef(new Animated.Value(0)).current;
-  const played = useRef(false);
+  const { value: v, play } = useReveal();
+  const started = useRef(false);
 
   useEffect(() => {
-    if (played.current) {
-      // Already shown once. Re-assert it rather than replaying the entrance,
-      // which would flash the whole screen on every keystroke.
-      v.setValue(1);
-      return;
-    }
-    Animated.timing(v, {
-      toValue: 1,
-      duration: MOTION.base,
-      delay: index * MOTION.stagger,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start(({ finished }) => { if (finished) played.current = true; });
-  });
+    if (started.current) return;
+    started.current = true;
+    play({ duration: MOTION.base, delay: index * MOTION.stagger });
+  }, [play, index]);
+
   return (
     <Animated.View
       style={[

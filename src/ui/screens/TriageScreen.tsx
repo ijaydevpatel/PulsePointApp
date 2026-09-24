@@ -20,6 +20,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Card, SectionLabel, Chip, Txt, Springy, Enter, tap } from '../components/Primitives';
 import { Icon } from '../components/Icon';
 import { useTheme, S, R, TOUCH, TAB_CLEARANCE, MOTION, TYPE, circle } from '../theme';
+import { useReveal } from '../useReveal';
 import { EpisodeStore, Classifier } from '../../domain/ports';
 import {
   SymptomAnalysis, SymptomAnalysisService, ProfileService, RemoteOutcome,
@@ -110,26 +111,33 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
    * The action is revealed by the first selection rather than sitting there
    * disabled, so at rest nothing overlaps the list.
    */
-  const fabIn = useRef(new Animated.Value(0)).current;
-  const fabScale = useRef(new Animated.Value(0.6)).current;
+  /*
+   * Through useReveal, and this one was load-bearing for the disappearing bug.
+   *
+   * These are native-driven, so the native side never told JavaScript the
+   * button had finished fading in. Typing in the note box re-renders on every
+   * keystroke, which re-applied the stale 0 — so the action someone had just
+   * earned by picking a symptom faded out again as they typed.
+   *
+   * Both directions matter here (available, then not), so this uses animateTo
+   * rather than play.
+   */
+  const fade = useReveal();
+  const pop = useReveal(0.6, 1);
+  const fabIn = fade.value;
+  const fabScale = pop.value;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fabIn, {
-        toValue: canSubmit ? 1 : 0,
-        duration: MOTION.fast,
-        easing: Easing.out(Easing.quad),
-        useNativeDriver: true,
-      }),
-      Animated.spring(fabScale, {
-        toValue: canSubmit ? 1 : 0.6,
-        damping: MOTION.spring.damping,
-        stiffness: MOTION.spring.stiffness,
-        mass: MOTION.spring.mass,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, [canSubmit, fabIn, fabScale]);
+    fade.animateTo(canSubmit ? 1 : 0, {
+      duration: MOTION.fast,
+      easing: Easing.out(Easing.quad),
+    });
+    pop.animateTo(canSubmit ? 1 : 0.6, {
+      damping: MOTION.spring.damping,
+      stiffness: MOTION.spring.stiffness,
+      mass: MOTION.spring.mass,
+    });
+  }, [canSubmit, fade, pop]);
 
   const toggle = (code: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.create(180, 'easeInEaseOut', 'opacity'));

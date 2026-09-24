@@ -7,13 +7,14 @@
  */
 import React, { useEffect, useRef } from 'react';
 import {
-  ActivityIndicator, Animated, Easing, Pressable, StyleSheet, Text,
+  ActivityIndicator, Animated, Pressable, StyleSheet, Text,
   TextInput, TextInputProps, useWindowDimensions, View, ViewStyle, StyleProp,
   AccessibilityInfo, Platform,
 } from 'react-native';
 import { Icon } from '../components/Icon';
 import { BrandMark } from './BrandMark';
 import { C, HERO_LEADING, LIFT, T, gaps, heroSize } from './authTheme';
+import { useReveal } from '../useReveal';
 
 /* ──────────────────────────────  ENTRANCE  ─────────────────────────────── */
 
@@ -24,27 +25,33 @@ import { C, HERO_LEADING, LIFT, T, gaps, heroSize } from './authTheme';
  * Honours reduce-motion: the animation is skipped entirely rather than merely
  * shortened, because a translate is exactly the kind of motion that triggers
  * vestibular symptoms.
+ *
+ * Driven by useReveal, because this is native-driven and so had the same
+ * defect as Enter and TabTransition: the native side never writes the final
+ * value back to JavaScript, so a re-render re-applies the initial 0 and the
+ * content vanishes. It had not been reported here yet, but these screens
+ * carry the text inputs, and opening the keyboard re-renders them.
  */
 export function Rise({
   children, delay = 0, style,
 }: { children: React.ReactNode; delay?: number; style?: StyleProp<ViewStyle> }) {
-  const v = useRef(new Animated.Value(0)).current;
+  const { value: v, play, settle } = useReveal();
+  const started = useRef(false);
 
   useEffect(() => {
+    // Once per mount. Re-running on a re-render would restart the entrance
+    // partway through someone reading it.
+    if (started.current) return;
+    started.current = true;
+
     let cancelled = false;
     AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
       if (cancelled) return;
-      if (reduce) { v.setValue(1); return; }
-      Animated.timing(v, {
-        toValue: 1,
-        duration: 320,
-        delay,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }).start();
+      if (reduce) { settle(); return; }
+      play({ duration: 320, delay });
     });
     return () => { cancelled = true; };
-  }, [v, delay]);
+  }, [play, settle, delay]);
 
   return (
     <Animated.View
@@ -161,10 +168,12 @@ export function PillButton({
   widthRatio?: number;
   style?: StyleProp<ViewStyle>;
 }) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const to = (v: number) => Animated.spring(scale, {
-    toValue: v, damping: 22, stiffness: 320, mass: 0.6, useNativeDriver: true,
-  }).start();
+  // Native-driven, so through useReveal — see that file. Left bare, a render
+  // landing after a press left the button permanently at 98.5%.
+  const press = useReveal(1, 1);
+  const scale = press.value;
+  const to = (v: number) =>
+    press.animateTo(v, { damping: 22, stiffness: 320, mass: 0.6 });
 
   const locked = busy || disabled;
 

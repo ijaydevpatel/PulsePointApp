@@ -46,6 +46,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BAR_PAD, BAR_SIDE_MARGIN, MIN_BAR_WIDTH, SELECTED_UNITS, TABS, TabKey,
 } from './routes';
+import { useReveal } from '../useReveal';
 import { TYPE, S, R, TOUCH } from '../theme';
 import { Icon } from '../components/Icon';
 
@@ -108,24 +109,25 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
    * clipping it while it opens reads as the label arriving rather than as a
    * gap.
    */
-  const labelIn = useRef(new Animated.Value(1)).current;
+  /*
+   * Through useReveal. Left as a bare Animated.Value this was the persistent
+   * form of the label glitch: the fade ends at 1 natively but stays 0.35 in
+   * JavaScript, so the next re-render left the selected tab's name at 35%
+   * opacity for good.
+   */
+  const label = useReveal(0.35, 1);
+  const labelIn = label.value;
 
   useEffect(() => {
-    if (reduceMotion.current) { labelIn.setValue(1); return; }
+    if (reduceMotion.current) { label.settle(); return; }
 
     LayoutAnimation.configureNext({
       duration: 260,
       update: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.scaleXY },
     });
 
-    labelIn.setValue(0.35);
-    Animated.timing(labelIn, {
-      toValue: 1,
-      duration: 140,
-      easing: Easing.out(Easing.quad),
-      useNativeDriver: true,
-    }).start();
-  }, [active, labelIn]);
+    label.play({ duration: 140, easing: Easing.out(Easing.quad) });
+  }, [active, label]);
 
   /*
    * Below the floor the bar would have to shrink its targets. It drops the
