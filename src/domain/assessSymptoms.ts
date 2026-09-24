@@ -12,11 +12,24 @@ import {
 import { detectRedFlags } from './redFlags';
 import { Classifier, EpisodeStore } from './ports';
 
-/** Severity score -> band. Thresholds are policy, kept in one place. */
+/**
+ * Where one band becomes the next. Policy, kept in one place.
+ *
+ * Exported because the classifier needs them too: how close a score sits to a
+ * boundary is most of what decides how much the band can be trusted, and a
+ * second copy of these numbers there would drift.
+ */
+export const BAND_THRESHOLDS: readonly { at: number; band: TriageBand }[] = [
+  { at: 80, band: 'EMERGENCY' },
+  { at: 55, band: 'URGENT' },
+  { at: 25, band: 'PHARMACY_GP' },
+];
+
+/** Severity score -> band. */
 export function bandForSeverity(severity: number): TriageBand {
-  if (severity >= 80) return 'EMERGENCY';
-  if (severity >= 55) return 'URGENT';
-  if (severity >= 25) return 'PHARMACY_GP';
+  for (const t of BAND_THRESHOLDS) {
+    if (severity >= t.at) return t.band;
+  }
   return 'SELF_CARE';
 }
 
@@ -41,7 +54,18 @@ export class AssessSymptomsUseCase {
       episodeId: episode.id,
       band,
       severity: flags.band === 'EMERGENCY' ? Math.max(c.severity, 85) : c.severity,
-      confidence: c.confidence,
+      /*
+       * A red flag is a deterministic rule match, not an estimate.
+       *
+       * When one decides the band, the app's confidence in that decision does
+       * not depend on how blunt the scorer was - the rule either matched the
+       * reported symptoms or it did not. Showing "45% confidence" beside
+       * "Emergency - call 111" invites someone to second-guess an instruction
+       * the app means, which is the opposite of what a confidence figure is
+       * for. Only ever a floor: a classifier that is more certain keeps its
+       * number.
+       */
+      confidence: flags.band ? Math.max(c.confidence, 0.9) : c.confidence,
       source: this.classifier.id === 'tflite-v1' ? 'ON_DEVICE_MODEL' : 'ON_DEVICE_RULES',
       redFlags: flags.descriptions,
       rationale: c.rationale,
