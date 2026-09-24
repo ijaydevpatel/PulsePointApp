@@ -1,5 +1,5 @@
 /**
- * The app opens here. No landing page — the first screen is the task (§5.3).
+ * The app opens here. No landing page - the first screen is the task (§5.3).
  * FR1, FR2, FR3.
  *
  * Severity only appears once a symptom is selected. Showing five severity
@@ -17,7 +17,7 @@ import { AgeBand, Symptom, SymptomEpisode, TriageResult } from '../../domain/ent
 import { AssessSymptomsUseCase } from '../../domain/assessSymptoms';
 import { CATALOGUE } from '../../data/symptomCatalogue';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { Card, SectionLabel, Chip, Txt, Springy, Enter, tap } from '../components/Primitives';
+import { Card, SectionLabel, Chip, Txt, Springy, tap } from '../components/Primitives';
 import { Icon } from '../components/Icon';
 import { useTheme, S, R, TOUCH, TAB_CLEARANCE, MOTION, TYPE, circle } from '../theme';
 import { useReveal } from '../useReveal';
@@ -36,13 +36,13 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
  * Age band from the account's recorded age.
  *
  * The screen used to ask this every time. It is a fact about the person, not
- * about this episode, so re-asking was friction and a chance to get it wrong —
+ * about this episode, so re-asking was friction and a chance to get it wrong -
  * and it drives real red-flag rules, where a fever at 70 is not a fever at 30.
  *
  * ADULT is the fallback when the profile has no age. That is a deliberate
  * choice and not a neutral one: it means the two age-specific rules cannot
  * fire, so the checker under-triages a child or an older adult whose profile
- * is blank. The alternative — guessing an age — would be worse, because a
+ * is blank. The alternative - guessing an age - would be worse, because a
  * wrong band fires the wrong rules rather than none. The banner below says so
  * on screen rather than leaving it silent.
  */
@@ -72,8 +72,8 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
   classifier: Classifier; store: EpisodeStore;
   onResult: (r: TriageResult, ms: number) => void;
   /**
-   * The hosted diagnostic engine. Optional so the screen still works — and the
-   * tests still run — with nothing behind it.
+   * The hosted diagnostic engine. Optional so the screen still works - and the
+   * tests still run - with nothing behind it.
    */
   analysis?: SymptomAnalysisService;
   /** Supplies the recorded age, so the screen no longer has to ask for it. */
@@ -108,19 +108,16 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
   const canSubmit = count > 0 || note.trim().length > 0;
 
   /*
-   * The action is revealed by the first selection rather than sitting there
-   * disabled, so at rest nothing overlaps the list.
-   */
-  /*
-   * Through useReveal, and this one was load-bearing for the disappearing bug.
+   * The Continue button, which appears once there is something to submit.
    *
-   * These are native-driven, so the native side never told JavaScript the
-   * button had finished fading in. Typing in the note box re-renders on every
-   * keystroke, which re-applied the stale 0 — so the action someone had just
-   * earned by picking a symptom faded out again as they typed.
+   * Through useReveal and on the JS driver. A previous version of this used
+   * the native driver with a comment calling it immune to re-renders and
+   * keyboard events; it was the opposite. A natively driven opacity lives
+   * only in the native animated node, so when Android re-attached this view -
+   * which it does when the keyboard opens over it - the value was gone and the
+   * button stayed invisible with a symptom already picked.
    *
-   * Both directions matter here (available, then not), so this uses animateTo
-   * rather than play.
+   * This moves both ways, so it uses animateTo rather than play.
    */
   const fade = useReveal();
   const pop = useReveal(0.6, 1);
@@ -163,7 +160,7 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
       const t0 = Date.now();
 
       // Local first, always. The band is decided on the device so a slow or
-      // failed network call delays the wording, never the triage — and the
+      // failed network call delays the wording, never the triage - and the
       // person gets an answer at the speed of the phone rather than the
       // speed of the model.
       const r = await useCase.execute(episode);
@@ -195,7 +192,7 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
         <ScreenHeader title="How are you feeling?" />
 
         <View style={st.body}>
-          <Enter index={2}>
+          <View>
             <SectionLabel>How long</SectionLabel>
             <View style={st.row}>
               {DURATIONS.map((d) => (
@@ -203,9 +200,9 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
                   onPress={() => setDuration(d.hours)} />
               ))}
             </View>
-          </Enter>
+          </View>
 
-          <Enter index={3}>
+          <View>
             <View style={{ height: S.xxl }} />
             <View style={st.symHeadRow}>
               <SectionLabel style={{ marginBottom: 0 }}>Symptoms</SectionLabel>
@@ -216,26 +213,11 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
               ) : null}
             </View>
             <View style={{ height: S.md }} />
-          </Enter>
+          </View>
 
-          {/*
-            Deliberately not wrapped in Enter.
-            This block re-renders on every keystroke, and an entrance
-            animation around a focused text input is one more thing that can
-            interfere with the field while someone is typing in it. The list
-            below still animates in; the box someone is using does not.
-          */}
           <View>
             <View style={{ height: S.xxl }} />
             <SectionLabel>Describe it yourself</SectionLabel>
-            {/*
-              Either/or, not both-required. Some things have no chip — a taste
-              that has gone, a pain that only comes at night — and a list can
-              never be long enough to cover them. This box takes them in the
-              person's own words and goes to the model alongside whatever was
-              ticked, so the check works with a selection, with a description,
-              or with both.
-            */}
             <TextInput
               style={[st.note, { borderColor: P.line, backgroundColor: P.surface, color: P.ink }]}
               value={note}
@@ -250,63 +232,62 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
             <SectionLabel>Or pick from the list below</SectionLabel>
           </View>
 
-          {CATALOGUE.map((c, i) => {
+          {CATALOGUE.map((c) => {
             const on = picked[c.code] !== undefined;
             return (
-              <Enter key={c.code} index={Math.min(4 + i, 9)}>
-                <Card
-                  padded={false}
-                  elevated={on ? 2 : 1}
-                  glass={true}
-                  style={{
-                    marginBottom: S.sm,
-                    borderColor: on ? P.accent : 'transparent',
-                    borderWidth: on ? 1.5 : 0,
-                  }}
+              <Card
+                key={c.code}
+                padded={false}
+                elevated={on ? 2 : 1}
+                glass={true}
+                style={{
+                  marginBottom: S.sm,
+                  borderColor: on ? P.accent : 'transparent',
+                  borderWidth: on ? 1.5 : 0,
+                }}
+              >
+                <Springy
+                  onPress={() => toggle(c.code)}
+                  weight="select"
+                  scaleTo={0.99}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: on }}
+                  accessibilityLabel={c.label}
+                  style={st.symHead}
                 >
-                  <Springy
-                    onPress={() => toggle(c.code)}
-                    weight="select"
-                    scaleTo={0.99}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: on }}
-                    accessibilityLabel={c.label}
-                    style={st.symHead}
-                  >
-                    <View style={[st.box, {
-                      borderColor: on ? P.accent : P.lineStrong,
-                      backgroundColor: on ? P.accent : 'transparent',
-                    }]}>
-                      {on ? <View style={[st.tick, { borderColor: P.onAccent }]} /> : null}
-                    </View>
-                    <Txt t="bodyStrong" style={{ flex: 1 }}>{c.label}</Txt>
-                  </Springy>
+                  <View style={[st.box, {
+                    borderColor: on ? P.accent : P.lineStrong,
+                    backgroundColor: on ? P.accent : 'transparent',
+                  }]}>
+                    {on ? <View style={[st.tick, { borderColor: P.onAccent }]} /> : null}
+                  </View>
+                  <Txt t="bodyStrong" style={{ flex: 1 }}>{c.label}</Txt>
+                </Springy>
 
-                  {on ? (
-                    <View style={st.levels}>
-                      {LEVELS.map((l) => {
-                        const sel = picked[c.code] === l.v;
-                        return (
-                          <Springy
-                            key={l.v}
-                            weight="select"
-                            scaleTo={0.92}
-                            accessibilityLabel={`${c.label}: ${l.label}`}
-                            accessibilityState={{ selected: sel }}
-                            onPress={() => setPicked((p) => ({ ...p, [c.code]: l.v }))}
-                            style={[st.level, {
-                              backgroundColor: sel ? P.ink : P.sunken,
-                              borderColor: sel ? P.ink : 'transparent',
-                            }]}
-                          >
-                            <Txt t="micro" c={sel ? P.bg : P.muted}>{l.label}</Txt>
-                          </Springy>
-                        );
-                      })}
-                    </View>
-                  ) : null}
-                </Card>
-              </Enter>
+                {on ? (
+                  <View style={st.levels}>
+                    {LEVELS.map((l) => {
+                      const sel = picked[c.code] === l.v;
+                      return (
+                        <Springy
+                          key={l.v}
+                          weight="select"
+                          scaleTo={0.92}
+                          accessibilityLabel={`${c.label}: ${l.label}`}
+                          accessibilityState={{ selected: sel }}
+                          onPress={() => setPicked((p) => ({ ...p, [c.code]: l.v }))}
+                          style={[st.level, {
+                            backgroundColor: sel ? P.ink : P.sunken,
+                            borderColor: sel ? P.ink : 'transparent',
+                          }]}
+                        >
+                          <Txt t="micro" c={sel ? P.bg : P.muted}>{l.label}</Txt>
+                        </Springy>
+                      );
+                    })}
+                  </View>
+                ) : null}
+              </Card>
             );
           })}
         </View>
@@ -315,7 +296,7 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
       {/*
         Compact action, not a full-width bar. A stretched button pinned above
         the tab bar covered a whole symptom row and left the list permanently
-        obstructed — you could not see the item you had just tapped.
+        obstructed - you could not see the item you had just tapped.
       */}
       <Animated.View
         pointerEvents={canSubmit ? 'box-none' : 'none'}

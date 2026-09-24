@@ -13,7 +13,7 @@
 import { SymptomEpisode } from '../domain/entities';
 import { Classifier, Classification } from '../domain/ports';
 
-/** Clinical weight, 0..10 — how much this symptom moves triage urgency. */
+/** Clinical weight, 0..10 - how much this symptom moves triage urgency. */
 const WEIGHT: Record<string, number> = {
   facial_droop: 10, arm_weakness: 10, speech_difficulty: 10,
   chest_pain: 9, breathlessness: 9, rash_non_blanching: 9,

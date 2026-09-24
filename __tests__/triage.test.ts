@@ -1,5 +1,5 @@
 /**
- * Phase 1 tests. Note these run in plain node with NO emulator and NO device —
+ * Phase 1 tests. Note these run in plain node with NO emulator and NO device -
  * that is the payoff of requirement L2 (domain layer has zero platform imports).
  * Evaluation criterion E4 requires 100% branch coverage of red-flag rules.
  */

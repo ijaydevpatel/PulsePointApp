@@ -1,5 +1,5 @@
 /**
- * AI Doctor — a conversation over POST /api/chat/message.
+ * AI Doctor - a conversation over POST /api/chat/message.
  *
  * ── The session id is the whole feature ──────────────────────────────────────
  *
@@ -12,7 +12,7 @@
  * ── Failures are turns, not silences ─────────────────────────────────────────
  *
  * A failed send appends a visible assistant turn carrying the notice. The
- * alternative — a spinner that stops — is the "Awaiting Synchronization" bug
+ * alternative - a spinner that stops - is the "Awaiting Synchronization" bug
  * this project exists to avoid. Every path leaves something on screen.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -44,7 +44,7 @@ export function ChatScreen({ service, onBack }: { service: ChatService; onBack?:
     requestAnimationFrame(() => scroller.current?.scrollToEnd({ animated: true }));
   }, []);
 
-  // Opening greeting. A failure here is not worth a banner — the screen is
+  // Opening greeting. A failure here is not worth a banner - the screen is
   // still usable, so it degrades to an empty conversation.
   useEffect(() => {
     let alive = true;

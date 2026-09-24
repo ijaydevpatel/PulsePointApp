@@ -13,7 +13,7 @@ import { FONT } from '../theme';
 /* ─────────────────────────────── palette ────────────────────────────────── */
 
 export const C = {
-  /** Screen background. Near-white, never pure white — the white surfaces
+  /** Screen background. Near-white, never pure white - the white surfaces
    *  need something to sit against or the composition goes flat. */
   canvas: '#F7F7F9',
   /** Organic shape, pills, inputs. */
@@ -23,7 +23,7 @@ export const C = {
   ink: '#0A0A0A',
   /** Supporting copy, form labels, account prompts. 14.87:1 on canvas. */
   ink2: '#222222',
-  /** Placeholders and hints. 4.63:1 on white — supplementary to a real label. */
+  /** Placeholders and hints. 4.63:1 on white - supplementary to a real label. */
   ink3: '#6B6B70',
 
   /**
@@ -31,7 +31,7 @@ export const C = {
    *
    * The specified value, #D88B63, measures 2.52:1 on the canvas. That is fine
    * for the glow and for anything decorative, but it fails WCAG AA the moment
-   * it carries text — and the account-switcher link is text. So the hue and
+   * it carries text - and the account-switcher link is text. So the hue and
    * the muted, warm character are kept exactly; only the lightness comes down,
    * to 4.88:1. Side by side the difference reads as the same colour.
    *
@@ -40,7 +40,7 @@ export const C = {
   accent: '#A6572B',
   /**
    * The specified warm accent, exactly. Used wherever it is not carrying
-   * text — the CTA arrow, which is decorative because the label beside it
+   * text - the CTA arrow, which is decorative because the label beside it
    * already says what the button does.
    */
   accentSoft: '#D88B63',
@@ -59,7 +59,7 @@ export const C = {
  *
  * These are the colours of large diffused light fields, not of shapes. Each
  * one is used at low opacity with a long falloff and heavy overlap, so what
- * lands on screen is considerably paler than the swatch — that is the point.
+ * lands on screen is considerably paler than the swatch - that is the point.
  * A field rendered at its own value would read as a coloured block.
  */
 export const GLOW = {
@@ -71,7 +71,7 @@ export const GLOW = {
   peach: '#F2B38F',
   /** Soft orange. */
   orange: '#EAA16C',
-  /** Warm amber — the warmest point, used sparingly and never at full width. */
+  /** Warm amber - the warmest point, used sparingly and never at full width. */
   amber: '#E7A15F',
   /** Pale blush. The first step out of neutral on the cool side. */
   blush: '#F2C1D2',
@@ -83,7 +83,7 @@ export const GLOW = {
   /*
    * Login and Sign Up use two hues and only two.
    *
-   * The reference's lower band is not eight colours — it is one pink and one
+   * The reference's lower band is not eight colours - it is one pink and one
    * orange, meeting in the middle. The apparent range from deep pink through
    * mauve, cream and peach to amber is what those two produce as their tails
    * thin out and cross; there is no third colour anywhere in it. Adding cream
@@ -120,7 +120,7 @@ export function gaps(height: number, width: number) {
     top: v(0.055, 32, 72),
     /** Wordmark to hero heading. */
     logoToHero: v(0.048, 28, 60),
-    /** Hero heading to the first button. Generous — this is the main breath. */
+    /** Hero heading to the first button. Generous - this is the main breath. */
     heroToButtons: v(0.070, 40, 88),
     /** Between the two auth buttons. Tight: they are one group. */
     betweenButtons: v(0.017, 12, 20),
@@ -143,7 +143,7 @@ export type Gaps = ReturnType<typeof gaps>;
  * The one column width the whole flow uses.
  *
  * The Google and Email pills are 88% of the content box, and the form fields
- * were 100% — so stepping from the provider choice into the email form made
+ * were 100% - so stepping from the provider choice into the email form made
  * everything jump wider, which is most of why that screen looked unfinished.
  * Fields, the submit button and the pills now all measure the same.
  */
@@ -154,7 +154,7 @@ export const COLUMN = 0.88;
  *
  * Width alone is not enough. The line breaks in COPY are deliberate, but a
  * line that is too long for the available width soft-wraps anyway, and the
- * three-line welcome heading silently becomes four — which is exactly what it
+ * three-line welcome heading silently becomes four - which is exactly what it
  * did on a 412dp screen. The break pattern is part of the design, so the type
  * has to yield instead.
  *
@@ -169,7 +169,7 @@ export const COLUMN = 0.88;
  * fraction of the point size.
  *
  * Was 0.50, which was measured optimistically and let "Welcome back." compute
- * a size it could not actually render — the Text then ellipsised it to
+ * a size it could not actually render - the Text then ellipsised it to
  * "Welcome bac…". 0.58 is deliberately pessimistic: the cost of over-
  * estimating is a headline a couple of points smaller than it had to be, and
  * the cost of under-estimating is truncated copy.
@@ -178,7 +178,7 @@ export const HERO_ADVANCE = 0.58;
 
 /**
  * Playfair's descenders drop about 0.21em below the baseline, so a line box of
- * 1.06em clips the tail of a 'y' or 'g' on the last line — Android measures
+ * 1.06em clips the tail of a 'y' or 'g' on the last line - Android measures
  * the block from the line box, not the glyph. 1.18 clears them and still reads
  * as set headline rather than body copy.
  */
@@ -195,7 +195,7 @@ export function heroSize(width: number, longestLine = 12, edge = 28): number {
    *
    * The lower clamp is 18 rather than 26 because a floor above the fitting
    * size defeats the fitting size. At 26 on a 320dp screen, "Your health
-   * picture" was computed at 24.9, clamped back up to 26, and overflowed —
+   * picture" was computed at 24.9, clamped back up to 26, and overflowed -
    * the clamp reintroduced exactly the bug the calculation prevents. 18 is low
    * enough never to bind on real copy and still legible as display type.
    */
@@ -206,7 +206,7 @@ export const T: Record<string, TextStyle> = {
   /**
    * Playfair Display at Regular. The thin strokes are the whole point of the
    * face, and bold weights thicken them until it reads as a generic slab.
-   * Line height is tight — 1.06 — because large editorial type set at normal
+   * Line height is tight - 1.06 - because large editorial type set at normal
    * leading looks like body copy that grew.
    */
   hero: {
@@ -227,7 +227,7 @@ export const T: Record<string, TextStyle> = {
   /*
    * The app name. At 17 it measured smaller than the 16px supporting copy once
    * optical size is taken into account, which put the brand below the captions
-   * in the hierarchy — backwards. 22 reads as the second thing on the screen
+   * in the hierarchy - backwards. 22 reads as the second thing on the screen
    * after the headline, which is where it belongs.
    */
   wordmark: { fontFamily: FONT.bold, fontSize: 22, letterSpacing: -0.4, color: C.ink },
@@ -237,7 +237,7 @@ export const T: Record<string, TextStyle> = {
 
 /**
  * "Almost invisible unless you look for it." Low opacity, wide blur, small
- * offset — the pill should read as floating a millimetre off the page, not as
+ * offset - the pill should read as floating a millimetre off the page, not as
  * a Material card.
  */
 export const LIFT = {
@@ -253,7 +253,7 @@ export const LIFT = {
 /**
  * Every headline string in one place.
  *
- * Each entry is an array of lines, and the array *is* the line break — the
+ * Each entry is an array of lines, and the array *is* the line break - the
  * hero never soft-wraps, so a break lands where it is written here rather than
  * wherever the device's width happens to fall. Change the words by editing
  * this object; no layout anywhere reads the strings themselves.
@@ -264,7 +264,7 @@ export const COPY = {
   signupHero: ['Start your', 'health record.'],
   // Two lines, like every other hero. As single lines these were the longest
   // strings in the set, so the fitting calculation drove them down to about
-  // 30pt on a 412dp screen — half the size of the login headline beside them,
+  // 30pt on a 412dp screen - half the size of the login headline beside them,
   // which is most of why the email screens read as unfinished.
   emailLoginHero: ['Welcome', 'back.'],
   emailSignupHero: ['Create your', 'account.'],

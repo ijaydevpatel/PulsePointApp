@@ -1,5 +1,5 @@
 /**
- * FR6 — on-device interaction check.
+ * FR6 - on-device interaction check.
  *
  * Type-ahead is not a nicety. The check can only compare medicines the table
  * recognises, so anything raising the recognition rate directly raises how much
@@ -126,7 +126,7 @@ export function MedicinesScreen({ onReport }: { onReport: (r: InteractionReport)
             <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: S.sm }}>
               <Icon name="alert" size={14} color={P.warn} />
               <Txt t="caption" c={P.warn} style={{ flex: 1 }}>
-                Not in the table. You can still add it — it will be listed as unrecognised
+                Not in the table. You can still add it - it will be listed as unrecognised
                 rather than quietly skipped.
               </Txt>
             </View>

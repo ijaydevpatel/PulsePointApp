@@ -1,6 +1,6 @@
 /**
  * The time-zone tier exists because the two tiers above it are both allowed
- * to fail — GPS indoors, IP services rate-limiting. Its whole job is to
+ * to fail - GPS indoors, IP services rate-limiting. Its whole job is to
  * always produce something, so that is what these assert.
  */
 import { zoneFix } from '../src/data/locationFix';
@@ -9,7 +9,7 @@ describe('time-zone location fix', () => {
   const realIntl = Intl.DateTimeFormat;
 
   const pretendZone = (timeZone: string | undefined) => {
-    // @ts-expect-error — deliberately replacing the global for the test.
+    // @ts-expect-error - deliberately replacing the global for the test.
     Intl.DateTimeFormat = () => ({ resolvedOptions: () => ({ timeZone }) });
   };
 

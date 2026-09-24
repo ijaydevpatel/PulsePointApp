@@ -1,5 +1,5 @@
 /**
- * Domain entities. This file imports NOTHING — no React, no SQLite, no network.
+ * Domain entities. This file imports NOTHING - no React, no SQLite, no network.
  * That constraint is requirement L2 and is enforced by lint rule in CI.
  */
 
@@ -59,7 +59,7 @@ export const BAND_LABEL: Record<TriageBand, string> = {
   SELF_CARE: 'Self-care at home',
   PHARMACY_GP: 'See a pharmacist or GP',
   URGENT: 'Urgent care, today',
-  EMERGENCY: 'Emergency — call 111',
+  EMERGENCY: 'Emergency - call 111',
 };
 
 export const BAND_ADVICE: Record<TriageBand, string> = {

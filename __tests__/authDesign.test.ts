@@ -1,6 +1,6 @@
 /**
- * The auth screens carry their own palette, so the project's contrast gate —
- * which walks `theme.ts` — does not see them. This is that gate, for this
+ * The auth screens carry their own palette, so the project's contrast gate -
+ * which walks `theme.ts` - does not see them. This is that gate, for this
  * palette, so a future colour tweak fails the build rather than quietly
  * shipping unreadable text.
  *
@@ -55,7 +55,7 @@ describe('auth palette meets WCAG 2.2 AA', () => {
   });
 
   test('input boundaries clear 3:1 against the surface they sit on', () => {
-    // WCAG 1.4.11 — a control whose edge you cannot see is a control you
+    // WCAG 1.4.11 - a control whose edge you cannot see is a control you
     // cannot find.
     expect(ratio(C.field, C.surface)).toBeGreaterThanOrEqual(3);
   });
@@ -143,7 +143,7 @@ describe('field validation', () => {
 import { COLUMN, COPY, HERO_ADVANCE, HERO_LEADING, gaps, heroSize } from '../src/ui/auth/authTheme';
 
 describe('the composition scales instead of being redesigned', () => {
-  // Small, standard, large, tablet — width x height in dp.
+  // Small, standard, large, tablet - width x height in dp.
   const devices: [string, number, number][] = [
     ['small phone', 320, 568],
     ['compact', 360, 740],
@@ -155,7 +155,7 @@ describe('the composition scales instead of being redesigned', () => {
   test.each(devices)('%s: nothing collapses or runs away', (_n, w, h) => {
     const g = gaps(h, w);
 
-    // Every gap is positive and finite — no NaN leaking from a bad fraction.
+    // Every gap is positive and finite - no NaN leaking from a bad fraction.
     for (const [key, value] of Object.entries(g)) {
       expect(Number.isFinite(value)).toBe(true);
       expect(value).toBeGreaterThan(0);
@@ -172,7 +172,7 @@ describe('the composition scales instead of being redesigned', () => {
 
   it('keeps the hero proportional but bounded', () => {
     const sizes = devices.map(([, w]) => heroSize(w));
-    // Monotonic in width — a wider screen never gets smaller type.
+    // Monotonic in width - a wider screen never gets smaller type.
     for (let i = 1; i < sizes.length; i += 1) {
       expect(sizes[i]).toBeGreaterThanOrEqual(sizes[i - 1]!);
     }
@@ -185,7 +185,7 @@ describe('the composition scales instead of being redesigned', () => {
   it('leaves the hero room to breathe at the edges', () => {
     for (const [, w, h] of devices) {
       const g = gaps(h, w);
-      // Content width after margins stays a clear majority of the screen —
+      // Content width after margins stays a clear majority of the screen -
       // the heading is never squeezed into a column.
       expect((w - g.edge * 2) / w).toBeGreaterThan(0.8);
     }
@@ -237,7 +237,7 @@ describe('the written line breaks are the only line breaks', () => {
   });
 
   it('measures every real headline as fitting on one line', () => {
-    // The regression this guards is "Welcome bac…" — a size computed as
+    // The regression this guards is "Welcome bac…" - a size computed as
     // fitting that the renderer then ellipsised.
     for (const [key, lines] of Object.entries(COPY)) {
       for (const [, w, h] of [[0, 320, 568], [0, 360, 740], [0, 412, 915]] as number[][]) {
@@ -280,7 +280,7 @@ describe('welcome and the auth screens do not share a background', () => {
 
     for (const f of AUTH_FIELDS) {
       // Every centre below the bottom edge, so light enters from beneath and
-      // fades upward — and the bright core is never drawn.
+      // fades upward - and the bright core is never drawn.
       expect(`${f.id} cy=${f.cy}`).toBe(`${f.id} cy=${f.cy}`);
       expect(f.cy).toBeGreaterThan(1);
 
@@ -328,7 +328,7 @@ describe('welcome and the auth screens do not share a background', () => {
       const group = AUTH_FIELDS
         .filter((f) => f.colour === hue)
         .sort((x, y) => y.rx - x.rx);
-      // Widest is palest, narrowest is strongest — that ordering is what
+      // Widest is palest, narrowest is strongest - that ordering is what
       // produces the value progression out of a single colour.
       for (let i = 1; i < group.length; i += 1) {
         expect(group[i]!.peak).toBeGreaterThan(group[i - 1]!.peak);
@@ -384,7 +384,7 @@ describe('welcome and the auth screens do not share a background', () => {
       const cur = stops[i]!;
       // Never brightens.
       expect(cur.opacity).toBeLessThan(prev.opacity);
-      // No single segment drops more than a fifth of full alpha — that is the
+      // No single segment drops more than a fifth of full alpha - that is the
       // threshold where a ramp starts showing a seam on an 8-bit panel.
       expect(prev.opacity - cur.opacity).toBeLessThanOrEqual(0.2);
     }
@@ -394,7 +394,7 @@ describe('welcome and the auth screens do not share a background', () => {
     // rx > 1 means the ellipse's own extremes are off-screen, so the visible
     // arc is the shallow middle of the curve rather than a stadium's end.
     expect(SHAPE.welcome.rx).toBeGreaterThan(1);
-    // And it never fills the screen vertically — colour stays visible above
+    // And it never fills the screen vertically - colour stays visible above
     // and below.
     expect(SHAPE.welcome.ry).toBeLessThan(0.5);
   });
@@ -405,7 +405,7 @@ describe('welcome and the auth screens do not share a background', () => {
     const dy = (1 - cy) / ry;
     const halfWidth = rx * Math.sqrt(1 - dy * dy);
 
-    // Narrower than the screen, so colour shows beside it in both corners —
+    // Narrower than the screen, so colour shows beside it in both corners -
     // as it does in the reference.
     expect(cx + halfWidth).toBeLessThan(1);
     expect(cx - halfWidth).toBeGreaterThan(0);

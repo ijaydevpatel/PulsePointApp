@@ -50,7 +50,7 @@ const MATRIX = {
   isEmergencyOverride: false,
 };
 
-describe('model 1 — on-device classifier (QR4 / L1)', () => {
+describe('model 1 - on-device classifier (QR4 / L1)', () => {
   it('falls back to the rules engine when no model is loaded', async () => {
     const c = createOnDeviceClassifier(new TFLiteBackend(false));
     expect(c.id).not.toBe('tflite-v1');
@@ -95,7 +95,7 @@ describe('model 1 — on-device classifier (QR4 / L1)', () => {
   });
 });
 
-describe('model 2 — POST /api/symptoms/analyze', () => {
+describe('model 2 - POST /api/symptoms/analyze', () => {
   it('parses the probability matrix and treatment pathways', async () => {
     const r = await new RemoteSymptomAnalysis(client(async () => jsonRes(MATRIX))).analyze(
       { activeSymptoms: ['fever'], customSymptom: '' });
@@ -170,7 +170,7 @@ describe('model 2 — POST /api/symptoms/analyze', () => {
   });
 });
 
-describe('model 2 — POST /api/medicine/check', () => {
+describe('model 2 - POST /api/medicine/check', () => {
   const OKBODY = {
     compatibilityVerdict: 'Caution advised',
     riskLevel: 'High', riskPercentage: 74, dangerDetected: true,

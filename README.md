@@ -83,7 +83,7 @@ low confidence cannot suppress an escalation; and a high score is never pulled d
 ## Scoring model
 
 The classifier uses a **saturating (noisy-OR) aggregate**, not a linear sum. A linear
-sum is wrong here - it is unbounded, so it cannot map onto the 0–100 band thresholds
+sum is wrong here - it is unbounded, so it cannot map onto the 0-100 band thresholds
 without arbitrary rescaling, and it lets many trivial symptoms out-vote one serious
 symptom. Current calibration:
 

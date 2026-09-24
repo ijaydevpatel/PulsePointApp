@@ -1,5 +1,5 @@
 /**
- * Analyzer — POST /api/reports/analyze.
+ * Analyzer - POST /api/reports/analyze.
  *
  * Takes a PDF or image of a medical report, uploads it as multipart under the
  * field name `reportFile` (the route runs `upload.single('reportFile')`, so the
@@ -8,7 +8,7 @@
  * ── Two things this screen is careful about ──────────────────────────────────
  *
  * The risk level leads, because a person who has just uploaded a blood test is
- * looking for one thing first. It is colour-coded but never colour-only — the
+ * looking for one thing first. It is colour-coded but never colour-only - the
  * word is always present, since roughly one in twelve men cannot separate the
  * red from the amber.
  *
@@ -28,9 +28,9 @@ import { ReportService, ReportAnalysis, ReportRisk } from '../../domain/remote';
 /**
  * Splits the advice field into its preamble and its numbered steps.
  *
- * The synthesis prompt asks for 1–2 sentences of context followed by numbered
+ * The synthesis prompt asks for 1-2 sentences of context followed by numbered
  * points each on its own line. Rendering that as one paragraph buries the
- * steps — which are the part someone acts on — inside the explanation. Parsed
+ * steps - which are the part someone acts on - inside the explanation. Parsed
  * rather than trusted: if no numbered lines are found, everything stays as
  * preamble and nothing is lost.
  */

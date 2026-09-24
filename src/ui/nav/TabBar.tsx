@@ -3,7 +3,7 @@
  *
  * A dark capsule carrying five icons. The selected one expands into a light
  * pill and reveals its label; the rest stay as glyphs. Only one label is ever
- * on screen, which is what lets the bar stay this short — five permanent
+ * on screen, which is what lets the bar stay this short - five permanent
  * labels would need either tiny type or a taller bar.
  *
  * ── Colour ───────────────────────────────────────────────────────────────────
@@ -30,7 +30,7 @@
  *
  * Flex weights state the relationship directly instead: unselected tabs take
  * one unit, the selected one takes SELECTED_UNITS, and the row divides itself.
- * No measurement, no arithmetic, and it cannot drift — the expanded pill is
+ * No measurement, no arithmetic, and it cannot drift - the expanded pill is
  * exactly as wide as the layout says it is.
  *
  * The touch-target floor falls out of the same arithmetic rather than being
@@ -65,7 +65,7 @@ const PILL = '#FFFFFF';
 /** Selected glyph and label on that pill. 18.4:1. */
 const ON_PILL = '#0A0A0A';
 /**
- * Unselected glyphs. 7.2:1 against the bar — comfortably past the 3:1 that
+ * Unselected glyphs. 7.2:1 against the bar - comfortably past the 3:1 that
  * WCAG 1.4.11 asks of a control you have to be able to find.
  */
 const OFF_PILL = '#A6A6A6';
@@ -75,7 +75,7 @@ const OFF_PILL = '#A6A6A6';
 /*
  * SELECTED_UNITS, BAR_PAD, BAR_SIDE_MARGIN and MIN_BAR_WIDTH now live in
  * routes.ts alongside TABS. The touch-target floor is a consequence of how
- * many destinations there are, so it belongs with the destinations — and the
+ * many destinations there are, so it belongs with the destinations - and the
  * test suite can then check the arithmetic without importing a component.
  */
 const PAD = BAR_PAD;
@@ -105,7 +105,7 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
    * effect on a real device was a visible blink: for those 90ms the selected
    * tab was an expanded white pill with nothing in it, so switching tabs
    * looked like the name had been lost. It now starts partly visible and has
-   * no delay — the label is legible for the whole transition, and the pill
+   * no delay - the label is legible for the whole transition, and the pill
    * clipping it while it opens reads as the label arriving rather than as a
    * gap.
    */
@@ -116,7 +116,9 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
    * opacity for good.
    */
   const label = useReveal(0.35, 1);
-  const labelIn = label.value;
+  // Literal 1 once the fade is over, so a re-attached label cannot come back
+  // at 35% - the same guarantee Enter gets.
+  const labelIn: Animated.Value | number = label.finished ? 1 : label.value;
 
   useEffect(() => {
     if (reduceMotion.current) { label.settle(); return; }
@@ -131,7 +133,7 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
 
   /*
    * Below the floor the bar would have to shrink its targets. It drops the
-   * side margins first — losing the floating inset is a far smaller loss than
+   * side margins first - losing the floating inset is a far smaller loss than
    * losing a tappable control.
    */
   const margin = width < MIN_BAR_WIDTH ? S.xs : SIDE_MARGIN;

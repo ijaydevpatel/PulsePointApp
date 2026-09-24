@@ -1,5 +1,5 @@
 /**
- * Home — the website's dashboard composition, in the app's palette.
+ * Home - the website's dashboard composition, in the app's palette.
  *
  * Card order follows the site: today's intelligence, then the digital-twin
  * pair (pattern / risk trend), then score and streak, then environment. The
@@ -9,8 +9,8 @@
  *
  * Today's Intelligence, the pattern and the risk trend are genuine: GPT-OSS-120B
  * on Groq generates them from the signed-in profile. Home asks for a fresh one
- * on every open — the route caches for thirty minutes by default, which made
- * the tip the same sentence all afternoon — and the server keeps the last good
+ * on every open - the route caches for thirty minutes by default, which made
+ * the tip the same sentence all afternoon - and the server keeps the last good
  * value so a failed regeneration falls back rather than showing nothing. The
  * last twenty tips are withheld from the model so it cannot circle the same
  * three suggestions.
@@ -20,13 +20,13 @@
  *
  * Two cards work differently here than on the site:
  *
- *   Score and streak — the backend declares `healthScore` (default 100) and
+ *   Score and streak - the backend declares `healthScore` (default 100) and
  *   `streak` (default 0) and never writes either, so every account on the web
  *   reads 100/100 on no data. Both are computed on the device from real
  *   episode history (src/domain/wellbeing.ts), and when there is no history
  *   they say so instead of showing a number.
  *
- *   Environment — the backend returns a fixed { aqi: 38, uv: 5, humidity: 62 }
+ *   Environment - the backend returns a fixed { aqi: 38, uv: 5, humidity: 62 }
  *   marked "static fallback". These come from Open-Meteo for the device's
  *   actual coordinates, and every field can be null, which renders as an
  *   em dash rather than as a plausible-looking default.
@@ -70,7 +70,7 @@ const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 
 /** Null renders as an em dash. Never as zero, and never as a default. */
 const show = (n: number | null, suffix = ''): string =>
-  n === null ? '—' : `${Math.round(n)}${suffix}`;
+  n === null ? '-' : `${Math.round(n)}${suffix}`;
 
 /* ───────────────────────────────  screen  ───────────────────────────────── */
 
@@ -106,8 +106,8 @@ export function HomeScreen({
    * Two calls for the briefing, on purpose.
    *
    * The cached read returns in well under a second and paints the card
-   * immediately. The forced regeneration takes as long as the model takes —
-   * seconds, and longer on a cold dyno — and replaces it when it lands. That
+   * immediately. The forced regeneration takes as long as the model takes -
+   * seconds, and longer on a cold dyno - and replaces it when it lands. That
    * is how the tip can be new on every open without anyone watching an empty
    * card while it generates.
    *
@@ -167,7 +167,7 @@ export function HomeScreen({
         </Txt>
         {i?.dailyStatus && i.dailyStatus !== 'Unknown' ? (
           <Txt t="micro" c={P.muted} style={st.eyebrow}>
-            {`TODAY — ${i.dailyStatus.toUpperCase()}`}
+            {`TODAY - ${i.dailyStatus.toUpperCase()}`}
           </Txt>
         ) : null}
       </Enter>
@@ -227,7 +227,7 @@ export function HomeScreen({
               </>
             ) : (
               /*
-                No episodes means there is genuinely nothing to score — the
+                No episodes means there is genuinely nothing to score - the
                 figure is derived from recorded assessments, so inventing one
                 would be the exact failure this replaced on the website, where
                 every account reads 100/100 on no data.
@@ -279,7 +279,7 @@ export function HomeScreen({
               </View>
             ))}
             <Txt t="micro" c={P.faint} style={{ marginTop: S.sm }}>
-              A summary of what this app has recorded — not a measure of your
+              A summary of what this app has recorded - not a measure of your
               health. It cannot see anything you have not entered.
             </Txt>
           </Card>
@@ -392,7 +392,7 @@ function EnvCard({
     /*
       Retry lives on the card, not only on pull-to-refresh. This card sits
       mid-screen, so the gesture that fixes it is both invisible and easy to
-      miss — and the common causes (location toggled on, stepping near a
+      miss - and the common causes (location toggled on, stepping near a
       window) are resolved in seconds, which makes an explicit retry the
       difference between a card that recovers and one that looks broken.
     */
@@ -424,7 +424,7 @@ function EnvCard({
       {/*
         Where the readings are for, above the readings themselves.
         Three numbers with no place attached invite the assumption that they
-        are measured at the phone — which is only true on the device tier. The
+        are measured at the phone - which is only true on the device tier. The
         pin and the name say what they actually describe.
       */}
       {d.place ? (

@@ -1,7 +1,7 @@
 /**
  * Raw provider errors, turned into something a worried person can act on.
  *
- * Clerk returns messages written for developers — "Password is incorrect. Try
+ * Clerk returns messages written for developers - "Password is incorrect. Try
  * again, or use another method." alongside codes like `form_password_pwned`.
  * Showing those verbatim leaks the provider, leaks internal vocabulary, and in
  * the pwned case reads as an accusation. Everything is mapped by code where a
@@ -22,7 +22,7 @@ const BY_CODE: Record<string, string> = {
   form_password_incorrect: 'Incorrect email or password.',
   form_param_format_invalid: 'Please enter a valid email address.',
   form_identifier_exists: 'This email is already registered.',
-  form_password_pwned: 'Please choose a different password — this one has appeared in a known data breach.',
+  form_password_pwned: 'Please choose a different password - this one has appeared in a known data breach.',
   form_password_length_too_short: 'Your password needs to be at least 8 characters.',
   form_password_validation_failed: 'Please choose a stronger password.',
   form_param_nil: 'Please fill in every field.',
@@ -61,7 +61,7 @@ export function humanAuthError(e: unknown): string {
 /* ────────────────────────────  field validation  ───────────────────────── */
 
 /**
- * Format only — never a claim about whether the address exists. RFC 5322 in
+ * Format only - never a claim about whether the address exists. RFC 5322 in
  * full is not worth implementing client-side; this rejects the typos people
  * actually make and lets the server be the authority on the rest.
  */

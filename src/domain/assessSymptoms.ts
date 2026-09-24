@@ -1,5 +1,5 @@
 /**
- * AssessSymptomsUseCase — FR1, FR2, FR3, QR5.
+ * AssessSymptomsUseCase - FR1, FR2, FR3, QR5.
  *
  * Ordering is the safety-critical part:
  *   1. red-flag rules run FIRST and can never be suppressed
@@ -27,7 +27,7 @@ export class AssessSymptomsUseCase {
   ) {}
 
   async execute(episode: SymptomEpisode): Promise<TriageResult> {
-    // 1. Red flags first — always, regardless of what the classifier says.
+    // 1. Red flags first - always, regardless of what the classifier says.
     const flags = detectRedFlags(episode);
 
     // 2. Score.

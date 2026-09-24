@@ -3,7 +3,7 @@
  *
  * Two separate chips rather than one bar. A full-width header reserves its
  * whole height whether or not anything is in it, and on these screens there is
- * nothing in the middle — so the band was costing about 90dp of content for a
+ * nothing in the middle - so the band was costing about 90dp of content for a
  * logo and a circle. Floating them means the list underneath starts at the top
  * of the screen and scrolls past them.
  *
@@ -34,7 +34,7 @@ import { S, TOUCH, TYPE } from '../theme';
 
 /** Chip surface. Near-white so the mark's own colours stay true on it. */
 const CHIP = '#FFFFFF';
-/** The hexagon in the brand mark — the avatar circle matches the tab bar. */
+/** The hexagon in the brand mark - the avatar circle matches the tab bar. */
 const AVATAR = '#1A1A1A';
 const ON_AVATAR = '#FFFFFF';
 const INK = '#0A0A0A';
@@ -108,7 +108,7 @@ export function TopBar({
   );
 }
 
-/** Soft shadow shared by both chips. Low and wide — depth, not an outline. */
+/** Soft shadow shared by both chips. Low and wide - depth, not an outline. */
 const LIFT = {
   shadowColor: '#0B0B0F',
   shadowOpacity: 0.12,

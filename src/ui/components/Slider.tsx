@@ -1,7 +1,7 @@
 /**
  * iOS slider.
  *
- * Continuous drag with a shadowed round knob on a two-tone track — the filled
+ * Continuous drag with a shadowed round knob on a two-tone track - the filled
  * portion in the accent colour, the remainder in a light fill. Tapping anywhere
  * on the track jumps to that position, which iOS supports and most
  * reimplementations forget.
@@ -9,7 +9,7 @@
  * Uses PanResponder rather than a gesture library because the app has no
  * gesture dependency and does not need one for a single control. The value is
  * held in a ref during the drag so every move event does not trigger a React
- * render — with a live glass preview attached, re-rendering per frame would
+ * render - with a live glass preview attached, re-rendering per frame would
  * make the drag stutter on exactly the devices the effect is heaviest on.
  */
 import React, { useRef, useState } from 'react';

@@ -1,5 +1,5 @@
 /**
- * Health News — GET /api/news.
+ * Health News - GET /api/news.
  *
  * The backend aggregates RSS feeds, derives a one-line briefing from the top
  * item, and returns each brief with a title, snippet, source, date and
@@ -8,7 +8,7 @@
  * Pull-to-refresh rather than a refresh button: the feed is the whole screen,
  * so the gesture that already means "get me the latest" is the right control.
  * A failed refresh keeps whatever is already on screen and shows the notice
- * above it — throwing away readable articles because a later fetch failed
+ * above it - throwing away readable articles because a later fetch failed
  * would be a strictly worse outcome than doing nothing.
  */
 import React, { useCallback, useEffect, useState } from 'react';

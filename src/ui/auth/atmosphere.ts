@@ -2,8 +2,8 @@
  * The atmosphere, as data.
  *
  * Kept out of the component so it can be reasoned about and tested directly:
- * the rules that matter here — every field centred off-screen, a long enough
- * tail, the auth screens carrying no colour — are properties of these numbers,
+ * the rules that matter here - every field centred off-screen, a long enough
+ * tail, the auth screens carrying no colour - are properties of these numbers,
  * not of the JSX that draws them.
  *
  * All positions and radii are fractions of the viewport, never pixels, so the
@@ -16,7 +16,7 @@ export interface Field {
   colour: string;
   /** Alpha at the field's own centre, which is off-screen. */
   peak: number;
-  /** Centre as a fraction of viewport width / height. Outside 0–1 by design. */
+  /** Centre as a fraction of viewport width / height. Outside 0-1 by design. */
   cx: number;
   cy: number;
   /** Radii as a fraction of viewport width / height. */
@@ -33,7 +33,7 @@ export interface Field {
  * what produces visible banding. No segment here is steep enough to quantise.
  *
  * Because every field's centre sits outside the viewport, the stops that
- * actually land on screen are roughly those from 0.55 outward — the bright
+ * actually land on screen are roughly those from 0.55 outward - the bright
  * core and the steepest part of the curve are never drawn.
  */
 export function tail(peak: number): { offset: string; opacity: number }[] {
@@ -54,8 +54,8 @@ export function tail(peak: number): { offset: string; opacity: number }[] {
  *
  * Warm across the top and down the right, cool along the bottom-left, the two
  * families meeting through broad cream washes that add no hue of their own.
- * Each corner is stacked — a wide pale field with a narrower, warmer one
- * inside it — so it reads as a progression rather than as a single colour.
+ * Each corner is stacked - a wide pale field with a narrower, warmer one
+ * inside it - so it reads as a progression rather than as a single colour.
  *
  * The radii are large enough that the falloff runs most of the way toward the
  * middle before reaching zero, which is what leaves the centre off-white
@@ -97,7 +97,7 @@ export const WELCOME_FIELDS: Field[] = [
  * washes instead of one.
  *
  * Each side is three fields of the *same* hue at descending width and rising
- * alpha. Same colour, different reach — that is where the value progression
+ * alpha. Same colour, different reach - that is where the value progression
  * comes from, and it cannot introduce a seam because there is no second hue to
  * seam against.
  *
@@ -106,17 +106,17 @@ export const WELCOME_FIELDS: Field[] = [
  * roughly a quarter of its own strength. That overlap is the centre.
  *
  * Every centre sits below the bottom edge, so light enters from beneath and
- * fades upward — the bright core is never on screen, and the upper half stays
+ * fades upward - the bright core is never on screen, and the upper half stays
  * off-white without needing a mask. The warm side starts a little higher than
  * the cool side, as it does in the reference.
  */
 export const AUTH_FIELDS: Field[] = [
-  /* left — pink. Widest first; it reaches past centre to meet the orange. */
+  /* left - pink. Widest first; it reaches past centre to meet the orange. */
   { id: 'aPinkWide', colour: GLOW.authPink,   peak: 0.62, cx: -0.02, cy: 1.16, rx: 1.30, ry: 0.54 },
   { id: 'aPinkMid',  colour: GLOW.authPink,   peak: 0.74, cx: -0.14, cy: 1.10, rx: 0.92, ry: 0.44 },
   { id: 'aPinkCore', colour: GLOW.authPink,   peak: 0.86, cx: -0.22, cy: 1.05, rx: 0.66, ry: 0.34 },
 
-  /* right — orange. Same construction, reaching slightly higher. */
+  /* right - orange. Same construction, reaching slightly higher. */
   { id: 'aOrgWide',  colour: GLOW.authOrange, peak: 0.64, cx: 1.02,  cy: 1.14, rx: 1.30, ry: 0.56 },
   { id: 'aOrgMid',   colour: GLOW.authOrange, peak: 0.78, cx: 1.14,  cy: 1.08, rx: 0.92, ry: 0.46 },
   { id: 'aOrgCore',  colour: GLOW.authOrange, peak: 0.90, cx: 1.22,  cy: 1.03, rx: 0.66, ry: 0.36 },
@@ -145,7 +145,7 @@ export const SHAPE: Record<'auth' | 'welcome', { cx: number; cy: number; rx: num
   /*
    * Auth sits at the foot of the screen, not across the middle.
    *
-   * It was centred at 0.83 with ry 0.365, which spans 0.47–1.20 — the entire
+   * It was centred at 0.83 with ry 0.365, which spans 0.47-1.20 - the entire
    * lower half. Any atmosphere placed down there was painted over by it, so
    * the colour could not be visible whatever the fields did. Dropping the
    * centre below the bottom edge leaves a dome whose apex sits near 0.86. The
@@ -160,7 +160,7 @@ export const SHAPE: Record<'auth' | 'welcome', { cx: number; cy: number; rx: num
    *
    * Content is unaffected: on every size checked, the composition ends around
    * 0.57 of the height, so it continues to sit above the dome rather than on
-   * it — which is where it already was relative to the old shape's upper arc.
+   * it - which is where it already was relative to the old shape's upper arc.
    */
   auth:    { cx: 0.5, cy: 1.10, rx: 0.48, ry: 0.24 },
 };

@@ -23,7 +23,7 @@
  * the person did not enter, so it is deliberately named and worded as a
  * summary of *recorded* activity, and the UI says as much.
  *
- * It only ever moves on evidence. With no episodes there is no score — the
+ * It only ever moves on evidence. With no episodes there is no score - the
  * function returns null rather than 100, because "nothing recorded" and
  * "everything is fine" are different states and conflating them is the exact
  * failure in the web version.
@@ -56,7 +56,7 @@ export const SCORE_WINDOW_DAYS = 30;
 
 export interface ScoreReason {
   readonly label: string;
-  /** Negative numbers only — the score starts at 100 and is deducted from. */
+  /** Negative numbers only - the score starts at 100 and is deducted from. */
   readonly delta: number;
 }
 
@@ -136,7 +136,7 @@ function shiftDays(key: string, by: number): string {
 export interface Streak {
   /** Consecutive days, counting back from today or yesterday. */
   readonly days: number;
-  /** True while today has no check-in but yesterday did — the streak is
+  /** True while today has no check-in but yesterday did - the streak is
    *  alive and will break at midnight. */
   readonly atRisk: boolean;
 }
@@ -146,7 +146,7 @@ export interface Streak {
  *
  * Counts back from today; if today has nothing but yesterday does, the streak
  * still stands and is reported as at risk. Anything older than that is a
- * broken streak and returns zero — a streak that survives gaps is not a
+ * broken streak and returns zero - a streak that survives gaps is not a
  * streak, and inflating it would be the same dishonesty as the default 100.
  */
 export function checkInStreak(

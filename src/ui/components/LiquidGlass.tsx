@@ -4,7 +4,7 @@
  * ── The rendering constraint that shapes this file ───────────────────────────
  *
  * react-native-svg on Android renders gradient **fills** correctly and gradient
- * **strokes** unreliably — an unresolved stroke falls back to solid black. That
+ * **strokes** unreliably - an unresolved stroke falls back to solid black. That
  * was the hard dark outline round the tab bar: a failed gradient stroke, not a
  * border and not a shadow.
  *
@@ -14,21 +14,21 @@
  *
  * ── The four cues, and why each one is present ───────────────────────────────
  *
- *   1. backdrop blur   — the material samples what is behind it
- *   2. sheen           — a gradient FILL across the top half, brightest at the
+ *   1. backdrop blur   - the material samples what is behind it
+ *   2. sheen           - a gradient FILL across the top half, brightest at the
  *                        very top, gone by the middle. This is the lens: a
  *                        curved surface gathers light unevenly across its face.
- *   3. rim             — a hairline border. White in both schemes, because a
+ *   3. rim             - a hairline border. White in both schemes, because a
  *                        lit edge is white; it is only ever dark when the
  *                        render has failed.
- *   4. specular        — a short bright line just inside the top edge, the
+ *   4. specular        - a short bright line just inside the top edge, the
  *                        highlight a convex surface throws.
  *
  * ── Why the tint is so low ───────────────────────────────────────────────────
  *
  * `BlurView` with `tint="light"` lays down its own heavy white wash. At high
  * intensity over a light app background that produces a solid white pill with a
- * visible edge — opaque, not glass. Intensity stays low and nothing else fills
+ * visible edge - opaque, not glass. Intensity stays low and nothing else fills
  * the shape, so on a pale background the material is nearly invisible and only
  * announces itself when something coloured passes underneath. That is the
  * correct behaviour, not a missing feature.
@@ -93,7 +93,7 @@ export function LiquidGlass({
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Sheen & Grain — gradient and texture to simulate high-end glass. */}
+      {/* Sheen & Grain - gradient and texture to simulate high-end glass. */}
       {size.w > 0 && size.h > 0 ? (
         <Svg
           width={size.w}
@@ -135,7 +135,7 @@ export function LiquidGlass({
         </Svg>
       ) : null}
 
-      {/* 1px Edge Highlight — simulates light catching the rim */}
+      {/* 1px Edge Highlight - simulates light catching the rim */}
       <View
         pointerEvents="none"
         style={[

@@ -117,7 +117,7 @@ function matches(side: Side, drug: Drug): boolean {
  *
  * The second clause guards a real trap. A class-versus-class rule such as
  * NSAID × ANTICOAGULANT would otherwise match a single drug that belongs to
- * both classes against itself — aspirin is both an NSAID and an antiplatelet —
+ * both classes against itself - aspirin is both an NSAID and an antiplatelet -
  * producing a warning about taking one medicine with itself.
  */
 function ruleMatchesPair(rule: InteractionRule, x: Drug, y: Drug): boolean {

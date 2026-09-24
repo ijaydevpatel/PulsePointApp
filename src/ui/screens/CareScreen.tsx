@@ -1,4 +1,4 @@
-/** FR4 — care locator. Phase 6 adds GPS, the cached dataset and the map. */
+/** FR4 - care locator. Phase 6 adds GPS, the cached dataset and the map. */
 import React from 'react';
 import { View, ScrollView } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';

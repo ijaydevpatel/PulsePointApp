@@ -1,5 +1,5 @@
 /**
- * FR5 / QR3 / L3 — store contract.
+ * FR5 / QR3 / L3 - store contract.
  *
  * These run against InMemoryEpisodeStore. SqliteEpisodeStore implements the
  * same interface and delegates all row translation to db/mapping.ts, which has

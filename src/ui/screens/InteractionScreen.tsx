@@ -64,7 +64,7 @@ export function InteractionScreen({ report, onBack, onEdit }: {
         contentContainerStyle={{ paddingBottom: TAB_CLEARANCE }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hairline carries the boundary — see the note in ResultScreen. */}
+        {/* Hairline carries the boundary - see the note in ResultScreen. */}
         <View style={[
           st.hero,
           {
@@ -155,7 +155,7 @@ export function InteractionScreen({ report, onBack, onEdit }: {
               <Card elevated={1}>
                 <Txt t="body">
                   No interaction between these medicines appears in the app's table. That is
-                  not the same as being safe together — this table covers common medicines
+                  not the same as being safe together - this table covers common medicines
                   and well-established interactions, not every combination.
                 </Txt>
                 <Txt t="bodyStrong" style={{ marginTop: S.md }}>
@@ -196,7 +196,7 @@ export function InteractionScreen({ report, onBack, onEdit }: {
             <Txt t="caption" style={{ marginTop: S.lg, fontStyle: 'italic' }}>
               This does not replace advice from a pharmacist or doctor, and it does not cover
               every medicine or every interaction. Never stop a prescribed medicine because of
-              what you read here — ask first. Healthline is free on 0800 611 116.
+              what you read here - ask first. Healthline is free on 0800 611 116.
             </Txt>
           </Enter>
         </View>

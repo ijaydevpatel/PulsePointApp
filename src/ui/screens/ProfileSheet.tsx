@@ -1,8 +1,8 @@
 /**
  * The account sheet, opened by the avatar.
  *
- * Holds the three destinations that are not in the tab bar — Records, Chat,
- * News — plus settings and sign-out. They are here rather than in a "More"
+ * Holds the three destinations that are not in the tab bar - Records, Chat,
+ * News - plus settings and sign-out. They are here rather than in a "More"
  * bucket on the bar because of what they are: reference material and account
  * controls, not the things someone opens the app to do.
  *
@@ -10,7 +10,7 @@
  *
  * Signing out asks first, and says what it costs. Triage, red flags and the
  * medicine check keep working signed out, but sync stops and anything the
- * phone has not sent stays only on the phone — that is worth one tap to
+ * phone has not sent stays only on the phone - that is worth one tap to
  * confirm, and it is stated rather than implied.
  *
  * The destructive action sits apart from the navigation rows and is the only
@@ -78,7 +78,7 @@ export function ProfileSheet({
             <View style={{ flex: 1 }}>
               <Txt t="bodyStrong" numberOfLines={1}>{name}</Txt>
               <Txt t="caption" c={P.muted} style={{ marginTop: 2 }}>
-                {session.state === 'SIGNED_IN' ? 'Signed in — history syncs' : 'Signed out — local only'}
+                {session.state === 'SIGNED_IN' ? 'Signed in - history syncs' : 'Signed out - local only'}
               </Txt>
             </View>
           </Card>

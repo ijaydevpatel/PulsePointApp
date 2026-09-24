@@ -134,7 +134,7 @@ describe('the symptom catalogue', () => {
 
   it('still contains every code a red-flag rule matches on', () => {
     // redFlags.ts matches by code. A symptom the rules reference but the list
-    // does not offer is a rule that can never fire — silently.
+    // does not offer is a rule that can never fire - silently.
     const codes = new Set(CATALOGUE.map((c) => c.code));
 
     // The thirteen codes redFlags.ts matches on, listed explicitly so this
@@ -190,7 +190,7 @@ describe('the Enter wrapper cannot be left invisible', () => {
     return value;
   }
 
-  it('goes invisible without the latch — the bug', () => {
+  it('goes invisible without the latch - the bug', () => {
     expect(simulate({ latch: false })).toBe(0);
   });
 

@@ -16,7 +16,7 @@
  *
  * ── On the time-zone tier ────────────────────────────────────────────────────
  *
- * Every device knows its IANA zone — `Asia/Kolkata`, `Pacific/Auckland` — and
+ * Every device knows its IANA zone - `Asia/Kolkata`, `Pacific/Auckland` - and
  * a zone names a city. Mapping that to the city's coordinates needs no
  * network, no permission, no hardware, and cannot be rate-limited. It is
  * accurate to the city, which is the resolution air quality and UV are
@@ -49,7 +49,7 @@ export interface Fix {
 /**
  * IANA zone to the coordinates of the city it is named for.
  *
- * Not exhaustive on purpose — it covers the zones with real population, and
+ * Not exhaustive on purpose - it covers the zones with real population, and
  * `zoneFix` degrades through region prefixes for anything missing, so an
  * unlisted zone still lands on the right continent rather than nowhere.
  */

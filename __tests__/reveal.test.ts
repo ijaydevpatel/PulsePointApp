@@ -1,24 +1,26 @@
 /**
- * A gate for the native-driver reveal bug.
+ * A gate for the vanishing-content bug.
  *
- * `useNativeDriver: true` hands the value to the UI thread, and the UI thread
- * never writes the final value back to JavaScript. So a component that
- * animates 0 → 1 natively still holds 0 on the JS side, and the next
- * re-render re-applies it — the content disappears, permanently, because the
- * effect that started the animation has already run.
+ * `useNativeDriver: true` moves an animated value out of the React tree into a
+ * native animated node, which writes the style straight onto the view. React
+ * holds no prop for it. So when Android detaches and re-attaches that view -
+ * scrolling, a keyboard-driven relayout, a tab change - the value is simply
+ * gone, and an opacity that started at 0 stays at 0. The content is not there,
+ * and nothing short of a remount brings it back, which is why re-pressing the
+ * tab worked.
  *
- * This shipped six times: Enter, TabTransition, Rise, the Continue button on
- * the symptom screen, the selected tab's label, and both press springs. It was
- * reported as three separate faults ("it disappears when I type", "it
- * disappears when I scroll", "the tab name flickers") and diagnosed twice
- * before the shared cause was found.
+ * This was reported four times and misdiagnosed twice as a re-render problem.
+ * It cannot have been one: there is no onScroll handler anywhere in this
+ * codebase, so scrolling causes no re-render at all. That fact is what ruled
+ * the earlier explanation out.
  *
- * `useReveal` is the one correct implementation. This test exists so the
- * pattern cannot come back by being written from scratch a seventh time: any
- * file that drives an animation natively has to go through the hook.
- *
- * A non-native animation (useNativeDriver: false) is not affected — it runs on
- * the JS side, so its value is never out of sync — and is not covered here.
+ * The rule enforced here: all animation goes through `useReveal`, which
+ * defaults to the JS driver so values reach the view as ordinary style props -
+ * meaning a re-created view is handed the right opacity by the React tree, the
+ * same way it is handed its colour - and which stops involving the animation
+ * in visibility at all once it settles. Native driving stays available through
+ * the hook for transform-only feedback, where a lost value leaves a control
+ * slightly the wrong size rather than absent.
  */
 import { readdirSync, readFileSync, statSync } from 'fs';
 import { join } from 'path';
@@ -34,7 +36,7 @@ function sources(dir: string): string[] {
   });
 }
 
-describe('native-driven animation', () => {
+describe('animation', () => {
   const files = sources(UI);
 
   it('finds UI sources to check', () => {
@@ -42,20 +44,27 @@ describe('native-driven animation', () => {
   });
 
   it.each(files.map((f) => [f.slice(UI.length + 1), f]))(
-    '%s drives no animation natively outside useReveal',
+    '%s animates only through useReveal',
     (_name, path) => {
       const src = readFileSync(path as string, 'utf8');
-      if (!src.includes('useNativeDriver: true')) return;
-
-      // Native driver present, so the hook has to be the thing driving it.
-      expect(src).toContain("from '../useReveal'");
 
       /*
-       * And no value may be created by hand alongside it. The import alone is
-       * not enough — a file can use the hook in one place and hand-roll a
-       * second value that has the bug.
+       * No file outside the hook picks the driver for itself. Written by hand
+       * this reads as the obvious choice, and it is the setting that loses the
+       * content.
        */
-      expect(src).not.toContain('new Animated.Value');
+      expect(src).not.toMatch(/useNativeDriver:\s*true/);
+
+      /*
+       * That one assertion is the whole gate, and it is enough.
+       *
+       * React Native requires useNativeDriver to be stated explicitly on every
+       * animation - it throws otherwise - so there is no way to hand-roll one
+       * that silently picks the dangerous setting. An animation that declares
+       * false keeps its value in the React tree and cannot lose it, which is
+       * why useCountUp on the result screen is fine as written: it drives a
+       * number into state rather than driving visibility at all.
+       */
     },
   );
 });

@@ -40,7 +40,7 @@ export const tokenCache = {
     try {
       await SecureStore.deleteItemAsync(key);
     } catch {
-      /* nothing to do — the session is being discarded anyway */
+      /* nothing to do - the session is being discarded anyway */
     }
   },
 };
@@ -50,7 +50,7 @@ export const tokenCache = {
 /**
  * Shapes of the Clerk hook returns, kept loose on purpose. Typing these against
  * Clerk's exported interfaces couples this file to their minor versions for no
- * benefit — only these members are ever touched.
+ * benefit - only these members are ever touched.
  */
 type ClerkAuthHook = {
   isSignedIn?: boolean;
@@ -239,7 +239,7 @@ export class ClerkAuthGateway implements AuthGateway {
 
   /**
    * Bearer token for the backend. Every /api route runs `protect`, which calls
-   * Clerk's verifyToken with CLERK_SECRET_KEY — so this is the same session JWT
+   * Clerk's verifyToken with CLERK_SECRET_KEY - so this is the same session JWT
    * the website sends, and one account works across both.
    *
    * A refresh failure is a signed-out state, not a crash: the services map null

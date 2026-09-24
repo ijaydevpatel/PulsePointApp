@@ -1,13 +1,13 @@
 /**
  * Medicine interaction domain. FR6.
  *
- * This file imports NOTHING — no React, no SQLite, no network (requirement L2).
+ * This file imports NOTHING - no React, no SQLite, no network (requirement L2).
  *
  * ── Why this feature exists in the form it does ──────────────────────────────
  *
  * The web app's interaction checker calls a language model over the network. In
- * testing on 12 Aug it was given Warfarin + Aspirin — one of the most
- * clinically significant common interactions there is — and returned nothing at
+ * testing on 12 Aug it was given Warfarin + Aspirin - one of the most
+ * clinically significant common interactions there is - and returned nothing at
  * all. No result, no error, just "Awaiting Synchronization". A user would
  * reasonably read a blank panel as "no interaction found", which is the exact
  * opposite of the truth.
@@ -24,15 +24,15 @@
  *
  *   3. Unrecognised medicines are a first-class part of the result, not a
  *      silent no-op. If the user types something the table does not know, the
- *      UI is obliged to say so — an unmatched drug producing a clean-looking
+ *      UI is obliged to say so - an unmatched drug producing a clean-looking
  *      result is precisely the failure mode being fixed.
  */
 
 /* ─────────────────────────────────  drugs  ──────────────────────────────── */
 
 /**
- * Pharmacological classes. Interactions are overwhelmingly class effects — all
- * NSAIDs raise bleeding risk with warfarin, not just ibuprofen — so rules match
+ * Pharmacological classes. Interactions are overwhelmingly class effects - all
+ * NSAIDs raise bleeding risk with warfarin, not just ibuprofen - so rules match
  * on class where the evidence is a class effect, and on the specific drug where
  * it is not (for example clarithromycin with simvastatin, which is a CYP3A4
  * effect specific to certain statins).
@@ -79,7 +79,7 @@ export interface Drug {
   /**
    * Brand names and common spellings, lowercase. Someone holding a box reads
    * the brand, not the generic, so matching only on generic names would fail
-   * the exact situation this feature is for — standing in a pharmacy.
+   * the exact situation this feature is for - standing in a pharmacy.
    */
   readonly aliases: readonly string[];
 }
@@ -114,7 +114,7 @@ export type InteractionAction =
 
 /**
  * A matcher for one side of a rule: either a specific drug, or any drug in a
- * class. Rules are symmetric — order of entry must not change the result.
+ * class. Rules are symmetric - order of entry must not change the result.
  */
 export type Side =
   | { readonly kind: 'DRUG'; readonly id: string }
@@ -156,7 +156,7 @@ export interface InteractionFinding {
  * this table matched, which the UI is required to word accordingly.
  */
 export type CheckOutcome =
-  /** Fewer than two recognised medicines — nothing could be compared. */
+  /** Fewer than two recognised medicines - nothing could be compared. */
   | 'NOT_ENOUGH'
   /** Compared, and no rule in this table matched. */
   | 'CLEAR'
@@ -195,5 +195,5 @@ export const SEVERITY_LABEL: Record<InteractionSeverity, string> = {
 export const ACTION_LABEL: Record<InteractionAction, string> = {
   AVOID: 'Do not take together without advice',
   DISCUSS: 'Check with a pharmacist or GP',
-  MONITOR: 'Usually manageable — know the signs',
+  MONITOR: 'Usually manageable - know the signs',
 };

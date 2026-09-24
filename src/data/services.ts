@@ -35,7 +35,7 @@ export interface Services {
 /**
  * @param getToken Clerk's own getToken from useAuth(). Passed in rather than
  *   imported so this file stays testable and Clerk stays confined to the UI
- *   root — the services themselves never learn which identity provider is in
+ *   root - the services themselves never learn which identity provider is in
  *   use.
  */
 export function createServices(getToken: TokenProvider): Services {

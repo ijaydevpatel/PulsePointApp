@@ -1,5 +1,5 @@
 /**
- * FR5 + QR3 — encrypted local persistence.
+ * FR5 + QR3 - encrypted local persistence.
  *
  * The key never leaves SecureStore, which is backed by the Android Keystore.
  * SQLCipher is applied via PRAGMA key before any other statement runs; if that

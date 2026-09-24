@@ -1,4 +1,4 @@
-/** FR5 — encrypted history, review and delete. Wired to the real store. */
+/** FR5 - encrypted history, review and delete. Wired to the real store. */
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, FlatList, Alert } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -24,7 +24,7 @@ export function RecordsScreen({ store, refreshKey, onBack }: {
   store: EpisodeStore;
   refreshKey: number;
   /** Present now that Records is reached from the account sheet rather than
-   *  from a tab — a pushed screen needs a way back. */
+   *  from a tab - a pushed screen needs a way back. */
   onBack?: () => void;
 }) {
   const { c: P, band: B } = useTheme();

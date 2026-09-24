@@ -5,7 +5,7 @@
  * the app is deliberately quiet; here it has something to say, so the band
  * fills the top of the screen edge to edge and the severity figure is set at
  * 76pt. The web app buried a 42% meningitis reading in the least prominent row
- * of a table — this layout makes that failure mode structurally impossible,
+ * of a table - this layout makes that failure mode structurally impossible,
  * because the band decides the colour of the screen.
  *
  * The number counts up rather than appearing. That is not decoration: a value
@@ -44,7 +44,7 @@ function useCountUp(value: number, duration = 900) {
 export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }: {
   result: TriageResult; elapsedMs: number | null;
   /**
-   * The hosted diagnostic matrix. Null means still in flight — the band above
+   * The hosted diagnostic matrix. Null means still in flight - the band above
    * is already decided locally, so this section fills in underneath rather
    * than holding the whole screen behind a spinner.
    */
@@ -73,7 +73,7 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
           measure ~1.98:1 as a block on the light grouped background, below the
           3:1 WCAG needs for a graphical boundary. Keeping Apple's fill and
           carrying the boundary on this border is what makes the contrast audit
-          pass honestly — remove it and QR6 is no longer met.
+          pass honestly - remove it and QR6 is no longer met.
         */}
         <View style={[
           st.hero,
@@ -82,7 +82,7 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
           <View style={st.heroTop}>
             {/*
               Not glass here. The hero is a saturated fill, and liquid glass
-              over a flat colour has nothing to refract — it would read as a
+              over a flat colour has nothing to refract - it would read as a
               grey smudge. A tinted circle is the honest choice on solid ground.
             */}
             <Springy
@@ -169,7 +169,7 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
               Sits BELOW the band, never above it. The band is decided on the
               device from rules that can be audited; these five are a model's
               ranked guess. Putting probability first is the exact failure this
-              project was built to correct — a meningitis row at 42% buried
+              project was built to correct - a meningitis row at 42% buried
               under four commoner conditions. */}
           <MatrixSection analysis={analysis} />
 
@@ -249,7 +249,7 @@ function ConditionRow({ item, rank }: { item: ProbableCondition; rank: number })
       </View>
 
       {/* Confidence bar. Graphical, so the 3:1 bar applies, and it is never the
-          only carrier of the number — the percentage is printed beside it. */}
+          only carrier of the number - the percentage is printed beside it. */}
       <View style={[st.track, { backgroundColor: P.sunken }]}>
         <View style={[st.fill, { width: `${width}%`, backgroundColor: colour }]} />
       </View>
@@ -285,7 +285,7 @@ function hasAnyPathway(p: SymptomAnalysis['treatmentPathways']): boolean {
 function MatrixSection({ analysis }: { analysis?: RemoteOutcome<SymptomAnalysis> | null }) {
   const { c: P } = useTheme();
 
-  // Still in flight. Say so rather than rendering nothing — an absent section
+  // Still in flight. Say so rather than rendering nothing - an absent section
   // reads as "there is no more information", which is a different claim.
   if (analysis === null || analysis === undefined) {
     return (

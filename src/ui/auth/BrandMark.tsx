@@ -1,8 +1,8 @@
 /**
  * The PulsePoint mark.
  *
- * A transcription of assets/brand/pulsepoint-mark.svg — a hexagon outline with
- * an ECG trace running through it — rather than the generic pulse glyph from
+ * A transcription of assets/brand/pulsepoint-mark.svg - a hexagon outline with
+ * an ECG trace running through it - rather than the generic pulse glyph from
  * the icon set, which was standing in for it.
  *
  * Kept as inline paths instead of loading the .svg at runtime: this is two
@@ -12,7 +12,7 @@
  * the two cannot drift in shape.
  *
  * Nothing sits behind it. The mark is drawn with `fill="none"` on a
- * transparent canvas, so whatever surface it lands on shows through — there is
+ * transparent canvas, so whatever surface it lands on shows through - there is
  * no plate, no tile, no rounded square.
  */
 import React from 'react';
@@ -25,7 +25,7 @@ const TRACE = '#D92544';
 
 export function BrandMark({ size = 26 }: { size?: number }) {
   // Stroke widths are in the 24-unit viewBox, so they scale with the mark
-  // automatically — no need to recompute them per size.
+  // automatically - no need to recompute them per size.
   return (
     <Svg
       width={size}

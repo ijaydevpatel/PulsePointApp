@@ -9,7 +9,7 @@
  *                 └──→ signup → { … } ─────┴→ PulsePoint
  *
  * Every state draws the same background, the same wordmark, the same hero
- * treatment and the same pill buttons — Login and Sign Up are not two screens
+ * treatment and the same pill buttons - Login and Sign Up are not two screens
  * that resemble each other, they are one screen with different content.
  *
  * ── What is deliberately absent ──────────────────────────────────────────────
@@ -38,7 +38,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
-// @ts-ignore — Clerk ships no types for the Expo hook surface.
+// @ts-ignore - Clerk ships no types for the Expo hook surface.
 import { useAuth, useUser, useSignIn, useSignUp, useSSO } from '@clerk/clerk-expo';
 
 import { Icon } from '../components/Icon';
@@ -74,7 +74,7 @@ type Mode =
  * app. Both the hardware gesture and the on-screen chevron read this, which is
  * why it is one pure function rather than two switch statements.
  *
- * `welcome` returns null — it is the root, and the first thing anyone sees.
+ * `welcome` returns null - it is the root, and the first thing anyone sees.
  */
 function backTarget(m: Mode): Mode | null {
   switch (m) {
@@ -89,7 +89,7 @@ function backTarget(m: Mode): Mode | null {
 }
 
 export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
-  /** Authentication finished — hand control to the main application. */
+  /** Authentication finished - hand control to the main application. */
   onEnterApp: () => void;
   onDone: (s: Session) => void;
   initialMode?: Mode;
@@ -110,7 +110,7 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
    * Rebuilt each render rather than memoised. Clerk recreates its hook objects
    * on every render, so a gateway captured in a ref would hold stale handles
    * and silently authenticate against a dead signIn resource. It is a thin
-   * adapter over four objects — constructing it is free.
+   * adapter over four objects - constructing it is free.
    */
   const gateway = new ClerkAuthGateway(clerkAuth, clerkUser, clerkSignIn, clerkSignUp);
 
@@ -124,7 +124,7 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
   const [showPw, setShowPw] = useState(false);
 
   /**
-   * Field errors appear on submit and on blur, never on keystroke — telling
+   * Field errors appear on submit and on blur, never on keystroke - telling
    * someone their email is invalid while they are still halfway through
    * typing it is noise, and it trains people to ignore the message.
    */
@@ -163,8 +163,8 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
    *
    * Welcome is the *first* screen, not a reward at the end, so a signed-in
    * person has no business anywhere in here. This catches the paths that do
-   * not run through a submit handler — Clerk restoring a session mid-render,
-   * or setActive landing after the SSO sheet closes — and hands straight over
+   * not run through a submit handler - Clerk restoring a session mid-render,
+   * or setActive landing after the SSO sheet closes - and hands straight over
    * to the application.
    */
   const signedIn = clerkAuth?.isSignedIn === true;
@@ -309,7 +309,7 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
     try {
       await gateway.requestPasswordReset(email.trim());
     } catch {
-      /* swallowed on purpose — see the note above */
+      /* swallowed on purpose - see the note above */
     } finally {
       setNotice('If that email has an account, a reset link is on its way.');
       setBusy(null);
@@ -323,7 +323,7 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
   const g = useMemo(() => gaps(height, width), [height, width]);
   /*
    * Welcome centres its content optically, so its padding has to be
-   * symmetrical — an asymmetric pad silently shifts the centre by half the
+   * symmetrical - an asymmetric pad silently shifts the centre by half the
    * difference, which is what made the group sit low with a void above it.
    * Both insets are honoured by taking the larger of the two on each side.
    *
@@ -354,7 +354,7 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
           {/*
             The back control is absolutely positioned rather than laid out in
             the column. In flow it added 44dp above the content, which shifted
-            every "centred" block half that distance down the screen — and on
+            every "centred" block half that distance down the screen - and on
             welcome, where there is no back target at all, it was reserving
             space for a control that does not exist.
           */}
@@ -406,7 +406,7 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
 /* ══════════════════════════════  WELCOME  ═══════════════════════════════ */
 
 /**
- * Onboarding's last step. One heading, one button, nothing else — a second
+ * Onboarding's last step. One heading, one button, nothing else - a second
  * option here would turn a full stop into a decision.
  */
 function WelcomePane({ onStart, g }: {
@@ -436,7 +436,7 @@ function WelcomePane({ onStart, g }: {
           label="LET'S GET STARTED"
           uppercase
           widthRatio={0.82}
-          // #D88B63 exactly. Decorative — the label carries the meaning —
+          // #D88B63 exactly. Decorative - the label carries the meaning -
           // so it owes nothing to the text-contrast gate.
           icon={<Icon name="arrowRight" size={18} color={C.accentSoft} weight="bold" />}
           onPress={onStart}

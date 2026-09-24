@@ -1,11 +1,11 @@
 /**
- * FR11 — accounts.
+ * FR11 - accounts.
  *
  * Design rule, and it is the important one: the account gates SYNC, not ACCESS.
  * Triage, red flags and the medicine check work with no account and no network.
  * Signing in only buys history sync across devices and remote enrichment.
  *
- * A login wall would break QR2 (FR1–FR5 available with the network disabled)
+ * A login wall would break QR2 (FR1-FR5 available with the network disabled)
  * and would put a signup form in front of someone who is worried about their
  * symptoms. The web app gates everything behind Clerk; this deliberately does not.
  */
@@ -23,7 +23,7 @@ export const GUEST: Session = {
   state: 'GUEST', userId: null, displayName: null, cachedAt: null,
 };
 
-/** IAuthGateway — Production-ready identity provider interface. */
+/** IAuthGateway - Production-ready identity provider interface. */
 export interface AuthGateway {
   current(): Promise<Session>;
   signIn(email: string, password: string): Promise<Session>;
@@ -34,7 +34,7 @@ export interface AuthGateway {
    * Starts a password reset for an address.
    *
    * Returns void rather than a result on purpose. Whether the address is
-   * registered is not information the caller should be able to act on — a
+   * registered is not information the caller should be able to act on - a
    * reset form that distinguishes the two cases becomes a way to test whether
    * a named person uses a health app. The UI reports the same neutral message
    * either way, so there is nothing for this to return.

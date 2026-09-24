@@ -12,7 +12,7 @@
  * app-only and summarises what the phone already knows.
  *
  * Records, Chat and News are reached from the profile sheet rather than the
- * bar. They are real destinations, not a "More" bucket — the difference is
+ * bar. They are real destinations, not a "More" bucket - the difference is
  * that account-adjacent and reference material sits behind the avatar, exactly
  * where the website puts its profile dropdown, while the five things you come
  * to the app *to do* stay one tap away.
@@ -23,8 +23,8 @@
  * a 320dp phone, so the test suite asserts the arithmetic rather than trusting
  * it.
  *
- * The app opens on Home rather than on Triage. With a summary worth reading —
- * last band, outstanding red flags, current medicines — the first screen
+ * The app opens on Home rather than on Triage. With a summary worth reading -
+ * last band, outstanding red flags, current medicines - the first screen
  * answers "where do I stand" before asking the person to start a new task.
  */
 import { IconName } from '../components/Icon';
@@ -94,7 +94,7 @@ export const UNITS = (TABS.length - 1) + SELECTED_UNITS;
  *   unselected = available / UNITS  ≥  44
  *
  * With five tabs that is 6.2 units and needs about 317dp. The narrowest
- * Android phone in circulation is 320dp, so the floor holds everywhere — by
+ * Android phone in circulation is 320dp, so the floor holds everywhere - by
  * arithmetic rather than by assumption. A sixth tab would need 361dp and would
  * fail on a 320dp screen, which is why the bar stops at five and why the test
  * suite asserts it against the real TABS length.

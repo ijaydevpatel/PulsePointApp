@@ -1,56 +1,48 @@
 /**
- * A native-driven reveal that survives re-renders.
+ * An entrance animation that cannot lose the content it is revealing.
  *
- * ── The bug this exists to prevent ───────────────────────────────────────────
+ * ── What actually went wrong ────────────────────────────────────────────────
  *
- * `useNativeDriver: true` hands the animated value to the UI thread. The JS
- * side keeps its own copy, and the native side does not write back to it. So
- * a value that starts at 0 and is animated to 1 natively is *still 0 as far as
- * JavaScript knows* — and the moment anything re-renders the component, React
- * re-applies the style from that stale 0 and the content vanishes.
+ * Content disappeared on scroll, on a keystroke, on anything, in every tab.
+ * It was diagnosed twice as a re-render problem and fixed twice. Both fixes
+ * were wrong, and the thing that disproved them is simple: there is not one
+ * onScroll handler in this codebase, so scrolling causes no re-render at all.
+ * A re-render could not have been the trigger.
  *
- * Nothing brings it back, because the effect that started the animation has
- * already run and will not run again.
+ * The real cause is `useNativeDriver: true`. It moves the animated value out
+ * of the React tree and into a native animated node, which then writes the
+ * opacity straight onto the view. Nothing about that value exists in the props
+ * React holds. So the moment Android detaches and re-attaches the view -
+ * scrolling it out of the clipping bounds and back, re-laying out when the
+ * keyboard opens, recycling it on a tab change - the native node is no longer
+ * driving it, and the opacity is whatever it was left with. Usually zero,
+ * because that is where the entrance started.
  *
- * This shipped three times in this codebase before it was understood:
+ * Re-pressing the tab brought it back because that remounted the tree and ran
+ * the entrance again.
  *
- *   Enter           every block on a screen, invisible after one keystroke
- *   TabTransition   the whole screen, invisible after the keyboard closed
- *                   (hiding it changes window height, which re-renders the
- *                   tree through useWindowDimensions in the bars)
- *   Rise            the same shape on the auth screens
- *   TriageScreen    the Continue button, which fades out again on the next
- *                   keystroke in the note box even though a symptom is picked
- *   TabBar          the selected tab's label, stuck at 35% opacity after a
- *                   re-render — the persistent version of the "label missing
- *                   while switching" glitch
- *   Tap             press scale, stuck at 0.97 if a render lands mid-press
+ * ── The two things that fix it ──────────────────────────────────────────────
  *
- * They looked like unrelated faults — "it disappears when I type", "it
- * disappears when I scroll", "the label flickers" — and were all one.
+ * `useNativeDriver: false` for anything that touches opacity. The value then
+ * flows through React's normal style props, so a view that is re-created or
+ * re-attached is given the correct current opacity by the React tree, the same
+ * way it is given its colour. These are short entrances on a handful of
+ * blocks, not gesture tracking; the JS driver is entirely adequate and being
+ * correct matters more than shaving a frame.
  *
- * ── How this fixes it ────────────────────────────────────────────────────────
+ * `finished`, which is the guarantee rather than the theory. Once the
+ * entrance completes, consumers stop passing the animated value and pass a
+ * plain `1` instead. After roughly 300ms there is no animation involved in the
+ * element being visible at all, so no later native behaviour - including
+ * anything about this diagnosis that is still wrong - can hide it. The element
+ * type never changes, so this costs no remount and no lost input focus.
  *
- * Two things, and both are needed:
- *
- *   `settled` records the value the animation finished on, and every render
- *   re-asserts it. A re-render can no longer resurrect a stale 0.
- *
- *   The completion callback also calls setValue, which pushes the final value
- *   back into the JS copy. Without that, `settled` would be right and the
- *   animated value still wrong.
- *
- * `animating` suppresses the re-assert mid-flight, so a render during the
- * animation does not snap it back to where it started.
- *
- * ── Two ways to drive it ─────────────────────────────────────────────────────
- *
- *   `play`      a one-way reveal: jump to `from`, animate to `to`.
- *   `animateTo` a value that moves both ways — a button that fades in when it
- *               becomes available and out again when it does not, a press
- *               scale. Same protection, no assumption about direction.
+ * Native driving is still available, and still correct, for transform-only
+ * feedback like a press scale: if that value is ever lost the control is
+ * slightly the wrong size, which is not the same class of failure as content
+ * that is not there.
  */
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Animated, Easing } from 'react-native';
 
 export interface RevealConfig {
@@ -70,10 +62,28 @@ export interface SpringConfig {
 const isSpring = (c: RevealConfig | SpringConfig): c is SpringConfig =>
   (c as SpringConfig).stiffness !== undefined;
 
-export function useReveal(from = 0, to = 1) {
+export interface RevealOptions {
+  /**
+   * Drive on the UI thread. Only for transforms - see the note above on why
+   * anything controlling opacity must not.
+   */
+  native?: boolean;
+}
+
+export function useReveal(from = 0, to = 1, options: RevealOptions = {}) {
+  const native = options.native ?? false;
   const value = useRef(new Animated.Value(from)).current;
   const settled = useRef(from);
   const animating = useRef(false);
+
+  /**
+   * True once the value has come to rest at `to`.
+   *
+   * Consumers use this to stop involving the animation in visibility at all.
+   * It is state rather than a ref because reaching the end has to cause the
+   * render that swaps the animated value out for a literal one.
+   */
+  const [finished, setFinished] = useState(from === to);
 
   /*
    * No dependency array on purpose: this must run after every render, because
@@ -99,29 +109,34 @@ export function useReveal(from = 0, to = 1) {
         stiffness: config.stiffness,
         mass: config.mass ?? 1,
         delay: config.delay ?? 0,
-        useNativeDriver: true,
+        useNativeDriver: native,
       })
       : Animated.timing(value, {
         toValue: target,
         duration: config.duration,
         delay: config.delay ?? 0,
         easing: config.easing ?? Easing.out(Easing.cubic),
-        useNativeDriver: true,
+        useNativeDriver: native,
       });
 
-    animation.start(({ finished }) => {
+    animation.start(({ finished: completed }) => {
       animating.current = false;
-      if (finished) {
-        settled.current = target;
-        // Sync the JS copy. This is the half that `settled` alone cannot do.
-        value.setValue(target);
-      }
+      if (!completed) return;
+
+      settled.current = target;
+      // Sync the JS copy. This is the half that `settled` alone cannot do.
+      value.setValue(target);
+      // And this is the half that makes the result independent of the
+      // animation entirely.
+      if (target === to) setFinished(true);
     });
-  }, [value]);
+    if (target !== to) setFinished(false);
+  }, [value, to, native]);
 
   const play = useCallback((config: RevealConfig) => {
     value.setValue(from);
     settled.current = from;
+    setFinished(false);
     animateTo(to, config);
   }, [value, from, to, animateTo]);
 
@@ -130,6 +145,7 @@ export function useReveal(from = 0, to = 1) {
     animating.current = false;
     settled.current = to;
     value.setValue(to);
+    setFinished(true);
   }, [value, to]);
 
   /** Jump to an arbitrary value without animating, and record it. */
@@ -139,5 +155,5 @@ export function useReveal(from = 0, to = 1) {
     value.setValue(v);
   }, [value]);
 
-  return { value, play, animateTo, settle, set };
+  return { value, play, animateTo, settle, set, finished };
 }

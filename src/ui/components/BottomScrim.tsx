@@ -2,7 +2,7 @@
  * Fade at the bottom of the screen, behind the floating tab bar.
  *
  * Without it, content scrolls into the gap beneath the detached bar and stops
- * dead at the screen edge — half a symptom row sitting in open space under the
+ * dead at the screen edge - half a symptom row sitting in open space under the
  * pill. That gap is what makes a floating bar look unfinished rather than
  * deliberate.
  *

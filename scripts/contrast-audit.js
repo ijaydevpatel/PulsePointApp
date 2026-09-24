@@ -30,7 +30,7 @@ function block(name) {
                 'ok', 'warn', 'danger', 'onDanger'];
   const missing = need.filter((k) => !out[k]);
   if (missing.length) {
-    throw new Error(`${name}: missing token(s) ${missing.join(', ')} — parser out of date.`);
+    throw new Error(`${name}: missing token(s) ${missing.join(', ')} - parser out of date.`);
   }
   return out;
 }
@@ -51,13 +51,13 @@ const B = { light: bands('bandsLight'), dark: bands('bandsDark') };
 /*
  * Glass tints.
  *
- * These are no longer literals — theme.ts computes them from `glassFor(scheme,
+ * These are no longer literals - theme.ts computes them from `glassFor(scheme,
  * t)`, where t is a transparency slider. Scraping values with a regex broke the
  * moment that changed, so the audit now *evaluates* the real function instead.
  *
  * The body is pure arithmetic with no imports, so it can be lifted out and run
  * directly. If its shape ever changes this throws rather than quietly falling
- * back to stale numbers — the failure mode that matters.
+ * back to stale numbers - the failure mode that matters.
  */
 function glassEval(scheme) {
   const grab = (re, what) => {
@@ -65,7 +65,7 @@ function glassEval(scheme) {
     if (!m) {
       throw new Error(
         `contrast-audit: could not extract ${what} from theme.ts. The glass ` +
-        `material changed shape — update this extractor rather than skipping ` +
+        `material changed shape - update this extractor rather than skipping ` +
         `the glass checks.`,
       );
     }
@@ -77,8 +77,8 @@ function glassEval(scheme) {
   const glassSrc = grab(/export function glassFor\([\s\S]*?\n}/, 'glassFor()');
 
   /*
-   * Strip TypeScript annotations. Only three forms appear in this arithmetic —
-   * typed parameters, return types and the Glass cast — so a targeted strip is
+   * Strip TypeScript annotations. Only three forms appear in this arithmetic -
+   * typed parameters, return types and the Glass cast - so a targeted strip is
    * safer here than pulling in a compiler for four lines of maths.
    */
   const deTs = (t) => t
@@ -106,7 +106,7 @@ const G = { light: glassEval('light'), dark: glassEval('dark') };
 
 /**
  * Composite a translucent colour over an opaque backdrop.
- * Mirrors composite() in theme.ts — glass is see-through, so a label on it is
+ * Mirrors composite() in theme.ts - glass is see-through, so a label on it is
  * not sitting on the tint, it is sitting on the tint *over whatever is behind*.
  */
 function over(overlay, backdrop) {
@@ -147,7 +147,7 @@ for (const scheme of ['light', 'dark']) {
     push(4.5, c.accent, s, `accent text on ${sn}`);
   }
 
-  // faint is used only for 11px labels and inactive icons — a graphical
+  // faint is used only for 11px labels and inactive icons - a graphical
   // object and a non-essential label, so 3:1 is the correct bar, not 4.5.
   push(3, c.faint, c.bg, 'faint on bg (inactive icon)');
   push(3, c.faint, c.surface, 'faint on surface');
@@ -168,7 +168,7 @@ for (const scheme of ['light', 'dark']) {
   for (const [band, b] of Object.entries(B[scheme])) {
     push(4.5, b.fg, c.surface, `${band} fg on surface`);
     push(4.5, b.fg, b.bg, `${band} fg on its soft chip`);
-    // The result hero sets 30px+ type on the solid fill — large-text bar.
+    // The result hero sets 30px+ type on the solid fill - large-text bar.
     push(3, b.onSolid, b.solid, `${band} hero text on solid`);
     // The fill itself may be a light Apple colour; the boundary is carried by
     // the hairline drawn against the canvas, so that is what gets checked.
@@ -181,7 +181,7 @@ for (const scheme of ['light', 'dark']) {
 /*
  * Liquid glass is far more transparent than a frosted panel, so its labels
  * cannot be checked against a fixed colour. They are checked against the tint
- * composited over every backdrop that can realistically scroll underneath —
+ * composited over every backdrop that can realistically scroll underneath -
  * the canvas, a card, and each saturated band hero from the result screen.
  *
  * The centre tint is used rather than the edge tint because it is the weaker
@@ -196,7 +196,7 @@ for (const scheme of ['light', 'dark']) {
    * Only backdrops that can actually appear beneath the tab bar.
    *
    * The saturated band heroes are deliberately absent, and that exclusion is
-   * not an assumption — it is a precondition verified below. App.tsx renders
+   * not an assumption - it is a precondition verified below. App.tsx renders
    * the tab bar only when no overlay is present, and every screen with a
    * saturated hero (result, interactions) is an overlay. If that ever changes,
    * the structural check further down fails and this audit stops being valid,
@@ -239,7 +239,7 @@ const appSrc = require('fs').readFileSync(
  *
  * Two conditions:
  *   a) the shell renders exactly one <TabBar
- *   b) it appears inside the `overlay ? null :` branch — that is, after the
+ *   b) it appears inside the `overlay ? null :` branch - that is, after the
  *      guard and before that expression closes
  */
 const tabBarCount = (appSrc.match(/<TabBar\b/g) || []).length;
@@ -257,7 +257,7 @@ const guarded =
 const fails = checks.filter((c) => c.got < c.need);
 const pad = (s, n) => String(s).padEnd(n);
 
-console.log('\nWCAG 2.2 contrast audit — QR6\n');
+console.log('\nWCAG 2.2 contrast audit - QR6\n');
 for (const scheme of ['light', 'dark']) {
   const rows = checks.filter((c) => c.scheme === scheme);
   const bad = rows.filter((c) => c.got < c.need);
@@ -276,7 +276,7 @@ if (!guarded) {
   process.exit(1);
 }
 
-console.log('  precondition: tab bar is hidden behind overlays — OK\n');
+console.log('  precondition: tab bar is hidden behind overlays - OK\n');
 
 if (fails.length) {
   console.log('\nFailures:\n');

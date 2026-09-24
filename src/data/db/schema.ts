@@ -1,6 +1,6 @@
 /**
  * Schema and migrations. user_version is checked on init so an upgrade never
- * silently drops data — Phases 3, 4 and 9 each add tables here.
+ * silently drops data - Phases 3, 4 and 9 each add tables here.
  */
 export const SCHEMA_VERSION = 1;
 

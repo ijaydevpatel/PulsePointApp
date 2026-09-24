@@ -19,7 +19,7 @@ import { useReveal } from '../useReveal';
 /* ──────────────────────────────  ENTRANCE  ─────────────────────────────── */
 
 /**
- * Fade and a short rise. 320ms, no spring, no scale — the brief asks for calm,
+ * Fade and a short rise. 320ms, no spring, no scale - the brief asks for calm,
  * and anything that overshoots reads as playful.
  *
  * Honours reduce-motion: the animation is skipped entirely rather than merely
@@ -35,7 +35,7 @@ import { useReveal } from '../useReveal';
 export function Rise({
   children, delay = 0, style,
 }: { children: React.ReactNode; delay?: number; style?: StyleProp<ViewStyle> }) {
-  const { value: v, play, settle } = useReveal();
+  const { value: v, play, settle, finished } = useReveal();
   const started = useRef(false);
 
   useEffect(() => {
@@ -53,11 +53,14 @@ export function Rise({
     return () => { cancelled = true; };
   }, [play, settle, delay]);
 
+  // Literal style once the entrance is over - see Enter and useReveal.
   return (
     <Animated.View
       style={[
         style,
-        { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] },
+        finished
+          ? null
+          : { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] },
       ]}
     >
       {children}
@@ -71,8 +74,8 @@ export function Rise({
  * The brand lockup: the real mark plus the name.
  *
  * Sized up from the previous 17/17. The name is the app's identity and was
- * reading as a caption — smaller than the supporting copy further down the
- * screen — so it now sits clearly above that, while still well below the hero.
+ * reading as a caption - smaller than the supporting copy further down the
+ * screen - so it now sits clearly above that, while still well below the hero.
  * The order that matters is hero > wordmark > supporting copy, and only the
  * middle term was wrong.
  *
@@ -99,7 +102,7 @@ export function Wordmark({ size = 26, large = false }: { size?: number; large?: 
 
 /**
  * The editorial headline. Lines are passed in as an array because the breaks
- * are part of the design — letting the text wrap on its own would put the
+ * are part of the design - letting the text wrap on its own would put the
  * break wherever the device's width happened to fall.
  */
 export function Hero({ lines }: { lines: readonly string[] }) {
@@ -123,7 +126,7 @@ export function Hero({ lines }: { lines: readonly string[] }) {
            * glyphs, so the last line's descender is cropped by the view
            * bounds however correct the leading is. Playfair's tail drops
            * about 0.21em below the baseline and the line box only accounts
-           * for part of that, so the slack has to clear the remainder — 0.1
+           * for part of that, so the slack has to clear the remainder - 0.1
            * did not, and the 'y' in "ready" was still losing its tail.
            */
           paddingBottom: Math.ceil(size * 0.55),
@@ -168,9 +171,9 @@ export function PillButton({
   widthRatio?: number;
   style?: StyleProp<ViewStyle>;
 }) {
-  // Native-driven, so through useReveal — see that file. Left bare, a render
+  // Native-driven, so through useReveal - see that file. Left bare, a render
   // landing after a press left the button permanently at 98.5%.
-  const press = useReveal(1, 1);
+  const press = useReveal(1, 1, { native: true });
   const scale = press.value;
   const to = (v: number) =>
     press.animateTo(v, { damping: 22, stiffness: 320, mass: 0.6 });
@@ -197,7 +200,7 @@ export function PillButton({
         ]}
       >
         {busy ? (
-          /* The loading state stays inside the button — the screen never
+          /* The loading state stays inside the button - the screen never
              blanks behind a full-page spinner. */
           <ActivityIndicator color={C.ink} size="small" />
         ) : (
@@ -242,7 +245,7 @@ export function AuthSwitcher({
 /**
  * White, rounded, minimal. The label sits above the field as a real label
  * rather than as a floating placeholder, so it is still readable once the
- * field has content — and so screen readers get a stable name.
+ * field has content - and so screen readers get a stable name.
  */
 export function AuthField({
   label, value, onChangeText, error, secure, onToggleSecure, secureVisible, ...rest

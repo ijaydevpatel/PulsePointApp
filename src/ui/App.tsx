@@ -244,7 +244,7 @@ function AppContent() {
 
   return (
     <ThemeContext.Provider value={theme}>
-      {/* SafeAreaProvider lives at the root now — see the note on App(). */}
+      {/* SafeAreaProvider lives at the root now - see the note on App(). */}
       <>
         <View style={[s.root, { backgroundColor: theme.c.bg }]}>
           <GlassBackground />
@@ -258,7 +258,7 @@ function AppContent() {
             {/*
               No key on TabTransition. Keying it on the tab remounted the
               component on every switch, which reset its "previous tab" ref to
-              the tab it was already showing — so it always measured a
+              the tab it was already showing - so it always measured a
               zero-length move and skipped the animation entirely. It has to
               survive the change in order to animate it; the children swap on
               their own because renderTab() returns a different element.
@@ -306,7 +306,7 @@ export default function App() {
    * it.
    *
    * It used to sit inside AppContent's signed-in return, which meant the auth
-   * and onboarding branch — which returns earlier — rendered with no provider
+   * and onboarding branch - which returns earlier - rendered with no provider
    * above it. Any useSafeAreaInsets() call down there threw on mount. Insets
    * matter most on exactly those screens, since they draw edge to edge, so the
    * provider belongs at the root where every branch can see it.

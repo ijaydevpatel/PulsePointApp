@@ -1,7 +1,7 @@
 /**
  * In-memory EpisodeStore. Used by unit tests and by the workstation build,
  * so the domain and UI can be exercised with no device and no emulator.
- * Behaviour must match SqliteEpisodeStore — the shared contract test in
+ * Behaviour must match SqliteEpisodeStore - the shared contract test in
  * __tests__/store.test.ts runs against this implementation.
  */
 import { SymptomEpisode, TriageResult } from '../domain/entities';

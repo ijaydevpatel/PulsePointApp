@@ -26,7 +26,7 @@
  * carries its own source string so it can be re-checked individually.
  *
  * Brand names are the ones commonly dispensed in New Zealand, because someone
- * holding a box reads the brand rather than the generic — and the pharmacy
+ * holding a box reads the brand rather than the generic - and the pharmacy
  * aisle is the exact situation this feature is for.
  *
  * REVIEW: this table needs a clinical review pass before any real-world use,
@@ -146,7 +146,7 @@ const DRUGS: readonly Drug[] = [
 const D = (id: string) => ({ kind: 'DRUG' as const, id });
 const C = (cls: Drug['classes'][number]) => ({ kind: 'CLASS' as const, cls });
 
-const NZF = 'New Zealand Formulary — interactions';
+const NZF = 'New Zealand Formulary - interactions';
 
 const RULES: readonly InteractionRule[] = [
   /* ── Bleeding risk ──────────────────────────────────────────────────────── */
@@ -245,7 +245,7 @@ const RULES: readonly InteractionRule[] = [
     a: C('SSRI'), b: C('TRIPTAN'),
     severity: 'MODERATE', action: 'MONITOR',
     effect: 'A small added risk of serotonin syndrome when a migraine triptan is taken with an SSRI.',
-    advice: 'Widely used together. Be aware of the signs — agitation, a racing heart, shivering, muscle twitching — particularly after a dose increase.',
+    advice: 'Widely used together. Be aware of the signs - agitation, a racing heart, shivering, muscle twitching - particularly after a dose increase.',
     source: NZF,
   },
 
@@ -315,7 +315,7 @@ const RULES: readonly InteractionRule[] = [
     a: D('lithium'), b: C('ACE_INHIBITOR'),
     severity: 'MAJOR', action: 'DISCUSS',
     effect: 'ACE inhibitors can raise lithium levels toward the toxic range.',
-    advice: 'Needs closer lithium monitoring. Do not stop either medicine on your own — ask your prescriber.',
+    advice: 'Needs closer lithium monitoring. Do not stop either medicine on your own - ask your prescriber.',
     source: NZF,
   },
   {
@@ -383,7 +383,7 @@ const RULES: readonly InteractionRule[] = [
     a: D('methotrexate'), b: D('trimethoprim'),
     severity: 'MAJOR', action: 'AVOID',
     effect: 'Both block folate. Together they can severely suppress the bone marrow.',
-    advice: 'This pairing is generally avoided — ask for a different antibiotic. Report mouth ulcers, sore throat, fever or unusual bruising urgently.',
+    advice: 'This pairing is generally avoided - ask for a different antibiotic. Report mouth ulcers, sore throat, fever or unusual bruising urgently.',
     source: NZF,
   },
   {
@@ -425,7 +425,7 @@ const RULES: readonly InteractionRule[] = [
     a: C('NSAID'), b: C('NSAID'),
     severity: 'MODERATE', action: 'AVOID',
     effect: 'Taking two anti-inflammatories together adds their stomach and kidney risks without adding pain relief.',
-    advice: 'Use one at a time. Low-dose aspirin taken for the heart is a separate case — check with your pharmacist rather than stopping it.',
+    advice: 'Use one at a time. Low-dose aspirin taken for the heart is a separate case - check with your pharmacist rather than stopping it.',
     source: NZF,
   },
   {

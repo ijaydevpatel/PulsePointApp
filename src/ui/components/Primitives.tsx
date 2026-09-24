@@ -2,7 +2,7 @@
  * Interaction primitives.
  *
  * The single biggest difference between an app that feels cheap and one that
- * feels considered is not colour — it is whether the interface acknowledges a
+ * feels considered is not colour - it is whether the interface acknowledges a
  * touch before the state changes. Everything pressable here springs under the
  * finger and fires a haptic within a frame, so the app answers immediately even
  * when the work behind it takes longer.
@@ -67,7 +67,7 @@ export function Txt({
 /**
  * Wraps children in a spring that compresses on press-in and releases on
  * press-out. Uses the native driver, so the animation survives a busy JS
- * thread — which is exactly when a laggy UI would otherwise be noticed.
+ * thread - which is exactly when a laggy UI would otherwise be noticed.
  */
 export function Springy({
   children, onPress, disabled, style, weight = 'light',
@@ -84,7 +84,7 @@ export function Springy({
    * while JavaScript still held 0.97. A render landing after that left the
    * control permanently shrunk.
    */
-  const press = useReveal(1, 1);
+  const press = useReveal(1, 1, { native: true });
   const scale = press.value;
 
   const to = (v: number) =>
@@ -145,14 +145,14 @@ export function Springy({
  * Entrance fade-and-rise for content as a screen appears.
  *
  * The reveal is native-driven, which is why it goes through useReveal rather
- * than Animated directly — see that file for the failure this avoids. In
+ * than Animated directly - see that file for the failure this avoids. In
  * short: a native-driven value does not write back to JavaScript, so without
  * it a re-render re-applies the initial 0 and the content disappears.
  */
 export function Enter({
   children, index = 0, style,
 }: { children: ReactNode; index?: number; style?: StyleProp<ViewStyle> }) {
-  const { value: v, play } = useReveal();
+  const { value: v, play, finished } = useReveal();
   const started = useRef(false);
 
   useEffect(() => {
@@ -161,11 +161,21 @@ export function Enter({
     play({ duration: MOTION.base, delay: index * MOTION.stagger });
   }, [play, index]);
 
+  /*
+   * Once the entrance is over the animated value is dropped entirely and the
+   * style becomes a literal. Nothing about this element's visibility depends
+   * on an animation any more, which is the point - see useReveal.
+   *
+   * Animated.View either way, so React never swaps the element type and the
+   * children are never remounted.
+   */
   return (
     <Animated.View
       style={[
         style,
-        { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] },
+        finished
+          ? null
+          : { opacity: v, transform: [{ translateY: v.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] },
       ]}
     >
       {children}
@@ -323,8 +333,8 @@ export function Button({
 /* ──────────────────────────────  chip / toggle  ─────────────────────────── */
 
 /**
- * Selection chip. The selected state changes fill, border and weight together —
- * three redundant cues — because colour alone fails for the ~8% of men with a
+ * Selection chip. The selected state changes fill, border and weight together -
+ * three redundant cues - because colour alone fails for the ~8% of men with a
  * colour vision deficiency, which QR6 has to account for.
  */
 export function Chip({

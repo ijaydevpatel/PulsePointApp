@@ -32,7 +32,7 @@ function ratio(a: string, b: string): number {
 }
 
 // Mirrors the constants in TabBar. Kept local because they are deliberately
-// private to that file — the bar is fixed light-on-dark in both schemes and
+// private to that file - the bar is fixed light-on-dark in both schemes and
 // must not be themeable.
 const BAR = '#1A1A1A';
 const PILL = '#FFFFFF';
@@ -78,7 +78,7 @@ describe('the bar stays readable', () => {
 
 describe('every tab stays tappable', () => {
   it('derives its width floor from the real tab count', () => {
-    // If TABS grows, UNITS grows with it and MIN_BAR_WIDTH rises — the
+    // If TABS grows, UNITS grows with it and MIN_BAR_WIDTH rises - the
     // assertion below then fails on a 320dp phone rather than the targets
     // quietly dropping under the floor.
     expect(UNITS).toBeCloseTo((TABS.length - 1) + SELECTED_UNITS, 5);
@@ -125,7 +125,7 @@ describe('every tab stays tappable', () => {
 /**
  * The synthesis prompt asks for a preamble then numbered steps on their own
  * lines. The screen renders the steps as a list, so the split has to survive
- * whatever the model actually emits — which is not always what was asked for.
+ * whatever the model actually emits - which is not always what was asked for.
  */
 function splitAdvice(advice: string): { preamble: string; steps: string[] } {
   const lines = advice.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);

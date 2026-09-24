@@ -3,13 +3,13 @@
  *
  * ── Why this does not come from our own backend ──────────────────────────────
  *
- * `/api/dashboard/intel` used to return `{ aqi: 38, uv: 5, humidity: 62 }` —
+ * `/api/dashboard/intel` used to return `{ aqi: 38, uv: 5, humidity: 62 }` -
  * the same three numbers for every user, every request, marked "Static
  * fallback" in the route. Rendering those as measurements is the thing this
  * file exists to avoid.
  *
  * Open-Meteo is used instead: free, no API key, no account, no request
- * signing — so nothing secret has to ship in the app. Two endpoints, because
+ * signing - so nothing secret has to ship in the app. Two endpoints, because
  * air quality and weather are separate products there.
  *
  * ── Why GPS is not required ──────────────────────────────────────────────────
@@ -17,8 +17,8 @@
  * Two earlier attempts at this failed on a real device, and both failed for
  * the same underlying reason: they treated a satellite fix as mandatory.
  *
- * It is not. Air quality and UV are regional — the reading is identical
- * anywhere within several kilometres — so the precision GPS provides is
+ * It is not. Air quality and UV are regional - the reading is identical
+ * anywhere within several kilometres - so the precision GPS provides is
  * precision this feature throws away. Meanwhile a GPS fix is the single most
  * failure-prone thing a phone can be asked for: it needs sky, it needs the
  * device toggle on, it needs a prior fix to warm-start from, and on an
@@ -48,7 +48,7 @@ const WEATHER = 'https://api.open-meteo.com/v1/forecast';
  * City-level coordinates from the network route, keyless and permissionless.
  *
  * Accuracy is roughly city-scale, which is the resolution this feature
- * actually uses. It sees the device's public IP — but so does every server the
+ * actually uses. It sees the device's public IP - but so does every server the
  * app already talks to, including Open-Meteo itself, so this reveals nothing
  * that was not already in transit.
  */
@@ -79,7 +79,7 @@ async function getJson(url: string, timeoutMs = NET_TIMEOUT_MS): Promise<any | n
     /*
      * Captive portals and ISP interception pages answer 200 with HTML.
      * Parsing that as JSON throws somewhere unhelpful, so the content type is
-     * checked before the body is trusted — the same guard the API client uses.
+     * checked before the body is trusted - the same guard the API client uses.
      */
     const type = res.headers.get('content-type') ?? '';
     if (!type.includes('json')) return null;
@@ -107,8 +107,8 @@ const isCoord = (v: unknown): v is number =>
 /**
  * A device position, but only if one is available without waiting on hardware.
  *
- * Returns null rather than throwing on every failure mode — denied, services
- * off, no cached fix, slow radio — because the caller has somewhere else to
+ * Returns null rather than throwing on every failure mode - denied, services
+ * off, no cached fix, slow radio - because the caller has somewhere else to
  * go and none of these are worth surfacing as errors.
  */
 /**
@@ -167,7 +167,7 @@ async function deviceFix(): Promise<Fix | null> {
  * City-level coordinates from the network. No permission, no hardware.
  *
  * Two providers, tried in order. The single provider this had before was
- * enough to make the whole card fail when it answered 403 — free IP services
+ * enough to make the whole card fail when it answered 403 - free IP services
  * reject unfamiliar user agents and rate-limit aggressively, so treating any
  * one of them as reliable was the mistake.
  *
@@ -186,7 +186,7 @@ async function networkFix(): Promise<Fix | null> {
     if (!isCoord(lat) || !isCoord(lon)) continue;
 
     // Both providers already name the city alongside the coordinates, so the
-    // label is free here — no second request, no geocoder.
+    // label is free here - no second request, no geocoder.
     const city = typeof data?.city === 'string' ? data.city.trim() : '';
     const region = typeof data?.region === 'string' ? data.region.trim() : '';
 
@@ -218,7 +218,7 @@ export class OpenMeteoConditions implements ConditionsService {
       getJson(`${WEATHER}?latitude=${lat}&longitude=${lon}&current=relative_humidity_2m&daily=uv_index_max&timezone=auto&forecast_days=1`),
     ]);
 
-    // us_aqi is the 0–500 scale most people recognise; european_aqi is the
+    // us_aqi is the 0-500 scale most people recognise; european_aqi is the
     // fallback, because Open-Meteo does not serve the US scale everywhere.
     const aqi = firstNumber(air?.hourly?.us_aqi) ?? firstNumber(air?.hourly?.european_aqi);
     const uvIndex = firstNumber(weather?.daily?.uv_index_max);

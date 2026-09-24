@@ -1,5 +1,5 @@
 /**
- * FR3 / QR5 — red-flag detection.
+ * FR3 / QR5 - red-flag detection.
  *
  * These rules run BEFORE any scored classification and can never be suppressed
  * by low model confidence. They are deliberately deterministic and readable so
@@ -15,8 +15,8 @@
  * Two honesty rules are encoded in the type rather than left to good intentions:
  *
  *   1. `symptomsCited` says the *symptom set* comes from the named guidance.
- *   2. `thresholdCited` says the numeric trigger — a severity cut-off or a
- *      duration in hours — also comes from it. Where this project chose the
+ *   2. `thresholdCited` says the numeric trigger - a severity cut-off or a
+ *      duration in hours - also comes from it. Where this project chose the
  *      number itself, the flag is false and the rule is reported as needing
  *      clinical sign-off. Publishing an invented threshold under someone
  *      else's citation would be worse than publishing no citation at all.
@@ -78,11 +78,11 @@ export const RED_FLAG_RULES: readonly RedFlagRule[] = [
     id: 'RF-STROKE',
     description: 'Facial droop, arm weakness or sudden speech difficulty',
     band: 'EMERGENCY',
-    // F.A.S.T. — Face drooping, Arm weakness, Speech difficulty, Take action:
+    // F.A.S.T. - Face drooping, Arm weakness, Speech difficulty, Take action:
     // call 111. The rule is a direct transcription of the campaign.
     source: {
       publisher: 'Stroke Foundation of New Zealand',
-      title: 'F.A.S.T. — recognising stroke signs',
+      title: 'F.A.S.T. - recognising stroke signs',
       year: 2025,
       url: 'https://www.stroke.org.nz/understanding-stroke/recognising-stroke-signs/fast/',
       symptomsCited: true,
@@ -96,7 +96,7 @@ export const RED_FLAG_RULES: readonly RedFlagRule[] = [
     band: 'EMERGENCY',
     // NG51 lists non-blanching rash and altered mental state among the
     // high-risk criteria for severe illness or death from sepsis. The fever
-    // severity cut-off of 7/10 is this project's, not NICE's — NG51 works from
+    // severity cut-off of 7/10 is this project's, not NICE's - NG51 works from
     // measured temperature and NEWS2 physiology, which a self-report app does
     // not have.
     source: {
@@ -140,7 +140,7 @@ export const RED_FLAG_RULES: readonly RedFlagRule[] = [
     // kill within 24 hours" and directs readers to call 111. This rule bands
     // URGENT, not EMERGENCY. Given that under-triage is the failure this whole
     // system exists to prevent, the band may be one level too low. Flagged
-    // rather than changed — banding is a clinical decision, not a coding one.
+    // rather than changed - banding is a clinical decision, not a coding one.
     source: {
       publisher: 'Meningitis Foundation Aotearoa New Zealand',
       title: 'Know the symptoms',
@@ -158,7 +158,7 @@ export const RED_FLAG_RULES: readonly RedFlagRule[] = [
     band: 'URGENT',
     // CG84 establishes that under-5s with gastroenteritis carry red-flag
     // criteria for progression to shock and need urgent review. It does not
-    // set a 24-hour vomiting threshold — that number is this project's.
+    // set a 24-hour vomiting threshold - that number is this project's.
     source: {
       publisher: 'National Institute for Health and Care Excellence',
       title: 'Diarrhoea and vomiting caused by gastroenteritis in under 5s (CG84)',
@@ -180,7 +180,7 @@ export const RED_FLAG_RULES: readonly RedFlagRule[] = [
     // uncited so it appears in rulesNeedingReview() and cannot be quietly
     // mistaken for evidence-based.
     source: {
-      publisher: 'None — uncited',
+      publisher: 'None - uncited',
       title: 'Project-authored rule, pending a guidance source',
       year: null,
       url: null,

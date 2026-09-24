@@ -12,7 +12,7 @@ export interface Classification {
   readonly rationale: readonly string[];
 }
 
-/** IClassifier — RuleClassifier now, TFLiteClassifier in Phase 6. */
+/** IClassifier - RuleClassifier now, TFLiteClassifier in Phase 6. */
 export interface Classifier {
   readonly id: string;
   classify(episode: SymptomEpisode): Promise<Classification>;
@@ -25,7 +25,7 @@ export interface HistoryEntry {
 }
 
 /**
- * IEpisodeStore — FR5. InMemory for tests, SQLCipher-backed on device.
+ * IEpisodeStore - FR5. InMemory for tests, SQLCipher-backed on device.
  * Every read and write goes through here so encryption is enforced at one
  * point rather than at each call site (requirement L3).
  */
@@ -43,7 +43,7 @@ export interface EpisodeStore {
 }
 
 /**
- * IInteractionRepository — FR6.
+ * IInteractionRepository - FR6.
  *
  * Synchronous on purpose. The table is bundled with the app, so there is no
  * IO and therefore no failure mode to model. Making this async would invent a

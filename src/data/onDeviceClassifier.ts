@@ -1,5 +1,5 @@
 /**
- * Model 1 — the on-device classifier, and the seam the whole architecture
+ * Model 1 - the on-device classifier, and the seam the whole architecture
  * exists to protect (QR4 / L1).
  *
  * ── Current state, stated plainly ────────────────────────────────────────────
@@ -16,7 +16,7 @@
  *     TriageResult.source records which model actually produced the number.
  *
  * That last point matters more than it looks. Reporting ON_DEVICE_MODEL while
- * a rules engine did the work would corrupt criterion E2 — the latency
+ * a rules engine did the work would corrupt criterion E2 - the latency
  * benchmark would be measuring the wrong thing and nobody would know.
  */
 import { SymptomEpisode } from '../domain/entities';
@@ -48,7 +48,7 @@ export class TFLiteBackend implements ModelBackend {
 }
 
 /**
- * Feature vector for the model. Fixed order — the model is trained against
+ * Feature vector for the model. Fixed order - the model is trained against
  * these positions, so this array must never be reordered casually.
  */
 export const FEATURE_CODES: readonly string[] = [

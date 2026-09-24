@@ -37,12 +37,12 @@ function Shell({ title, sub, onBack, phase, what, icon }: {
 
 export const CheckInScreen = ({ onBack }: { onBack: () => void }) => (
   <Shell title="Daily check-in" sub="Feeds your trend and streak" onBack={onBack} phase={5} icon="clock"
-    what="A short daily entry — how you slept, how you feel, anything new. It drives the trend line and the streak, both stored locally." />
+    what="A short daily entry - how you slept, how you feel, anything new. It drives the trend line and the streak, both stored locally." />
 );
 
 export const DocumentsScreen = ({ onBack }: { onBack?: () => void }) => (
   <Shell title="Documents" sub="Extracted on-device" onBack={onBack} phase={10} icon="records"
-    what="Import a PDF or photo of a report. Text extraction runs on the device, so nothing is uploaded — a privacy improvement over the web version." />
+    what="Import a PDF or photo of a report. Text extraction runs on the device, so nothing is uploaded - a privacy improvement over the web version." />
 );
 
 export const NewsScreen = ({ onBack }: { onBack?: () => void }) => (

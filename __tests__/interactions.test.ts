@@ -13,7 +13,7 @@ const table = new BundledInteractionTable();
 const check = new CheckInteractionsUseCase(table);
 
 describe('the web app regression', () => {
-  it('flags Warfarin + Aspirin as MAJOR — the case that silently returned nothing', () => {
+  it('flags Warfarin + Aspirin as MAJOR - the case that silently returned nothing', () => {
     const r = check.execute(['Warfarin', 'Aspirin']);
     expect(r.outcome).toBe('FINDINGS');
     expect(r.highest).toBe('MAJOR');
@@ -26,7 +26,7 @@ describe('the web app regression', () => {
     expect(r.highest).toBe('MAJOR');
   });
 
-  it('is symmetric — order of entry cannot change the verdict', () => {
+  it('is symmetric - order of entry cannot change the verdict', () => {
     const a = check.execute(['Warfarin', 'Ibuprofen']);
     const b = check.execute(['Ibuprofen', 'Warfarin']);
     expect(a.highest).toBe(b.highest);

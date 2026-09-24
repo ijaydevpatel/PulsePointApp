@@ -62,7 +62,7 @@ export function OfflineBanner({ visible }: { visible: boolean }) {
       accessibilityRole="alert"
     >
       <View style={[s.dot, { backgroundColor: P.warn }]} />
-      <Txt t="micro" c={P.warn}>Offline — triage and medicines still work</Txt>
+      <Txt t="micro" c={P.warn}>Offline - triage and medicines still work</Txt>
     </View>
   );
 }

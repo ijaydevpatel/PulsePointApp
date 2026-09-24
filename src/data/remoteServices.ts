@@ -253,7 +253,7 @@ export class RemoteReportAnalyzer implements ReportService {
     const started = Date.now();
     try {
       // The route is upload.single('reportFile'), so the field name is not
-      // negotiable — a mismatch surfaces as "No file uploaded" from multer.
+      // negotiable - a mismatch surfaces as "No file uploaded" from multer.
       const raw = await this.api.upload<any>('/api/reports/analyze', 'reportFile', file);
 
       const findings = typeof raw?.findings === 'string' ? raw.findings.trim() : '';
@@ -331,7 +331,7 @@ export class RemoteDashboard implements DashboardService {
        * A forced regeneration gets 75s.
        *
        * ?fresh=1 skips the server cache, so the request waits on a full model
-       * generation — and on a free dyno that may also include a cold start.
+       * generation - and on a free dyno that may also include a cold start.
        * The shared 30s default was fine for a cached read and guaranteed a
        * timeout for this one. Nothing on Home blocks on it: the card paints
        * from cache first and this replaces it when it lands.
@@ -380,7 +380,7 @@ export class RemoteDashboard implements DashboardService {
  * GET /api/profile.
  *
  * The backend defaults `age` to 0 for a profile that has never set one, so a
- * zero is read as "unknown" rather than as a newborn — which would otherwise
+ * zero is read as "unknown" rather than as a newborn - which would otherwise
  * put every account with an empty profile into the child red-flag rules.
  */
 export class RemoteProfile implements ProfileService {

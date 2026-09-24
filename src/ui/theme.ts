@@ -5,7 +5,7 @@
  *
  * The web app is dark, neon and glassmorphic. For someone anxious at 2am that
  * is decoration competing with legibility, so the base is quiet and high
- * contrast. Expressiveness is spent in one place only — the result screen —
+ * contrast. Expressiveness is spent in one place only - the result screen -
  * because that is the moment the app has something to say.
  *
  * Three rules the rest of the UI must obey:
@@ -32,9 +32,9 @@ export interface Palette {
   bg: string;
   /** Cards and sheets sitting on the canvas. */
   surface: string;
-  /** Recessed wells — input fields, unselected chips. */
+  /** Recessed wells - input fields, unselected chips. */
   sunken: string;
-  /** Raised above surface — the floating tab bar, menus. */
+  /** Raised above surface - the floating tab bar, menus. */
   raised: string;
 
   line: string;
@@ -69,13 +69,13 @@ export interface Palette {
  *
  * 1. Several of Apple's system colours do not meet WCAG 2.2 AA as small text.
  *    systemBlue on white is 4.02:1, systemGreen 2.22:1, systemOrange 2.20:1,
- *    systemGray 3.26:1 — all below the 4.5 floor. QR6 is a stated requirement
+ *    systemGray 3.26:1 - all below the 4.5 floor. QR6 is a stated requirement
  *    with a build gate behind it, so where these colours carry *text* they are
  *    nudged by the minimum amount that clears 4.5. The shift is small enough
  *    to still read as the iOS colour.
  *
- * 2. Where the same colours are used as *fills* — badges, band headers, filled
- *    buttons — Apple's exact values are kept, because a fill is a graphical
+ * 2. Where the same colours are used as *fills* - badges, band headers, filled
+ *    buttons - Apple's exact values are kept, because a fill is a graphical
  *    object at a 3:1 bar and the text on it is chosen to pass instead. Those
  *    live in BANDS below.
  *
@@ -114,7 +114,7 @@ const light: Palette = {
    * The ECG trace from the mark, darkened by the smallest amount that clears
    * AA everywhere it lands.
    *
-   * #D92544 exactly measures 4.89:1 on white and 4.57:1 on the canvas — fine —
+   * #D92544 exactly measures 4.89:1 on white and 4.57:1 on the canvas - fine -
    * but 4.30:1 on `sunken`, and the accent carries text on recessed wells.
    * Lightening `sunken` to fix it would have made the well invisible against
    * the canvas (1.01:1), so the accent moved instead. #D42140 is two steps
@@ -153,8 +153,8 @@ const dark: Palette = {
 
   /*
    * The same crimson, lifted for a dark ground. #D92544 measures 3.4:1 on the
-   * dark surface — fine for a graphic, short of AA for the text and glyphs the
-   * accent carries — so the dark scheme uses a lighter tint of the same hue
+   * dark surface - fine for a graphic, short of AA for the text and glyphs the
+   * accent carries - so the dark scheme uses a lighter tint of the same hue
    * rather than a different colour.
    */
   accent: '#FF7A8F',
@@ -189,7 +189,7 @@ export interface BandStyle {
    * Apple's systemGreen and systemOrange are light colours: as a block on the
    * light grouped background they measure ~1.98:1, below the 3:1 needed for a
    * graphical boundary. Rather than darken Apple's colour, the boundary is
-   * carried by this adjacent border — which WCAG 1.4.11 permits, and which
+   * carried by this adjacent border - which WCAG 1.4.11 permits, and which
    * keeps the fill exactly as iOS ships it.
    */
   solidEdge: string;
@@ -199,11 +199,11 @@ export interface BandStyle {
 
 /*
  * `solid` keeps Apple's exact system colour, because a band header is a
- * graphical fill and its text is set at 30px+ — the large-text bar of 3:1.
+ * graphical fill and its text is set at 30px+ - the large-text bar of 3:1.
  * `fg` is the nudged, text-safe variant for the same colour on a card.
  */
 /*
- * `solidEdge` is kept from the iOS pass on purpose. It is not a style choice —
+ * `solidEdge` is kept from the iOS pass on purpose. It is not a style choice -
  * it is the hairline that carries the boundary between a light band fill and
  * the canvas, which is what lets the contrast audit pass honestly rather than
  * by darkening the fill.
@@ -245,14 +245,14 @@ export const FONT = {
   /**
    * Playfair Display, for auth and onboarding headlines only.
    *
-   * A transitional face with high stroke contrast and fine bracketed serifs —
+   * A transitional face with high stroke contrast and fine bracketed serifs -
    * it sets a headline the way a magazine does, which is the register those
    * screens are after. Deliberately not used anywhere in the product itself:
    * a symptom list wants a face that is legible at a glance and boring, and
    * that is Inter's job.
    *
    * SIL Open Font License 1.1, so bundling and shipping it is permitted.
-   * Regular weight is the one to reach for — Playfair's bold loses the thin
+   * Regular weight is the one to reach for - Playfair's bold loses the thin
    * strokes that make it worth using.
    */
   serif: 'PlayfairDisplay_400Regular',
@@ -320,7 +320,7 @@ export const TAB_CLEARANCE = 96;
 
 /**
  * Four steps, no ad-hoc shadows. Dark mode drops shadow opacity because a dark
- * shadow on a dark canvas reads as mud — depth there comes from surface
+ * shadow on a dark canvas reads as mud - depth there comes from surface
  * lightness instead, which is why the dark palette has distinct surface tiers.
  */
 export function elevation(scheme: Scheme, step: 0 | 1 | 2 | 3) {
@@ -362,7 +362,7 @@ export function elevation(scheme: Scheme, step: 0 | 1 | 2 | 3) {
 /**
  * Liquid Glass, iOS 27 behaviour.
  *
- * The iOS 26 implementation was widely criticised for illegibility — text on a
+ * The iOS 26 implementation was widely criticised for illegibility - text on a
  * bar sitting over text in the content beneath it. Apple's fix in iOS 27 was
  * not to make the material more opaque. It was to **blur the underlying
  * content far more aggressively**, which destroys the high-frequency detail of
@@ -381,12 +381,12 @@ export function elevation(scheme: Scheme, step: 0 | 1 | 2 | 3) {
  * here rather than a pair of constants.
  */
 export interface Glass {
-  /** Fill through the middle. Low — the material is nearly clear. */
+  /** Fill through the middle. Low - the material is nearly clear. */
   centreTint: string;
   /** Fill in the refracting band round the rim. Denser. */
   edgeTint: string;
   /**
-   * Blur through the middle. High at every slider position — this is what
+   * Blur through the middle. High at every slider position - this is what
    * keeps overlaid text readable, not the tint.
    */
   centreBlur: number;
@@ -418,7 +418,7 @@ function rgba(r: number, g: number, b: number, a: number) {
  *
  * Note what does *not* drop as the slider moves toward transparency: the blur.
  * It stays high throughout, because it is carrying legibility. Only the fill
- * opacity travels — from a whisper at 0 to effectively solid at 1.
+ * opacity travels - from a whisper at 0 to effectively solid at 1.
  */
 export function glassFor(scheme: Scheme, t: GlassIntensity): Glass {
   const k = Math.min(1, Math.max(0, t));
