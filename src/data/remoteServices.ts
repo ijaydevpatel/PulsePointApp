@@ -326,8 +326,18 @@ export class RemoteDashboard implements DashboardService {
   async intel(fresh = false): Promise<RemoteOutcome<Intelligence>> {
     const started = Date.now();
     try {
+      /*
+       * A forced regeneration gets 75s.
+       *
+       * ?fresh=1 skips the server cache, so the request waits on a full model
+       * generation — and on a free dyno that may also include a cold start.
+       * The shared 30s default was fine for a cached read and guaranteed a
+       * timeout for this one. Nothing on Home blocks on it: the card paints
+       * from cache first and this replaces it when it lands.
+       */
       const raw = await this.api.get<any>(
         fresh ? '/api/dashboard/intel?fresh=1' : '/api/dashboard/intel',
+        fresh ? 75000 : undefined,
       );
       const i = raw?.intelligence ?? {};
       const twin = i?.digitalTwin ?? {};

@@ -99,6 +99,21 @@ export const REMOTE_NOTICE: Record<Exclude<RemoteStatus, 'OK'>, string> = {
 };
 
 /**
+ * The same four states, worded for the dashboard.
+ *
+ * REMOTE_NOTICE was written for the triage result screen and every string ends
+ * "Your on-device result above is complete" — which is true there and
+ * nonsense on Home, where there is no on-device result and nothing above it.
+ * Reusing it put a reassurance about triage under a card about a daily tip.
+ */
+export const BRIEFING_NOTICE: Record<Exclude<RemoteStatus, 'OK'>, string> = {
+  UNAUTHENTICATED: 'Sign in to see your daily briefing.',
+  UNAVAILABLE: "Today's briefing needs a connection.",
+  TIMEOUT: "Today's briefing is taking longer than usual. Pull down to try again.",
+  FAILED: "Today's briefing could not be loaded.",
+};
+
+/**
  * The remote matrix ranks by probability. The device decides the band. This
  * function is the seam that stops the former overriding the latter — it can
  * only ever raise. Asserted in the tests.

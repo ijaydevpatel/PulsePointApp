@@ -44,8 +44,8 @@ import { Session } from '../../domain/auth';
 import { TriageBand } from '../../domain/entities';
 import { checkInStreak, healthScore } from '../../domain/wellbeing';
 import {
-  Conditions, ConditionsService, DashboardService, Intelligence,
-  LocationState, RemoteOutcome,
+  BRIEFING_NOTICE, Conditions, ConditionsService, DashboardService,
+  Intelligence, LocationState, RemoteOutcome,
 } from '../../domain/remote';
 import { Card, Txt, SectionLabel, Enter } from '../components/Primitives';
 import { Icon } from '../components/Icon';
@@ -102,10 +102,30 @@ export function HomeScreen({
    * answer. Awaiting them together would hold the whole screen at the speed of
    * the slowest.
    */
+  /*
+   * Two calls for the briefing, on purpose.
+   *
+   * The cached read returns in well under a second and paints the card
+   * immediately. The forced regeneration takes as long as the model takes —
+   * seconds, and longer on a cold dyno — and replaces it when it lands. That
+   * is how the tip can be new on every open without anyone watching an empty
+   * card while it generates.
+   *
+   * Asking only for a fresh one, which is what this did, meant a slow
+   * generation showed as a failure. The guards below make that impossible:
+   * the cached result never overwrites a fresh one that has already arrived,
+   * and a failed regeneration never overwrites a good cached tip.
+   */
   const loadRemote = useCallback(async () => {
-    // fresh: the tip should be new guidance each time the app is opened, not
-    // the same sentence for half an hour.
-    void dashboard.intel(true).then(setIntel);
+    void dashboard.intel(false).then((cached) => {
+      setIntel((current) => (current?.status === 'OK' ? current : cached));
+    });
+
+    void dashboard.intel(true).then((fresh) => {
+      if (fresh.status === 'OK') setIntel(fresh);
+      else setIntel((current) => current ?? fresh);
+    });
+
     void conditions.current().then(setEnv);
   }, [dashboard, conditions]);
 
@@ -299,7 +319,13 @@ function IntelCard({ outcome }: { outcome: RemoteOutcome<Intelligence> | null })
         <View style={st.noticeRow}>
           <Icon name="alert" size={15} color={P.muted} />
           <Txt t="caption" c={P.muted} style={{ flex: 1 }}>
-            {outcome.notice ?? 'Today’s briefing is unavailable.'}
+            {/*
+              Dashboard wording, not the triage screen's. The shared notice
+              ends "your on-device result above is complete", which is a
+              sentence about a symptom check and means nothing here.
+            */}
+            {BRIEFING_NOTICE[outcome.status as Exclude<typeof outcome.status, 'OK'>]
+              ?? 'Today’s briefing is unavailable.'}
           </Txt>
         </View>
       </Card>

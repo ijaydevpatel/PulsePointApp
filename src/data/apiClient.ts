@@ -85,13 +85,18 @@ export class ApiClient {
     }
   }
 
-  async get<T>(endpoint: string): Promise<T> {
+  /**
+   * @param timeoutMs Override for calls that legitimately take longer than the
+   *   default. A forced model generation behind a cold dyno can run past 30s,
+   *   and nothing on screen is blocked waiting for it.
+   */
+  async get<T>(endpoint: string, timeoutMs = this.timeoutMs): Promise<T> {
     if (!this.baseUrl) throw new ApiError('No API URL configured', 0);
     const token = this.tokenProvider ? await this.tokenProvider() : null;
     if (!token) throw new ApiError('No session token', 401);
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await this.fetchImpl(`${this.baseUrl}${endpoint}`, {
         method: 'GET',
