@@ -168,12 +168,7 @@ function AppContent() {
           />
         ) : null;
       case 'interactions':
-        return report ? (
-          <CollisionScreen
-            pair={pair} check={check} report={report}
-            onBack={pop} onEdit={pop}
-          />
-        ) : null;
+        return <CollisionScreen pair={pair} check={check} onBack={pop} onEdit={pop} />;
       case 'profile':
         return (
           <ProfileSheet
@@ -246,7 +241,7 @@ function AppContent() {
         return (
           <MedicinesScreen
             check={services.medicines}
-            onRun={(r, p) => { setReport(r); setPair(p); push('interactions'); }}
+            onRun={(p) => { setPair(p); push('interactions'); }}
             // The screen clears this on every run before deciding whether to
             // start a check, so a previous pair's verdict can never appear
             // beside a new pair's names.

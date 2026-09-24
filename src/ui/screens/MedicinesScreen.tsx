@@ -9,13 +9,13 @@
  * the check behind it compares exactly two agents, so a list of five was an
  * interface promising something the engine could not do.
  *
- * ── The table is still here ──────────────────────────────────────────────────
+ * ── What the bundled table is for now ────────────────────────────────────────
  *
- * Not as the check, but for two things the check cannot provide. It powers the
- * type-ahead, which turns a spelling mistake into a tap and is the difference
- * between the model reading "Dolo 650" and reading "dolo65". And it runs the
- * pair locally as well, which costs nothing and leaves the result screen
- * something true to show when the network does not answer.
+ * The type-ahead, and nothing else. It is the difference between the model
+ * reading "Dolo 650" and reading "dolo65", which is worth keeping. It no
+ * longer produces any result of its own: the check is the model, and a second
+ * verdict from a 35-rule table sitting beside it only raised the question of
+ * which one the reader was supposed to believe.
  */
 import React, { useMemo, useState } from 'react';
 import { View, TextInput, ScrollView, StyleSheet } from 'react-native';
@@ -26,8 +26,6 @@ import {
 import { Icon } from '../components/Icon';
 import { useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE } from '../theme';
 import { BundledInteractionTable } from '../../data/interactionTable';
-import { CheckInteractionsUseCase } from '../../domain/checkInteractions';
-import { InteractionReport } from '../../domain/medicines';
 import {
   MedicineCheck, MedicineCheckService, RemoteOutcome,
 } from '../../domain/remote';
@@ -35,8 +33,8 @@ import {
 type Slot = 'a' | 'b';
 
 export function MedicinesScreen({ onRun, check, onCheck }: {
-  /** The on-device table result and the two names, before the model answers. */
-  onRun: (report: InteractionReport, pair: [string, string]) => void;
+  /** The two names, as the result screen should title them. */
+  onRun: (pair: [string, string]) => void;
   check?: MedicineCheckService;
   onCheck?: (outcome: RemoteOutcome<MedicineCheck> | null | undefined) => void;
 }) {
@@ -46,7 +44,6 @@ export function MedicinesScreen({ onRun, check, onCheck }: {
   const [focused, setFocused] = useState<Slot | null>(null);
 
   const table = useMemo(() => new BundledInteractionTable(), []);
-  const useCase = useMemo(() => new CheckInteractionsUseCase(table), [table]);
 
   const valueOf = (slot: Slot) => (slot === 'a' ? first : second);
   const setValue = (slot: Slot, v: string) => (slot === 'a' ? setFirst(v) : setSecond(v));
@@ -82,7 +79,7 @@ export function MedicinesScreen({ onRun, check, onCheck }: {
     const med1 = table.resolve(first)?.name ?? first.trim();
     const med2 = table.resolve(second)?.name ?? second.trim();
 
-    onRun(useCase.execute([med1, med2]), [med1, med2]);
+    onRun([med1, med2]);
 
     if (!onCheck) return;
     // Cleared first, always, so a previous pair's verdict cannot sit on screen
@@ -91,7 +88,7 @@ export function MedicinesScreen({ onRun, check, onCheck }: {
     if (!check) return;
 
     onCheck(null);   // in flight
-    void check.check({ med1, med2 }).then(onCheck);
+    void check.check({ primaryMedicine: med1, secondaryMedicine: med2 }).then(onCheck);
   };
 
   const field = (slot: Slot, label: string, placeholder: string) => {

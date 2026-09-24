@@ -9,18 +9,21 @@
  * ends up below several hundred words of pharmacology. On a narrow column the
  * only thing that guarantees the instruction is read is putting it first.
  *
- * ── The offline table underneath ─────────────────────────────────────────────
+ * ── One check, one answer ────────────────────────────────────────────────────
  *
- * The bundled table runs on the same pair and appears below the model's
- * answer, or instead of it when the network does not respond. It knows 35
- * rules against the model's far wider reading, but it is deterministic and
- * cannot invent anything, so it is worth showing when it has something to say
- * and worth keeping when the model is unreachable. The two are always
- * labelled separately - a reader can tell which said what.
+ * The first version of this screen also ran the bundled 35-rule table and
+ * showed its verdict underneath, with a footer explaining which part ran where.
+ * That was wrong twice over. The check is the model - that is what the tab
+ * does - so a second verdict beside it only asked the reader to decide which
+ * one to believe. And when the model failed, the screen fell back to the
+ * table and announced "Checked on this device", which described a check the
+ * person had not asked for as though it were the one they had.
+ *
+ * A failed check now says it failed. Nothing on this screen claims to run
+ * locally, because nothing on it does.
  */
 import React from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
-import { InteractionReport } from '../../domain/medicines';
 import { AgentProfile, MedicineCheck, RemoteOutcome } from '../../domain/remote';
 import { Card, SectionLabel, Button, Txt, Springy, Enter } from '../components/Primitives';
 import { Icon } from '../components/Icon';
@@ -93,12 +96,10 @@ function AgentCard({ label, agent }: { label: string; agent: AgentProfile }) {
   );
 }
 
-export function CollisionScreen({ pair, check, report, onBack, onEdit }: {
+export function CollisionScreen({ pair, check, onBack, onEdit }: {
   pair: [string, string];
   /** Null while in flight, undefined when no check was started. */
   check?: RemoteOutcome<MedicineCheck> | null;
-  /** The on-device table's verdict on the same pair. */
-  report: InteractionReport;
   onBack: () => void;
   onEdit: () => void;
 }) {
@@ -110,7 +111,7 @@ export function CollisionScreen({ pair, check, report, onBack, onEdit }: {
 
   const heading = data
     ? data.compatibilityVerdict
-    : check === null ? 'Checking' : 'Checked on this device';
+    : check === null ? 'Checking' : 'Check did not complete';
 
   return (
     <View style={{ flex: 1, backgroundColor: P.bg }}>
@@ -230,41 +231,12 @@ export function CollisionScreen({ pair, check, report, onBack, onEdit }: {
             </>
           ) : null}
 
-          {/* The offline table, always labelled as a separate opinion. */}
-          {report.findings.length > 0 ? (
-            <Enter index={6}>
-              <View style={{ height: S.xxl }} />
-              <SectionLabel>Also in the offline table</SectionLabel>
-              <Card elevated={1}>
-                {report.findings.map((f) => (
-                  <View key={`${f.ruleId}-${f.first}-${f.second}`} style={{ marginBottom: S.md }}>
-                    <Txt t="bodyStrong" c={P.danger}>{`${f.first} + ${f.second}`}</Txt>
-                    <Txt t="body" style={{ marginTop: 2 }}>{f.effect}</Txt>
-                  </View>
-                ))}
-                <Txt t="micro" c={P.faint}>
-                  A deterministic rule held on the device. It covers common
-                  medicines and well-established interactions, not everything.
-                </Txt>
-              </Card>
-            </Enter>
-          ) : null}
-
           <Enter index={7}>
             <View style={{ height: S.xl }} />
             <Button title="Check another pair" tone="ghost" icon="plus" onPress={onEdit} />
 
-            <View style={{ height: S.xxl }} />
-            <View style={[st.meta, { borderColor: P.line }]}>
-              <Icon name="shield" size={16} color={P.ok} />
-              <Txt t="caption" style={{ flex: 1 }}>
-                The table check runs on this device. The collision check sends
-                the two medicine names to the analysis service - nothing else
-                about you goes with them.
-              </Txt>
-            </View>
-
-            <Txt t="caption" style={{ marginTop: S.lg, fontStyle: 'italic' }}>
+            <View style={{ height: S.xl }} />
+            <Txt t="caption" style={{ fontStyle: 'italic' }}>
               This does not replace advice from a pharmacist or doctor. Never
               stop a prescribed medicine because of what you read here - ask
               first. Healthline is free on 0800 611 116.

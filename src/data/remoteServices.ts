@@ -6,7 +6,7 @@
  */
 import {
   AgentProfile, MedicineCheck, MedicineCheckRequest, MedicineCheckService,
-  RemoteOutcome, RemoteStatus, REMOTE_NOTICE,
+  RemoteOutcome, RemoteStatus, REMOTE_NOTICE, COLLISION_NOTICE,
   SymptomAnalysis, SymptomAnalysisRequest, SymptomAnalysisService,
   ProbableCondition, MatrixSeverity,
   DailyStatus, DashboardService, Intelligence, RiskTrend,
@@ -30,8 +30,17 @@ function classify(error: unknown, configured: boolean): Failure {
   return configured ? 'FAILED' : 'UNAVAILABLE';
 }
 
-function fail<T>(status: Failure, started: number): RemoteOutcome<T> {
-  return { status, data: null, notice: REMOTE_NOTICE[status], elapsedMs: Date.now() - started };
+/**
+ * @param notices Wording for the caller's screen. Defaults to the triage
+ *   phrasing, which promises an on-device result above the message - true
+ *   there, and false anywhere that has no local fallback.
+ */
+function fail<T>(
+  status: Failure,
+  started: number,
+  notices: Record<Failure, string> = REMOTE_NOTICE,
+): RemoteOutcome<T> {
+  return { status, data: null, notice: notices[status], elapsedMs: Date.now() - started };
 }
 
 /* ─────────────────────── POST /api/symptoms/analyze ─────────────────────── */
@@ -144,12 +153,13 @@ export class RemoteMedicineCheck implements MedicineCheckService {
       // Also a model generation, so also past the default. See the note on
       // ANALYSIS_TIMEOUT_MS.
       const raw = await this.api.post<any>('/api/medicine/check', {
-        med1: request.med1, med2: request.med2,
+        primaryMedicine: request.primaryMedicine,
+        secondaryMedicine: request.secondaryMedicine,
       }, ANALYSIS_TIMEOUT_MS);
 
       const verdict = typeof raw?.compatibilityVerdict === 'string'
         ? raw.compatibilityVerdict.trim() : '';
-      if (!verdict) return fail('FAILED', started);
+      if (!verdict) return fail('FAILED', started, COLLISION_NOTICE);
 
       return {
         status: 'OK',
@@ -182,7 +192,7 @@ export class RemoteMedicineCheck implements MedicineCheckService {
         elapsedMs: Date.now() - started,
       };
     } catch (error) {
-      return fail(classify(error, this.api.configured), started);
+      return fail(classify(error, this.api.configured), started, COLLISION_NOTICE);
     }
   }
 }

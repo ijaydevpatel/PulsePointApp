@@ -181,32 +181,47 @@ describe('model 2 - POST /api/medicine/check', () => {
 
   it('parses the verdict, risk and flags', async () => {
     const r = await new RemoteMedicineCheck(client(async () => jsonRes(OKBODY)))
-      .check({ med1: 'Warfarin', med2: 'Aspirin' });
+      .check({ primaryMedicine: 'Warfarin', secondaryMedicine: 'Aspirin' });
     expect(r.status).toBe('OK');
     expect(r.data!.dangerDetected).toBe(true);
     expect(r.data!.riskPercentage).toBe(74);
     expect(r.data!.conflictFlags).toContain('Direct Database Match');
   });
 
-  it('sends med1 and med2 as the controller expects', async () => {
+  it('sends the field names the route actually reads', async () => {
+    /*
+     * This test existed before, was called "sends med1 and med2 as the
+     * controller expects", and passed - while the feature was broken for
+     * every user.
+     *
+     * It was written from the same assumption as the code it was checking:
+     * that the route took med1 and med2. It takes primaryMedicine and
+     * secondaryMedicine, replies 400 to anything else, and the app rendered
+     * that 400 as "the analysis service could not be reached". A test that
+     * asserts the code's own guess is worth nothing; the names below are
+     * copied from backend/src/controllers/medicineController.js.
+     */
     let sent: any = null;
     const c = new ApiClient('https://api.test', 30000, (async (_u: string, init: any) => {
       sent = JSON.parse(init.body); return jsonRes(OKBODY);
     }) as unknown as typeof fetch);
     c.setTokenProvider(async () => 'tok');
-    await new RemoteMedicineCheck(c).check({ med1: 'Warfarin', med2: 'Aspirin' });
-    expect(sent).toEqual({ med1: 'Warfarin', med2: 'Aspirin' });
+    await new RemoteMedicineCheck(c)
+      .check({ primaryMedicine: 'Warfarin', secondaryMedicine: 'Aspirin' });
+
+    expect(sent).toEqual({ primaryMedicine: 'Warfarin', secondaryMedicine: 'Aspirin' });
+    expect(Object.keys(sent)).not.toContain('med1');
   });
 
   it('clamps a risk percentage outside 0..100', async () => {
     const r = await new RemoteMedicineCheck(client(async () =>
-      jsonRes({ ...OKBODY, riskPercentage: 500 }))).check({ med1: 'a', med2: 'b' });
+      jsonRes({ ...OKBODY, riskPercentage: 500 }))).check({ primaryMedicine: 'a', secondaryMedicine: 'b' });
     expect(r.data!.riskPercentage).toBe(100);
   });
 
   it('treats a missing verdict as failure', async () => {
     const r = await new RemoteMedicineCheck(client(async () => jsonRes({ riskLevel: 'High' })))
-      .check({ med1: 'a', med2: 'b' });
+      .check({ primaryMedicine: 'a', secondaryMedicine: 'b' });
     expect(r.status).toBe('FAILED');
   });
 });

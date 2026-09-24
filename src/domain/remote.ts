@@ -94,9 +94,17 @@ export interface MedicineCheck {
   readonly warnings: readonly string[];
 }
 
+/**
+ * Field names are the server's, not ours.
+ *
+ * This asked for `med1` and `med2`, which the route does not read. It replies
+ * 400 "Input Fault: Requires Dual Medicine String Maps" before the model is
+ * ever called, and the app renders that as "the analysis service could not be
+ * reached" - so a naming mismatch looked exactly like the service being down.
+ */
 export interface MedicineCheckRequest {
-  readonly med1: string;
-  readonly med2: string;
+  readonly primaryMedicine: string;
+  readonly secondaryMedicine: string;
 }
 
 /* ──────────────────────────── the ports ───────────────────────────── */
@@ -114,6 +122,23 @@ export const REMOTE_NOTICE: Record<Exclude<RemoteStatus, 'OK'>, string> = {
   UNAVAILABLE: 'Online analysis is unavailable offline. Your on-device result above is complete.',
   TIMEOUT: 'The analysis service did not respond in time. Your on-device result above is complete.',
   FAILED: 'The analysis service could not be reached. Your on-device result above is complete.',
+};
+
+/**
+ * The same four states, worded for the collision check.
+ *
+ * REMOTE_NOTICE ends every string with "Your on-device result above is
+ * complete", which is true on the triage screen and false here: the collision
+ * check is the only check this tab runs, and when it fails there is no local
+ * result sitting above it to fall back on. Saying otherwise told someone their
+ * medicines had been checked when they had not been, which is the one thing a
+ * failure message on this screen must never do.
+ */
+export const COLLISION_NOTICE: Record<Exclude<RemoteStatus, 'OK'>, string> = {
+  UNAUTHENTICATED: 'Sign in to run the collision check.',
+  UNAVAILABLE: 'The collision check needs a connection. Nothing was checked.',
+  TIMEOUT: 'The check did not finish in time. Nothing was checked - try again.',
+  FAILED: 'The check could not be completed. Nothing was checked - try again.',
 };
 
 /**

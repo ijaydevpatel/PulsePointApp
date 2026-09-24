@@ -12,6 +12,7 @@
  */
 import { ApiClient, DEFAULT_TIMEOUT_MS } from '../src/data/apiClient';
 import { RemoteMedicineCheck } from '../src/data/remoteServices';
+import { COLLISION_NOTICE, REMOTE_NOTICE } from '../src/domain/remote';
 
 /** Shaped exactly like the backend's res.json for a real pair. */
 const WIRE = {
@@ -60,7 +61,7 @@ function clientReturning(body: unknown, ok = true, status = 200): ApiClient {
 }
 
 const run = (body: unknown) =>
-  new RemoteMedicineCheck(clientReturning(body)).check({ med1: 'Paracetamol', med2: 'Dolo 650' });
+  new RemoteMedicineCheck(clientReturning(body)).check({ primaryMedicine: 'Paracetamol', secondaryMedicine: 'Dolo 650' });
 
 describe('collision check mapping', () => {
   it('reads every field the screen renders', async () => {
@@ -123,5 +124,29 @@ describe('collision check mapping', () => {
     expect(out.status).not.toBe('OK');
     expect(out.data).toBeNull();
     expect(out.notice).toBeTruthy();
+  });
+});
+
+describe('what a failed collision check says', () => {
+  it('never claims anything was checked locally', async () => {
+    /*
+     * The screen used to fall back to a bundled table and announce "Checked on
+     * this device" over a message ending "your on-device result above is
+     * complete". Neither was true of a check the person had asked the model
+     * for, and telling someone their medicines had been checked when they had
+     * not is the one thing a failure message here must not do.
+     */
+    const out = await run({ riskLevel: 'Low' });
+
+    expect(out.notice).toBeTruthy();
+    expect(out.notice).not.toMatch(/device|offline|locally/i);
+    expect(out.notice).toContain('Nothing was checked');
+  });
+
+  it('does not reuse the triage wording', () => {
+    for (const state of ['UNAUTHENTICATED', 'UNAVAILABLE', 'TIMEOUT', 'FAILED'] as const) {
+      expect(COLLISION_NOTICE[state]).not.toBe(REMOTE_NOTICE[state]);
+      expect(COLLISION_NOTICE[state]).not.toMatch(/device|offline/i);
+    }
   });
 });
