@@ -72,14 +72,16 @@ const ANALYSIS_TIMEOUT_MS = 90000;
 const SYNOPSIS_SENTENCES = 5;
 
 /**
- * The collision check's prose, per block.
+ * How long each block on the collision screen is allowed to be.
  *
- * Four rather than the synopsis's five because this screen carries three of
- * them - mechanism, rationale, advice - and the server prompt asks the model
- * for "6-8 sentence exhaustive deep-dive" on one of them alone. Unchecked,
- * that is a wall of text on a phone.
+ * Two different limits, because the two blocks do different jobs. The advice
+ * is the reason someone opened the screen and every sentence in it is an
+ * instruction, so it keeps four. The explanation of why is context: useful,
+ * but not worth scrolling past the instruction for, and the server prompt asks
+ * the model for a "6-8 sentence exhaustive deep-dive" of it.
  */
-const COLLISION_SENTENCES = 4;
+const ADVICE_SENTENCES = 4;
+const REASON_SENTENCES = 3;
 
 /** One side of the label audit, or null when the model omitted it. */
 function agentProfile(raw: any): AgentProfile | null {
@@ -98,8 +100,8 @@ function agentProfile(raw: any): AgentProfile | null {
 }
 
 /** Trim and cap a prose field, tolerating a missing one. */
-const prose = (v: unknown): string =>
-  (typeof v === 'string' ? limitSentences(v, COLLISION_SENTENCES) : '');
+const prose = (v: unknown, max: number): string =>
+  (typeof v === 'string' ? limitSentences(v, max) : '');
 
 export class RemoteSymptomAnalysis implements SymptomAnalysisService {
   constructor(private readonly api: ApiClient) {}
@@ -176,9 +178,9 @@ export class RemoteMedicineCheck implements MedicineCheckService {
            * are separate list fields and are untouched, so nothing cautionary
            * depends on the shortened text.
            */
-          interactionCause: prose(raw?.interactionCause),
-          explanation: prose(raw?.explanation),
-          patientAdvice: prose(raw?.patientAdvice),
+          interactionCause: prose(raw?.interactionCause, REASON_SENTENCES),
+          explanation: prose(raw?.explanation, REASON_SENTENCES),
+          patientAdvice: prose(raw?.patientAdvice, ADVICE_SENTENCES),
 
           metabolicPathway: typeof raw?.metabolicPathway === 'string'
             ? raw.metabolicPathway.trim() : '',

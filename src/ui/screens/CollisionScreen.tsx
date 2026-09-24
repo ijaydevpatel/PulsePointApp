@@ -181,19 +181,39 @@ export function CollisionScreen({ pair, check, onBack, onEdit }: {
                     {data.patientAdvice || 'Ask a pharmacist before taking these together.'}
                   </Txt>
                   <Bullets title="Critical markers" items={data.warnings} colour={P.danger} />
-                  <Bullets title="Also flagged" items={data.conflictFlags} colour={P.warn} />
+                  {/*
+                    conflictFlags is not shown. The server sets it to exactly
+                    ["Direct Database Match"] when the pair appears in its own
+                    contraindication map, and to [] otherwise - a note about
+                    where the answer came from, rendered as though it were a
+                    finding. It told the reader nothing the risk level had not
+                    already said.
+                  */}
                 </Card>
               </Enter>
 
+              {/* Skipped entirely when the model returned no reason at all,
+                  rather than rendering an empty card under a heading. */}
+              {data.interactionCause || data.explanation || data.metabolicPathway ? (
               <Enter index={3}>
                 <View style={{ height: S.xxl }} />
                 <SectionLabel>Why</SectionLabel>
                 <Card glass={true}>
-                  <Block title="Mechanism" body={data.interactionCause} />
-                  <Block title="Clinical rationale" body={data.explanation} />
+                  {/*
+                    One explanation, not two.
+                    Mechanism and clinical rationale are the same answer told
+                    twice - the server asks for a mechanism in one field and an
+                    exhaustive deep-dive of the same thing in the other, so the
+                    section ran to a dozen sentences saying one idea. The
+                    mechanism is the tighter of the two and is preferred; the
+                    rationale is the fallback for when the model leaves it out.
+                  */}
+                  <Txt t="body">{data.interactionCause || data.explanation}</Txt>
+                  {/* A short label rather than prose, so it stays. */}
                   <Block title="Metabolic pathway" body={data.metabolicPathway} />
                 </Card>
               </Enter>
+              ) : null}
 
               {data.agentA || data.agentB ? (
                 <Enter index={4}>

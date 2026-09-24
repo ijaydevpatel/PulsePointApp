@@ -74,6 +74,11 @@ describe('collision check mapping', () => {
     expect(d.metabolicPathway).toContain('CYP2E1');
     expect(d.safeAlternatives).toHaveLength(2);
     expect(d.warnings).toHaveLength(2);
+    /*
+     * Parsed but deliberately not rendered - see CollisionScreen. The server
+     * sets it to exactly this string when the pair is in its own
+     * contraindication map, which is provenance rather than a finding.
+     */
     expect(d.conflictFlags).toEqual(['Direct Database Match']);
   });
 
@@ -87,13 +92,19 @@ describe('collision check mapping', () => {
     expect(d.agentB?.additives).toBe('');
   });
 
-  it('caps all three prose blocks at four sentences', async () => {
+  it('caps the advice at four sentences and the reasoning at three', async () => {
+    /*
+     * Different limits on purpose. Every sentence of the advice is an
+     * instruction and it is why the screen was opened; the reasoning is
+     * context, and the server asks the model for an "exhaustive deep-dive"
+     * of it.
+     */
     const d = (await run(WIRE)).data!;
     const sentences = (s: string) => (s.match(/[.!?](\s|$)/g) ?? []).length;
 
-    expect(sentences(d.interactionCause)).toBe(4);
-    expect(sentences(d.explanation)).toBe(4);
     expect(sentences(d.patientAdvice)).toBe(4);
+    expect(sentences(d.interactionCause)).toBe(3);
+    expect(sentences(d.explanation)).toBe(3);
 
     // Whole sentences, never a fragment.
     for (const block of [d.interactionCause, d.explanation, d.patientAdvice]) {
