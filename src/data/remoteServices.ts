@@ -393,8 +393,31 @@ export class RemoteReportAnalyzer implements ReportService {
         '/api/reports/analyze', 'reportFile', file, REPORT_TIMEOUT_MS,
       );
 
-      const findings = typeof raw?.findings === 'string' ? raw.findings.trim() : '';
-      if (!findings) return fail('FAILED', started, REPORT_NOTICE);
+      /*
+       * The model decides which of these it fills in, and it does not always
+       * fill in `findings`. Requiring that one field meant a response with a
+       * perfectly good set of implications and advice was thrown away as a
+       * failure - and thrown away silently, because this path reported no
+       * reason at all. That is what a bare "could not be read" with nothing in
+       * brackets means.
+       */
+      const findings = str(raw?.findings, '');
+      const implications = str(raw?.implications, '');
+      const advice = str(raw?.advice, '');
+      const markers = strings(raw?.abnormalMarkers);
+
+      if (!findings && !implications && !advice && markers.length === 0) {
+        /*
+         * Nothing usable came back. Name the keys the server did send: a 200
+         * with the wrong shape is otherwise indistinguishable from a 200 with
+         * an empty one, and neither is visible from the screen.
+         */
+        const keys = raw && typeof raw === 'object' ? Object.keys(raw) : [];
+        return fail(
+          'FAILED', started, REPORT_NOTICE,
+          keys.length ? `server sent: ${keys.slice(0, 8).join(', ')}` : 'empty response',
+        );
+      }
 
       return {
         status: 'OK',
@@ -402,9 +425,9 @@ export class RemoteReportAnalyzer implements ReportService {
           documentType: str(raw?.documentType, 'Document'),
           patientIdentity: str(raw?.patientIdentity, '[UNKNOWN]'),
           findings,
-          abnormalMarkers: strings(raw?.abnormalMarkers),
-          implications: str(raw?.implications, ''),
-          advice: str(raw?.advice, ''),
+          abnormalMarkers: markers,
+          implications,
+          advice,
           riskLevel: RISKS.includes(raw?.riskLevel) ? raw.riskLevel as ReportRisk : 'Unknown',
           stages: readStages(raw?.neuralPulse?.stages),
           totalSeconds: typeof raw?.neuralPulse?.generationTime === 'number'

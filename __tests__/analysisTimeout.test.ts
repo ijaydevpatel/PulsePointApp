@@ -249,3 +249,58 @@ describe('what a failed report says', () => {
     expect(out.notice).toContain('Network request failed');
   });
 });
+
+describe('a report the model filled in partially', () => {
+  const FILE = { uri: 'file:///r.pdf', name: 'r.pdf', mimeType: 'application/pdf' };
+
+  const returning = (body: unknown) => {
+    const api = new ApiClient('https://example.test', DEFAULT_TIMEOUT_MS, (async () => ({
+      ok: true, status: 200,
+      headers: { get: () => 'application/json' },
+      json: async () => body,
+    })) as any);
+    api.setTokenProvider(async () => 'token');
+    return new RemoteReportAnalyzer(api).analyze(FILE);
+  };
+
+  it('accepts a report with no findings but real advice', async () => {
+    /*
+     * The model chooses which fields it fills in. Requiring `findings`
+     * specifically threw away a usable answer as a failure - and silently,
+     * since that path reported no reason, which is why the screen showed a
+     * bare message with nothing in brackets.
+     */
+    const out = await returning({
+      documentType: 'Discharge summary',
+      implications: 'Recovery is on track.',
+      advice: '1. Rest.',
+      riskLevel: 'Low',
+    });
+
+    expect(out.status).toBe('OK');
+    expect(out.data?.advice).toContain('Rest');
+    expect(out.data?.findings).toBe('');
+  });
+
+  it('accepts one with only abnormal markers', async () => {
+    const out = await returning({ abnormalMarkers: ['Low haemoglobin'], riskLevel: 'Moderate' });
+
+    expect(out.status).toBe('OK');
+    expect(out.data?.abnormalMarkers).toEqual(['Low haemoglobin']);
+  });
+
+  it('names the keys when nothing usable came back', async () => {
+    // A 200 with the wrong shape is otherwise indistinguishable from a 200
+    // with an empty one, and neither is visible from the screen.
+    const out = await returning({ neuralPulse: {}, timestamp: 'now', somethingElse: 1 });
+
+    expect(out.status).toBe('FAILED');
+    expect(out.notice).toContain('server sent');
+    expect(out.notice).toContain('neuralPulse');
+  });
+
+  it('says so when the body is empty', async () => {
+    const out = await returning({});
+    expect(out.notice).toContain('empty response');
+  });
+});
