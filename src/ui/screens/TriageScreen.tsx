@@ -210,9 +210,16 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
             <View style={{ height: S.md }} />
           </Enter>
 
-          <Enter index={3}>
+          {/*
+            Deliberately not wrapped in Enter.
+            This block re-renders on every keystroke, and an entrance
+            animation around a focused text input is one more thing that can
+            interfere with the field while someone is typing in it. The list
+            below still animates in; the box someone is using does not.
+          */}
+          <View>
             <View style={{ height: S.xxl }} />
-            <SectionLabel>Anything else</SectionLabel>
+            <SectionLabel>Describe it yourself</SectionLabel>
             {/*
               Either/or, not both-required. Some things have no chip — a taste
               that has gone, a pain that only comes at night — and a list can
@@ -225,15 +232,15 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
               style={[st.note, { borderColor: P.line, backgroundColor: P.surface, color: P.ink }]}
               value={note}
               onChangeText={setNote}
-              placeholder="Describe what you're feeling, if it isn't listed above"
+              placeholder="Tell us what you're feeling, in your own words"
               placeholderTextColor={P.faint}
               multiline
               textAlignVertical="top"
               accessibilityLabel="Describe your symptoms"
             />
             <View style={{ height: S.xxl }} />
-            <SectionLabel>Or pick from the list</SectionLabel>
-          </Enter>
+            <SectionLabel>Or pick from the list below</SectionLabel>
+          </View>
 
           {CATALOGUE.map((c, i) => {
             const on = picked[c.code] !== undefined;

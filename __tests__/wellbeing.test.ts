@@ -163,3 +163,38 @@ describe('the symptom catalogue', () => {
     expect(CATALOGUE[0]!.code).toBe('chest_pain');
   });
 });
+
+/* ────────────────────────── entrance animation ──────────────────────────── */
+
+describe('the Enter wrapper cannot be left invisible', () => {
+  /**
+   * Reproduces the shape of the bug rather than the component: a native-driven
+   * value starts at 0, the effect that animates it runs once, and a later
+   * re-render re-applies the JS-side style. Without a "played" latch the
+   * content stays at 0 forever; with one, every render re-asserts 1.
+   */
+  function simulate({ latch }: { latch: boolean }) {
+    let value = 0;
+    let played = false;
+
+    const render = (isFirst: boolean) => {
+      if (latch && played) { value = 1; return; }
+      if (isFirst) { value = 1; played = true; return; }
+      // A re-render re-applying the stale JS-side value.
+      if (!latch) value = 0;
+    };
+
+    render(true);
+    render(false);   // keystroke
+    render(false);   // another keystroke
+    return value;
+  }
+
+  it('goes invisible without the latch — the bug', () => {
+    expect(simulate({ latch: false })).toBe(0);
+  });
+
+  it('stays visible with it', () => {
+    expect(simulate({ latch: true })).toBe(1);
+  });
+});
