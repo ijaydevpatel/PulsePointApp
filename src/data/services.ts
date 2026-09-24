@@ -13,11 +13,14 @@ import {
   RemoteChat, RemoteNews, RemoteDashboard, RemoteProfile,
 } from './remoteServices';
 import { OpenMeteoConditions } from './conditionsService';
+import { OverpassFacilities } from './overpassFacilities';
 
 export interface Services {
   readonly api: ApiClient;
   readonly symptoms: RemoteSymptomAnalysis;
   readonly medicines: RemoteMedicineCheck;
+  /** Public OSM data, so it takes no ApiClient and needs no token. */
+  readonly facilities: OverpassFacilities;
   readonly chat: RemoteChat;
   readonly news: RemoteNews;
   readonly dashboard: RemoteDashboard;
@@ -48,6 +51,7 @@ export function createServices(getToken: TokenProvider): Services {
     api,
     symptoms: new RemoteSymptomAnalysis(api),
     medicines: new RemoteMedicineCheck(api),
+    facilities: new OverpassFacilities(),
     chat: new RemoteChat(api),
     news: new RemoteNews(api),
     dashboard: new RemoteDashboard(api),

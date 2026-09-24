@@ -23,6 +23,7 @@ import { RuleClassifier } from '../data/ruleClassifier';
 import { InMemoryEpisodeStore } from '../data/memoryStore';
 import { tokenCache } from '../data/clerkAuth';
 import { createServices } from '../data/services';
+import { Fix, resolveFix } from '../data/locationFix';
 import { ENV } from '../config/env';
 
 import { TabBar } from './nav/TabBar';
@@ -116,6 +117,20 @@ function AppContent() {
    * Symptoms and back unmounts it, and local state would go with it.
    */
   const [conversation, setConversation] = useState<Conversation>(EMPTY_CONVERSATION);
+
+  /**
+   * Roughly where the person is, for the map.
+   *
+   * Resolved once here rather than on every visit to the tab: the three tiers
+   * include a permission prompt and a network round trip, and re-running that
+   * each time someone glances at the map would be rude and slow.
+   */
+  const [fix, setFix] = useState<Fix | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void resolveFix().then((f) => { if (alive) setFix(f); });
+    return () => { alive = false; };
+  }, []);
   const [offline] = useState(false);
 
   useEffect(() => { void store.init(); }, [store]);
@@ -288,7 +303,7 @@ function AppContent() {
           conversation={conversation} onConversation={setConversation}
         />
       );
-      case 'care':      return <CareScreen />;
+      case 'care':      return <CareScreen service={services.facilities} fix={fix} />;
     }
   }
 

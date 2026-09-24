@@ -136,3 +136,66 @@ export function zoneFix(): Fix | null {
 
   return null;
 }
+
+/**
+ * The same three tiers, for callers that only need a position.
+ *
+ * conditionsService has its own copy of this chain wired into its weather
+ * fetch. This is deliberately a second, smaller entry point rather than a
+ * refactor of that one: the environment card on Home works, and rewiring a
+ * working screen to give the map a function it could have on its own is a
+ * poor trade.
+ *
+ * Device position if one is readily available, otherwise the city from the
+ * network, otherwise the time zone - which cannot fail. The map only needs to
+ * know roughly where to centre and what to search around, and all three tiers
+ * are accurate enough for that.
+ */
+export async function resolveFix(): Promise<Fix | null> {
+  try {
+    const Location = await import('expo-location');
+
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status === Location.PermissionStatus.GRANTED
+        && await Location.hasServicesEnabledAsync()) {
+      const cached = await Location.getLastKnownPositionAsync({ maxAge: 60 * 60 * 1000 });
+      const pos = cached ?? await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+      ]);
+
+      if (pos) {
+        const { latitude, longitude } = pos.coords;
+        let place: string | undefined;
+        try {
+          const found = await Promise.race([
+            Location.reverseGeocodeAsync({ latitude, longitude }),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+          ]);
+          const first = Array.isArray(found) ? found[0] : null;
+          place = (first?.city || first?.subregion || first?.district || first?.region) ?? undefined;
+        } catch { /* a reading without a name is still a reading */ }
+
+        return { lat: latitude, lon: longitude, source: 'device', place };
+      }
+    }
+  } catch { /* module missing, permission thrown, services off - all fine */ }
+
+  try {
+    const res = await fetch('https://ipwho.is/');
+    if (res.ok && (res.headers?.get?.('content-type') ?? '').includes('json')) {
+      const data: any = await res.json();
+      if (data?.success !== false
+          && typeof data?.latitude === 'number' && typeof data?.longitude === 'number') {
+        return {
+          lat: data.latitude,
+          lon: data.longitude,
+          source: 'network',
+          place: (typeof data.city === 'string' && data.city.trim()) || undefined,
+        };
+      }
+    }
+  } catch { /* fall through to the tier that cannot fail */ }
+
+  return zoneFix();
+}
