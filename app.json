@@ -34,7 +34,8 @@
         {
           "locationAlwaysAndWhenInUsePermission": "PulsePoint uses your location only to show local air quality, UV and humidity. It is never stored or sent to our servers."
         }
-      ]
+      ],
+      "@maplibre/maplibre-react-native"
     ],
     "scheme": "pulsepoint"
   }
