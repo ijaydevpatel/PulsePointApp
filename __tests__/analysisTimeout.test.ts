@@ -200,3 +200,52 @@ describe('report upload deadline', () => {
     }
   });
 });
+
+describe('what a failed report says', () => {
+  const FILE = { uri: 'file:///r.pdf', name: 'r.pdf', mimeType: 'application/pdf' };
+
+  const uploadFailing = (res: any) => {
+    const api = new ApiClient('https://example.test', DEFAULT_TIMEOUT_MS, (async () => res) as any);
+    api.setTokenProvider(async () => 'token');
+    return new RemoteReportAnalyzer(api).analyze(FILE);
+  };
+
+  it('repeats the reason the server gave', async () => {
+    /*
+     * "The report could not be read" on its own describes a rejected upload, a
+     * model fault and a cold-start error page identically - on screen and to
+     * anyone trying to fix it. The server already says which; it was being
+     * discarded.
+     */
+    const out = await uploadFailing({
+      ok: false, status: 500,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ message: 'Report Analysis Fault: AI Quota Exceeded.' }),
+    });
+
+    expect(out.status).toBe('FAILED');
+    expect(out.notice).toContain('AI Quota Exceeded');
+  });
+
+  it('names an HTML error page as one', async () => {
+    // A 502 from a cold start returns HTML. Reported as a parse error before.
+    const out = await uploadFailing({
+      ok: false, status: 502,
+      headers: { get: () => 'text/html' },
+      json: async () => ({}),
+    });
+
+    expect(out.notice).toContain('502');
+    expect(out.notice).toMatch(/not JSON/i);
+  });
+
+  it('names a failure that never reached the server', async () => {
+    const api = new ApiClient('https://example.test', DEFAULT_TIMEOUT_MS, (async () => {
+      throw new TypeError('Network request failed');
+    }) as any);
+    api.setTokenProvider(async () => 'token');
+
+    const out = await new RemoteReportAnalyzer(api).analyze(FILE);
+    expect(out.notice).toContain('Network request failed');
+  });
+});

@@ -39,8 +39,45 @@ function fail<T>(
   status: Failure,
   started: number,
   notices: Record<Failure, string> = REMOTE_NOTICE,
+  detail?: string,
 ): RemoteOutcome<T> {
-  return { status, data: null, notice: notices[status], elapsedMs: Date.now() - started };
+  const notice = detail ? `${notices[status]} (${detail})` : notices[status];
+  return { status, data: null, notice, elapsedMs: Date.now() - started };
+}
+
+/**
+ * What the server said, when it said anything worth repeating.
+ *
+ * Every failure used to collapse into one generic sentence, which made three
+ * very different problems - a rejected upload, a model fault, an HTML error
+ * page from a cold start - completely indistinguishable on screen and, more
+ * to the point, indistinguishable to anyone trying to fix them. The server
+ * already returns a reason; throwing it away was the expensive part.
+ *
+ * Only for ApiError, so a network failure does not surface a stack message,
+ * and trimmed, because these are meant to fit under a notice rather than
+ * become one.
+ */
+function serverDetail(error: unknown): string | undefined {
+  /*
+   * A failure that never reached the server is worth naming too. "Network
+   * request failed" and a file the picker handed over as an unreadable URI
+   * both land here, and both are otherwise indistinguishable from the server
+   * rejecting the upload. AbortError is excluded: that is the timeout, which
+   * already has its own state and wording.
+   */
+  if (!(error instanceof ApiError)) {
+    if (!(error instanceof Error) || error.name === 'AbortError') return undefined;
+    const message = error.message.trim();
+    return message ? message.slice(0, 120) : undefined;
+  }
+
+  if (error.isHtml) return `HTTP ${error.status}, not JSON`;
+  const message = error.message.trim();
+  if (!message || message === 'Request failed' || message === 'Upload failed') {
+    return `HTTP ${error.status}`;
+  }
+  return message.length > 120 ? `${message.slice(0, 117)}...` : message;
 }
 
 /* ─────────────────────── POST /api/symptoms/analyze ─────────────────────── */
@@ -378,7 +415,10 @@ export class RemoteReportAnalyzer implements ReportService {
         elapsedMs: Date.now() - started,
       };
     } catch (error) {
-      return fail(classify(error, this.api.configured), started, REPORT_NOTICE);
+      return fail(
+        classify(error, this.api.configured), started, REPORT_NOTICE,
+        serverDetail(error),
+      );
     }
   }
 }
