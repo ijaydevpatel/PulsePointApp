@@ -100,14 +100,23 @@ function serverDetail(error: unknown): string | undefined {
 const ANALYSIS_TIMEOUT_MS = 90000;
 
 /**
- * Longer again for a report, because more happens.
+ * Sized against what the server actually does, not against a guess.
  *
- * The file is uploaded, parsed, read by Gemini 2.5 for extraction and then by
- * Gemini 3 for synthesis. That is two model passes over a document rather than
- * one generation from a prompt, and it was being cut off at thirty seconds -
- * the same mistake as the symptom matrix, on the heaviest call in the app.
+ * The route runs two stages. Extraction is one call to Gemini 2.5 Flash.
+ * Synthesis is 3.7, then 3.5 if 3.7 is busy, then Groq if both are - one
+ * attempt each, no waiting in between. So the worst case is four model calls
+ * in sequence, and only the first carries the document.
+ *
+ * Three minutes covers that with room to spare. It was briefly five, sized
+ * against an earlier server chain of four models with two attempts per stage,
+ * every attempt re-uploading the file; that chain is gone and the ceiling
+ * comes down with it.
+ *
+ * Still bounded, deliberately. A browser fetch has no deadline at all, which
+ * is why the website never saw this, but a phone left on "reading" for ever
+ * is its own failure.
  */
-const REPORT_TIMEOUT_MS = 150000;
+const REPORT_TIMEOUT_MS = 180000;
 
 /**
  * How many sentences of synopsis the result screen will show.

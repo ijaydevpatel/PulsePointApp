@@ -174,11 +174,25 @@ describe('report upload deadline', () => {
     expect(outcome.data?.documentType).toBe('Blood test');
   });
 
-  it('still gives up rather than hanging for ever', async () => {
-    const api = clientWith(slowFetch(20 * 60_000));
+  it('waits out the server working through its fallback chain', async () => {
+    /*
+     * Extraction, then synthesis falling through 3.7 to 3.5 to Groq: four
+     * model calls in sequence on a bad day. Two minutes is a slow run, not a
+     * hung one, and the 150s deadline this used to have turned it into a
+     * reported failure while the server was still working.
+     */
+    const api = clientWith(slowFetch(2 * 60_000, REPORT_BODY));
     const promise = new RemoteReportAnalyzer(api).analyze(FILE);
 
-    await jest.advanceTimersByTimeAsync(3 * 60_000);
+    await jest.advanceTimersByTimeAsync(2 * 60_000 + 1000);
+    expect((await promise).status).toBe('OK');
+  });
+
+  it('still gives up rather than hanging for ever', async () => {
+    const api = clientWith(slowFetch(30 * 60_000));
+    const promise = new RemoteReportAnalyzer(api).analyze(FILE);
+
+    await jest.advanceTimersByTimeAsync(6 * 60_000);
     expect((await promise).status).toBe('TIMEOUT');
   });
 
@@ -188,9 +202,9 @@ describe('report upload deadline', () => {
      * on-device result above is complete". There is no on-device result on
      * this screen: the document is read by the hosted models or not at all.
      */
-    const api = clientWith(slowFetch(20 * 60_000));
+    const api = clientWith(slowFetch(30 * 60_000));
     const promise = new RemoteReportAnalyzer(api).analyze(FILE);
-    await jest.advanceTimersByTimeAsync(3 * 60_000);
+    await jest.advanceTimersByTimeAsync(6 * 60_000);
 
     expect((await promise).notice).not.toMatch(/device|offline/i);
 
