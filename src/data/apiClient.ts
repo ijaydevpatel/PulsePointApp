@@ -20,7 +20,20 @@ import { ENV } from '../config/env';
 export type TokenProvider = () => Promise<string | null>;
 
 export class ApiError extends Error {
-  constructor(message: string, readonly status: number, readonly isHtml = false) {
+  /**
+   * @param body The parsed error payload, when the server sent one.
+   *
+   *   Kept because this backend puts useful things in it. The report route
+   *   answers a parse failure with `{ message, raw }`, where `raw` is the
+   *   model's actual reply - discarding the body threw away the only copy of
+   *   an answer that had already been generated and paid for.
+   */
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly isHtml = false,
+    readonly body?: unknown,
+  ) {
     super(message);
     this.name = 'ApiError';
   }
@@ -90,7 +103,7 @@ export class ApiClient {
       if (!response.ok) {
         throw new ApiError(
           (data && typeof data.message === 'string') ? data.message : 'Upload failed',
-          response.status,
+          response.status, false, data,
         );
       }
       return data as T;
@@ -125,7 +138,7 @@ export class ApiClient {
       if (!response.ok) {
         throw new ApiError(
           (data && typeof data.message === 'string') ? data.message : 'Request failed',
-          response.status,
+          response.status, false, data,
         );
       }
       return data as T;
@@ -174,7 +187,7 @@ export class ApiClient {
       if (!response.ok) {
         throw new ApiError(
           (data && typeof data.message === 'string') ? data.message : 'Request failed',
-          response.status,
+          response.status, false, data,
         );
       }
       return data as T;

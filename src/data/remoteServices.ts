@@ -15,6 +15,7 @@ import {
   ProfileService, UserProfile,
 } from '../domain/remote';
 import { limitSentences } from '../domain/sentences';
+import { salvageJson } from '../domain/salvageJson';
 import { ApiClient, ApiError } from './apiClient';
 
 const SEVERITIES: readonly MatrixSeverity[] = ['Critical', 'High', 'Medium', 'Low'];
@@ -382,6 +383,41 @@ function readStages(v: unknown): ReportStage[] {
   });
 }
 
+/** The fields worth lifting out of a reply that will not parse. */
+const REPORT_FIELDS = [
+  'documentType', 'patientIdentity', 'findings',
+  'abnormalMarkers', 'implications', 'advice', 'riskLevel',
+] as const;
+
+/**
+ * One mapping, used by both the parsed reply and the salvaged one.
+ *
+ * Shared deliberately: a salvaged report that rendered differently from a
+ * clean one would be a second code path to keep in step, and the whole point
+ * is that the reader cannot tell the difference because there is none.
+ */
+function toReport(
+  raw: any,
+  findings: string,
+  markers: readonly string[],
+  implications: string,
+  advice: string,
+): ReportAnalysis {
+  return {
+    documentType: str(raw?.documentType, 'Document'),
+    patientIdentity: str(raw?.patientIdentity, '[UNKNOWN]'),
+    findings,
+    abnormalMarkers: markers,
+    implications,
+    advice,
+    riskLevel: RISKS.includes(raw?.riskLevel) ? raw.riskLevel as ReportRisk : 'Unknown',
+    stages: readStages(raw?.neuralPulse?.stages),
+    totalSeconds: typeof raw?.neuralPulse?.generationTime === 'number'
+      ? raw.neuralPulse.generationTime
+      : null,
+  };
+}
+
 export class RemoteReportAnalyzer implements ReportService {
   constructor(private readonly api: ApiClient) {}
 
@@ -422,23 +458,37 @@ export class RemoteReportAnalyzer implements ReportService {
 
       return {
         status: 'OK',
-        data: {
-          documentType: str(raw?.documentType, 'Document'),
-          patientIdentity: str(raw?.patientIdentity, '[UNKNOWN]'),
-          findings,
-          abnormalMarkers: markers,
-          implications,
-          advice,
-          riskLevel: RISKS.includes(raw?.riskLevel) ? raw.riskLevel as ReportRisk : 'Unknown',
-          stages: readStages(raw?.neuralPulse?.stages),
-          totalSeconds: typeof raw?.neuralPulse?.generationTime === 'number'
-            ? raw.neuralPulse.generationTime
-            : null,
-        },
+        data: toReport(raw, findings, markers, implications, advice),
         notice: null,
         elapsedMs: Date.now() - started,
       };
     } catch (error) {
+      /*
+       * The server could not parse the model's reply, but it returned the
+       * reply. Recover it here rather than discarding an answer that was
+       * already generated - see domain/salvageJson for why these arrive
+       * truncated and what is and is not repaired.
+       */
+      const salvaged = error instanceof ApiError
+        ? salvageJson((error.body as any)?.raw, REPORT_FIELDS)
+        : null;
+
+      if (salvaged) {
+        const findings = str(salvaged.findings, '');
+        const implications = str(salvaged.implications, '');
+        const advice = str(salvaged.advice, '');
+        const markers = strings(salvaged.abnormalMarkers);
+
+        if (findings || implications || advice || markers.length > 0) {
+          return {
+            status: 'OK',
+            data: toReport(salvaged, findings, markers, implications, advice),
+            notice: null,
+            elapsedMs: Date.now() - started,
+          };
+        }
+      }
+
       const detail = serverDetail(error);
 
       /*
