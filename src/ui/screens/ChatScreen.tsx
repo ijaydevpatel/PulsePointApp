@@ -23,42 +23,101 @@ import {
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Txt, Springy, tap, EmptyState } from '../components/Primitives';
 import { Icon } from '../components/Icon';
-import { useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE } from '../theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BAR_PAD } from '../nav/routes';
+import { useTheme, S, R, TOUCH, TYPE } from '../theme';
 import { ChatService, ChatTurn } from '../../domain/remote';
 
 let seq = 0;
 const nextId = () => `t${++seq}`;
 
-export function ChatScreen({ service, onBack }: { service: ChatService; onBack?: () => void }) {
-  const { c: P } = useTheme();
+/**
+ * The conversation, which outlives this screen.
+ *
+ * It used to be local state. That was fine when the chat was a page you
+ * pushed and popped, and wrong the moment it became a tab: switching to
+ * Symptoms and back unmounts the screen, and every turn went with it. Nothing
+ * had refreshed - the component had simply been thrown away and rebuilt.
+ *
+ * So the turns and the session id are held by the caller and handed back down.
+ * `draft` and `busy` stay local on purpose: a half-typed line and a spinner
+ * belong to the moment, not to the conversation.
+ */
+export interface Conversation {
+  readonly turns: readonly ChatTurn[];
+  readonly sessionId: string | null;
+  /** Whether the opening greeting has already been fetched. */
+  readonly greeted: boolean;
+}
 
-  const [turns, setTurns] = useState<readonly ChatTurn[]>([]);
-  const [suggestions, setSuggestions] = useState<readonly string[]>([]);
+export const EMPTY_CONVERSATION: Conversation = {
+  turns: [], sessionId: null, greeted: false,
+};
+
+export function ChatScreen({ service, onBack, conversation, onConversation }: {
+  service: ChatService;
+  onBack?: () => void;
+  conversation: Conversation;
+  onConversation: (c: Conversation) => void;
+}) {
+  const { c: P } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  /*
+   * Enough room for the floating tab bar, and not a pixel more.
+   *
+   * This used to reserve TAB_CLEARANCE + S.md - 112dp - which is the right
+   * allowance for a scrolling page that has to end clear of the bar, and far
+   * too much for a composer pinned directly above it. The surplus rendered as
+   * a band of empty white between the input and the bar.
+   *
+   * The bar is one touch target tall plus its own padding, and sits that far
+   * up from the safe area. Computed rather than guessed, so it stays correct
+   * on a device with gesture navigation and on one without.
+   */
+  const barHeight = TOUCH + BAR_PAD * 2;
+  const composerGap = Math.max(insets.bottom, S.sm) + S.xs + barHeight + S.sm;
+
+  const { turns, sessionId } = conversation;
   const [draft, setDraft] = useState('');
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [greeting, setGreeting] = useState<'loading' | 'done'>('loading');
+  const [greeting, setGreeting] = useState<'loading' | 'done'>(
+    conversation.greeted ? 'done' : 'loading',
+  );
 
   const scroller = useRef<ScrollView>(null);
   const toBottom = useCallback(() => {
     requestAnimationFrame(() => scroller.current?.scrollToEnd({ animated: true }));
   }, []);
 
-  // Opening greeting. A failure here is not worth a banner - the screen is
-  // still usable, so it degrades to an empty conversation.
+  /*
+   * Opening greeting, fetched once per conversation rather than once per
+   * mount - otherwise returning to the tab would prepend a fresh hello to a
+   * chat that was already under way.
+   *
+   * A failure here is not worth a banner: the screen still works, so it
+   * degrades to an empty conversation.
+   */
   useEffect(() => {
+    if (conversation.greeted) { setGreeting('done'); return; }
+
     let alive = true;
     (async () => {
       const r = await service.greeting();
       if (!alive) return;
-      if (r.status === 'OK' && r.data) {
-        setTurns([{ id: nextId(), role: 'assistant', text: r.data.greeting }]);
-        setSuggestions(r.data.suggestions);
-      }
+
+      onConversation({
+        turns: r.status === 'OK' && r.data
+          ? [{ id: nextId(), role: 'assistant', text: r.data.greeting }]
+          : [],
+        sessionId: null,
+        greeted: true,
+      });
       setGreeting('done');
     })();
     return () => { alive = false; };
-  }, [service]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [service, conversation.greeted]);
 
   const send = useCallback(async (text: string) => {
     const message = text.trim();
@@ -66,25 +125,35 @@ export function ChatScreen({ service, onBack }: { service: ChatService; onBack?:
 
     tap('light');
     setDraft('');
-    setSuggestions([]);
-    setTurns((t) => [...t, { id: nextId(), role: 'user', text: message }]);
+
+    const asked: readonly ChatTurn[] = [
+      ...turns, { id: nextId(), role: 'user', text: message },
+    ];
+    onConversation({ turns: asked, sessionId, greeted: true });
     setBusy(true);
     toBottom();
 
     const r = await service.send(message, sessionId);
 
     if (r.status === 'OK' && r.data) {
-      if (r.data.sessionId) setSessionId(r.data.sessionId);
-      setTurns((t) => [...t, { id: nextId(), role: 'assistant', text: r.data!.reply }]);
+      onConversation({
+        turns: [...asked, { id: nextId(), role: 'assistant', text: r.data.reply }],
+        sessionId: r.data.sessionId || sessionId,
+        greeted: true,
+      });
     } else {
       // The notice is always populated when status is not OK, so this cannot
       // append an empty bubble.
-      setTurns((t) => [...t, { id: nextId(), role: 'assistant', text: r.notice ?? 'Something went wrong.' }]);
+      onConversation({
+        turns: [...asked, { id: nextId(), role: 'assistant', text: r.notice ?? 'Something went wrong.' }],
+        sessionId,
+        greeted: true,
+      });
       tap('warn');
     }
     setBusy(false);
     toBottom();
-  }, [busy, sessionId, service, toBottom]);
+  }, [busy, turns, sessionId, service, toBottom, onConversation]);
 
   return (
     <View style={{ flex: 1, backgroundColor: P.bg }}>
@@ -122,24 +191,10 @@ export function ChatScreen({ service, onBack }: { service: ChatService; onBack?:
           ) : null}
         </ScrollView>
 
-        {suggestions.length > 0 && !busy ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={st.chips}
-            keyboardShouldPersistTaps="handled"
-          >
-            {suggestions.map((sug) => (
-              <Springy key={sug} onPress={() => void send(sug)} scaleTo={0.96}>
-                <View style={[st.chip, { backgroundColor: P.sunken, borderColor: P.line }]}>
-                  <Txt t="caption" c={P.inkSoft} numberOfLines={1}>{sug}</Txt>
-                </View>
-              </Springy>
-            ))}
-          </ScrollView>
-        ) : null}
-
-        <View style={[st.composer, { backgroundColor: P.surface, borderTopColor: P.line }]}>
+        <View style={[
+          st.composer,
+          { backgroundColor: P.surface, borderTopColor: P.line, paddingBottom: composerGap },
+        ]}>
           <TextInput
             value={draft}
             onChangeText={setDraft}
@@ -196,15 +251,9 @@ const st = StyleSheet.create({
   bubble: { maxWidth: '86%', paddingHorizontal: S.md, paddingVertical: S.sm + 2, borderRadius: R.lg },
   user: { alignSelf: 'flex-end', borderBottomRightRadius: R.xs },
   assistant: { alignSelf: 'flex-start', borderBottomLeftRadius: R.xs },
-  chips: { paddingHorizontal: S.md, paddingBottom: S.sm, gap: S.sm },
-  chip: {
-    paddingHorizontal: S.md, paddingVertical: S.sm,
-    borderRadius: R.pill, borderWidth: StyleSheet.hairlineWidth, maxWidth: 260,
-  },
   composer: {
     flexDirection: 'row', alignItems: 'flex-end', gap: S.sm,
     paddingHorizontal: S.md, paddingTop: S.sm,
-    paddingBottom: TAB_CLEARANCE + S.md,
     borderTopWidth: StyleSheet.hairlineWidth,
   },
   input: {

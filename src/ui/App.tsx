@@ -1,7 +1,7 @@
 /**
  * App shell.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, BackHandler, StatusBar, useColorScheme, Text } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
@@ -42,7 +42,7 @@ import { MoreScreen } from './screens/MoreScreen';
 import { AuthScreen } from './screens/AuthScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { ProfileSheet } from './screens/ProfileSheet';
-import { ChatScreen } from './screens/ChatScreen';
+import { ChatScreen, Conversation, EMPTY_CONVERSATION } from './screens/ChatScreen';
 import { NewsScreen } from './screens/NewsScreen';
 import { CheckInScreen } from './screens/SimpleScreens';
 import { ThemeContext, buildTheme, Scheme } from './theme';
@@ -66,14 +66,27 @@ function AppContent() {
   const store = useMemo(() => new InMemoryEpisodeStore(), []);
 
   /**
-   * Every hosted feature, built once and handed Clerk's token function.
+   * Every hosted feature, built once, for the life of the app.
    *
-   * getToken is read per request, not captured: session JWTs are short-lived,
-   * so a value grabbed at startup would be stale by the time someone asks for
-   * an analysis. Clerk keeps getToken referentially stable, so this memo does
-   * not churn on every render.
+   * getToken is read per request rather than captured: session JWTs are
+   * short-lived, so a value grabbed at startup would be stale by the time
+   * someone asks for an analysis.
+   *
+   * It goes through a ref rather than a dependency, and that is the point.
+   * This memo used to list [getToken], on the belief that Clerk keeps it
+   * referentially stable. It does not always: refreshing a token re-renders
+   * this component with a new function, every service object was rebuilt, and
+   * any screen with an effect keyed on its service re-ran that effect. On the
+   * chat that meant pressing Send fetched a token, which rebuilt the service,
+   * which re-ran the opening greeting, which replaced the conversation with a
+   * fresh hello. It looked like the tab reloading.
+   *
+   * An empty dependency list is correct here: the ref always holds the current
+   * getToken, so the services never go stale and never churn.
    */
-  const services = useMemo(() => createServices(() => getToken()), [getToken]);
+  const tokenRef = useRef(getToken);
+  tokenRef.current = getToken;
+  const services = useMemo(() => createServices(() => tokenRef.current()), []);
 
   const [tab, setTab] = useState<TabKey>(DEFAULT_TAB);
   const [stack, setStack] = useState<RouteKey[]>([]);
@@ -96,6 +109,13 @@ function AppContent() {
    */
   const [check, setCheck] = useState<RemoteOutcome<MedicineCheck> | null | undefined>(undefined);
   const [historyKey, setHistoryKey] = useState(0);
+  /**
+   * The AI Doctor conversation.
+   *
+   * Held here rather than in the screen because the screen is a tab: moving to
+   * Symptoms and back unmounts it, and local state would go with it.
+   */
+  const [conversation, setConversation] = useState<Conversation>(EMPTY_CONVERSATION);
   const [offline] = useState(false);
 
   useEffect(() => { void store.init(); }, [store]);
@@ -177,7 +197,12 @@ function AppContent() {
             // backing out of Records returns to the screen behind the sheet
             // instead of to the sheet itself.
             onOpen={(r) => setStack((st) => [...st.slice(0, -1), r])}
-            onSignOut={async () => { await signOut(); setStack([]); }}
+            onSignOut={async () => {
+              await signOut();
+              setStack([]);
+              // Someone else's chat must not be waiting for the next person.
+              setConversation(EMPTY_CONVERSATION);
+            }}
           />
         );
       case 'auth':
@@ -198,7 +223,12 @@ function AppContent() {
           />
         );
       case 'records':   return <RecordsScreen store={store} refreshKey={historyKey} onBack={pop} />;
-      case 'chat':      return <ChatScreen service={services.chat} onBack={pop} />;
+      case 'chat':      return (
+        <ChatScreen
+          service={services.chat} onBack={pop}
+          conversation={conversation} onConversation={setConversation}
+        />
+      );
       case 'news':      return <NewsScreen service={services.news} onBack={pop} />;
       case 'checkin':   return <CheckInScreen onBack={pop} />;
       default:          return null;
@@ -252,7 +282,12 @@ function AppContent() {
        * root destination, and a back arrow on one would be a control that
        * does nothing.
        */
-      case 'chat':      return <ChatScreen service={services.chat} />;
+      case 'chat':      return (
+        <ChatScreen
+          service={services.chat}
+          conversation={conversation} onConversation={setConversation}
+        />
+      );
       case 'care':      return <CareScreen />;
     }
   }
