@@ -77,11 +77,48 @@ export const DEFAULT_TAB: TabKey = 'home';
  * it beside TABS also means the test suite can import both without pulling in
  * a component.
  */
-export const SELECTED_UNITS = 2.2;
+export const SELECTED_UNITS = 2.7;
 /** Inner padding of the capsule, per side. */
 export const BAR_PAD = 6;
 /** Gap between the capsule and the screen edge, per side. */
 export const BAR_SIDE_MARGIN = 16;
+
+/* ─────────────────────────── inside the pill ────────────────────────────── */
+
+/**
+ * What the selected pill has to fit, and why these live here.
+ *
+ * "Symptoms" was arriving as "Sympto...". The pill was wide enough to look
+ * right and too narrow to hold its own label, which is the worst of both: it
+ * reads as a layout that nearly works.
+ *
+ * The cause was a gate that asserted less than it claimed. It required 40dp
+ * for the label while its own comment said "Medicines needs roughly 62" - so
+ * it passed on every label it was meant to catch. These constants exist so
+ * the component and that gate cannot disagree about the furniture again: the
+ * test measures the same numbers the pill is drawn from.
+ */
+export const PILL_ICON = 20;
+export const PILL_GAP = 6;
+export const PILL_PAD_H = 9;
+export const PILL_FONT = 13;
+
+/**
+ * Rough width of a label, in dp.
+ *
+ * 0.58em per character is a deliberate over-estimate for Inter at this weight:
+ * lowercase runs narrower, and the labels that matter here are mixed case.
+ * Erring wide means the check fails before the ellipsis appears rather than
+ * after, which is the only useful direction for it to be wrong in.
+ */
+export function labelWidth(label: string, fontSize = PILL_FONT): number {
+  return label.length * fontSize * 0.58;
+}
+
+/** Everything the selected pill must hold: glyph, gap, padding, label. */
+export function pillContentWidth(label: string): number {
+  return PILL_ICON + PILL_GAP + PILL_PAD_H * 2 + labelWidth(label);
+}
 
 export const UNITS = (TABS.length - 1) + SELECTED_UNITS;
 
@@ -92,11 +129,12 @@ export const UNITS = (TABS.length - 1) + SELECTED_UNITS;
  *   available  = width - 2*BAR_SIDE_MARGIN - 2*BAR_PAD
  *   unselected = available / UNITS  ≥  44
  *
- * With five tabs that is 6.2 units and needs about 317dp. The narrowest
- * Android phone in circulation is 320dp, so the floor holds everywhere - by
- * arithmetic rather than by assumption. A sixth tab would need 361dp and would
- * fail on a 320dp screen, which is why the bar stops at five and why the test
- * suite asserts it against the real TABS length.
+ * With five tabs that is 6.7 units and needs about 339dp. The narrowest
+ * Android phone in circulation is 320dp, which is below that - so the bar
+ * sheds its side margins there, and the floor still holds with 45dp per tab.
+ * Losing the floating inset is a far smaller loss than losing a touch target.
+ * A sixth tab would not clear 44dp even then, which is why the bar stops at
+ * five and why the test suite asserts it against the real TABS length.
  */
 export const MIN_BAR_WIDTH =
   UNITS * 44 + 2 * BAR_PAD + 2 * BAR_SIDE_MARGIN;

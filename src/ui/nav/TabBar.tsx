@@ -45,6 +45,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   BAR_PAD, BAR_SIDE_MARGIN, MIN_BAR_WIDTH, SELECTED_UNITS, TABS, TabKey, pillSlot,
+  PILL_ICON, PILL_GAP, PILL_PAD_H, PILL_FONT,
 } from './routes';
 import { useReveal } from '../useReveal';
 import { TYPE, S, R, TOUCH } from '../theme';
@@ -227,7 +228,7 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
             >
               <Icon
                 name={t.icon}
-                size={21}
+                size={PILL_ICON}
                 color={on ? ON_PILL : OFF_PILL}
                 weight={on ? 'bold' : 'regular'}
               />
@@ -286,7 +287,7 @@ const st = StyleSheet.create({
    * well would put a second, stationary pill under the moving one.
    */
   tabOnPadding: {
-    paddingHorizontal: 12,
+    paddingHorizontal: PILL_PAD_H,
   },
 
   pill: {
@@ -300,10 +301,16 @@ const st = StyleSheet.create({
   label: {
     ...TYPE.label,
     color: ON_PILL,
-    fontSize: 13.5,
-    marginLeft: 7,
-    // Keeps a long label from pushing the glyph out of the pill; it ellipsises
-    // instead, which only ever happens on a viewport below the floor.
+    fontSize: PILL_FONT,
+    marginLeft: PILL_GAP,
+    /*
+     * The last line of defence, not the plan.
+     *
+     * SELECTED_UNITS is sized so every label in TABS fits at the narrowest
+     * viewport the bar supports, and a test holds it to that. This keeps a
+     * label that somehow still overruns from pushing the glyph out of the
+     * pill - it ellipsises instead, which is the lesser failure.
+     */
     flexShrink: 1,
   },
 });

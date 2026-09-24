@@ -8,7 +8,7 @@
  */
 import {
   BAR_PAD, BAR_SIDE_MARGIN, DEFAULT_TAB, MIN_BAR_WIDTH, SELECTED_UNITS,
-  TABS, TabKey, UNITS, pillSlot,
+  TABS, TabKey, UNITS, pillSlot, pillContentWidth, labelWidth,
 } from '../src/ui/nav/routes';
 import { TOUCH } from '../src/ui/theme';
 
@@ -101,15 +101,48 @@ describe('every tab stays tappable', () => {
     expect(available / sixUnits).toBeLessThan(TOUCH);
   });
 
-  it('gives the selected tab room for a glyph and the longest label', () => {
+  it('holds every label whole, on the narrowest phone', () => {
+    /*
+     * "Symptoms" was rendering as "Sympto...". The pill was wide enough to
+     * look right and too narrow to hold its own label.
+     *
+     * The version of this test that let that through asked for 40dp of label
+     * room while its own comment said "Medicines needs roughly 62" - it
+     * asserted less than it claimed, so it passed on exactly the labels it
+     * existed to catch. It now measures each real label against the same
+     * furniture constants the pill is drawn from, so the two cannot drift.
+     */
     const width = 320;
     const margin = width < MIN_BAR_WIDTH ? 4 : BAR_SIDE_MARGIN;
     const available = width - margin * 2 - BAR_PAD * 2;
     const selected = (available / UNITS) * SELECTED_UNITS;
 
-    // glyph 21 + gap 7 + horizontal padding 24 = 52 of furniture, leaving the
-    // rest for the label. "Medicines" at 13.5pt needs roughly 62.
-    expect(selected - 52).toBeGreaterThanOrEqual(40);
+    for (const t of TABS) {
+      const needed = pillContentWidth(t.label);
+      expect(`${t.label} needs ${Math.ceil(needed)}, has ${Math.floor(selected)}`)
+        .toBe(`${t.label} needs ${Math.ceil(needed)}, has ${Math.floor(selected)}`);
+      expect(selected).toBeGreaterThanOrEqual(needed);
+    }
+  });
+
+  it('leaves the longest label breathing room, not just a fit', () => {
+    // A pill that clears its label by a hair reads as cramped even when
+    // nothing truncates. Eight points is about one character of slack.
+    const width = 320;
+    const margin = width < MIN_BAR_WIDTH ? 4 : BAR_SIDE_MARGIN;
+    const available = width - margin * 2 - BAR_PAD * 2;
+    const selected = (available / UNITS) * SELECTED_UNITS;
+
+    const longest = TABS.reduce((a, b) => (labelWidth(a.label) > labelWidth(b.label) ? a : b));
+    expect(selected - pillContentWidth(longest.label)).toBeGreaterThanOrEqual(8);
+  });
+
+  it('does not buy that room by starving the other tabs', () => {
+    // The selected pill and the touch floor pull in opposite directions -
+    // widening one narrows the other four. Both are asserted, so neither can
+    // be fixed at the other's expense without this failing.
+    const available = 320 - 4 * 2 - BAR_PAD * 2;
+    expect(available / UNITS).toBeGreaterThanOrEqual(TOUCH);
   });
 
   it('keeps every label short enough to belong in a pill', () => {
