@@ -125,6 +125,21 @@ export const REMOTE_NOTICE: Record<Exclude<RemoteStatus, 'OK'>, string> = {
 };
 
 /**
+ * The same four states, worded for the report analyzer.
+ *
+ * Like the collision check, this screen has no local result to fall back on -
+ * the document is read by the hosted models or it is not read at all - so
+ * REMOTE_NOTICE's promise of "your on-device result above" is simply untrue
+ * here, and it was appearing directly under a failed upload.
+ */
+export const REPORT_NOTICE: Record<Exclude<RemoteStatus, 'OK'>, string> = {
+  UNAUTHENTICATED: 'Sign in to have a report read.',
+  UNAVAILABLE: 'Reading a report needs a connection. Nothing was read.',
+  TIMEOUT: 'The report took too long to read. Nothing was read - try again, or try a smaller file.',
+  FAILED: 'The report could not be read. Nothing was read - try again.',
+};
+
+/**
  * The same four states, worded for the collision check.
  *
  * REMOTE_NOTICE ends every string with "Your on-device result above is

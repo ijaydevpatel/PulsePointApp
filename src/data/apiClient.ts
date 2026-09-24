@@ -51,7 +51,21 @@ export class ApiClient {
    * the server cannot split. The web client does the same thing for the same
    * reason (it deletes the header when the body is FormData).
    */
-  async upload<T>(endpoint: string, field: string, file: { uri: string; name: string; mimeType: string }): Promise<T> {
+  /**
+   * @param timeoutMs Override for uploads the server spends real time on.
+   *
+   *   The default thirty seconds covers the transfer, not what happens after
+   *   it. A report goes through two vision passes - extraction, then synthesis
+   *   - on a file the server also has to parse first, which does not finish in
+   *   thirty seconds. The client was aborting a job the server went on to
+   *   complete, and reporting it as a timeout.
+   */
+  async upload<T>(
+    endpoint: string,
+    field: string,
+    file: { uri: string; name: string; mimeType: string },
+    timeoutMs = this.timeoutMs,
+  ): Promise<T> {
     if (!this.baseUrl) throw new ApiError('No API URL configured', 0);
     const token = this.tokenProvider ? await this.tokenProvider() : null;
     if (!token) throw new ApiError('No session token', 401);
@@ -60,7 +74,7 @@ export class ApiClient {
     form.append(field, { uri: file.uri, name: file.name, type: file.mimeType } as unknown as Blob);
 
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await this.fetchImpl(`${this.baseUrl}${endpoint}`, {
         method: 'POST',

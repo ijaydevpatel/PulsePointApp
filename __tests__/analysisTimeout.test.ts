@@ -16,7 +16,8 @@
  * regression here looks exactly like the model being slow.
  */
 import { ApiClient, ApiError, DEFAULT_TIMEOUT_MS } from '../src/data/apiClient';
-import { RemoteSymptomAnalysis } from '../src/data/remoteServices';
+import { RemoteSymptomAnalysis, RemoteReportAnalyzer } from '../src/data/remoteServices';
+import { REMOTE_NOTICE, REPORT_NOTICE } from '../src/domain/remote';
 
 const OK_BODY = {
   probabilityMatrix: [{ name: 'Common cold', confidence: 70, severity: 'Medium' }],
@@ -143,5 +144,59 @@ describe('analysis deadline', () => {
 describe('ApiError', () => {
   it('is what a non-OK response produces', () => {
     expect(new ApiError('x', 500)).toBeInstanceOf(Error);
+  });
+});
+
+describe('report upload deadline', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  const FILE = { uri: 'file:///r.pdf', name: 'r.pdf', mimeType: 'application/pdf' };
+  const REPORT_BODY = {
+    documentType: 'Blood test', findings: 'Everything within range.',
+    abnormalMarkers: [], implications: 'No action needed.', advice: 'None.',
+    riskLevel: 'Low', stages: [], totalSeconds: 71,
+  };
+
+  it('survives the two vision passes taking longer than a minute', async () => {
+    /*
+     * 70 seconds: past the 30s default and past the 90s the symptom matrix
+     * gets is not needed, but a report is extraction plus synthesis over a
+     * parsed document, which is the heaviest call in the app.
+     */
+    const api = clientWith(slowFetch(70_000, REPORT_BODY));
+    const promise = new RemoteReportAnalyzer(api).analyze(FILE);
+
+    await jest.advanceTimersByTimeAsync(71_000);
+    const outcome = await promise;
+
+    expect(outcome.status).toBe('OK');
+    expect(outcome.data?.documentType).toBe('Blood test');
+  });
+
+  it('still gives up rather than hanging for ever', async () => {
+    const api = clientWith(slowFetch(20 * 60_000));
+    const promise = new RemoteReportAnalyzer(api).analyze(FILE);
+
+    await jest.advanceTimersByTimeAsync(3 * 60_000);
+    expect((await promise).status).toBe('TIMEOUT');
+  });
+
+  it('never promises an on-device result it does not have', async () => {
+    /*
+     * The failure appeared directly under the upload button reading "Your
+     * on-device result above is complete". There is no on-device result on
+     * this screen: the document is read by the hosted models or not at all.
+     */
+    const api = clientWith(slowFetch(20 * 60_000));
+    const promise = new RemoteReportAnalyzer(api).analyze(FILE);
+    await jest.advanceTimersByTimeAsync(3 * 60_000);
+
+    expect((await promise).notice).not.toMatch(/device|offline/i);
+
+    for (const state of ['UNAUTHENTICATED', 'UNAVAILABLE', 'TIMEOUT', 'FAILED'] as const) {
+      expect(REPORT_NOTICE[state]).not.toBe(REMOTE_NOTICE[state]);
+      expect(REPORT_NOTICE[state]).not.toMatch(/device|offline/i);
+    }
   });
 });

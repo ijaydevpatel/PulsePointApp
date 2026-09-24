@@ -6,7 +6,7 @@
  */
 import {
   AgentProfile, MedicineCheck, MedicineCheckRequest, MedicineCheckService,
-  RemoteOutcome, RemoteStatus, REMOTE_NOTICE, COLLISION_NOTICE,
+  RemoteOutcome, RemoteStatus, REMOTE_NOTICE, COLLISION_NOTICE, REPORT_NOTICE,
   SymptomAnalysis, SymptomAnalysisRequest, SymptomAnalysisService,
   ProbableCondition, MatrixSeverity,
   DailyStatus, DashboardService, Intelligence, RiskTrend,
@@ -59,6 +59,16 @@ function fail<T>(
  * this only stops the client giving up first.
  */
 const ANALYSIS_TIMEOUT_MS = 90000;
+
+/**
+ * Longer again for a report, because more happens.
+ *
+ * The file is uploaded, parsed, read by Gemini 2.5 for extraction and then by
+ * Gemini 3 for synthesis. That is two model passes over a document rather than
+ * one generation from a prompt, and it was being cut off at thirty seconds -
+ * the same mistake as the symptom matrix, on the heaviest call in the app.
+ */
+const REPORT_TIMEOUT_MS = 150000;
 
 /**
  * How many sentences of synopsis the result screen will show.
@@ -342,10 +352,12 @@ export class RemoteReportAnalyzer implements ReportService {
     try {
       // The route is upload.single('reportFile'), so the field name is not
       // negotiable - a mismatch surfaces as "No file uploaded" from multer.
-      const raw = await this.api.upload<any>('/api/reports/analyze', 'reportFile', file);
+      const raw = await this.api.upload<any>(
+        '/api/reports/analyze', 'reportFile', file, REPORT_TIMEOUT_MS,
+      );
 
       const findings = typeof raw?.findings === 'string' ? raw.findings.trim() : '';
-      if (!findings) return fail('FAILED', started);
+      if (!findings) return fail('FAILED', started, REPORT_NOTICE);
 
       return {
         status: 'OK',
@@ -366,7 +378,7 @@ export class RemoteReportAnalyzer implements ReportService {
         elapsedMs: Date.now() - started,
       };
     } catch (error) {
-      return fail(classify(error, this.api.configured), started);
+      return fail(classify(error, this.api.configured), started, REPORT_NOTICE);
     }
   }
 }

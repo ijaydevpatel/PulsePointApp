@@ -138,7 +138,8 @@ export function AnalyzerScreen({ service, onBack }: { service: ReportService; on
           <View style={st.centre}>
             <ActivityIndicator color={P.accent} />
             <Txt t="caption" c={P.muted} center style={{ marginTop: S.sm }}>
-              Reading the document. This can take up to a minute.
+              Reading the document. Two passes over it, so this can take a
+              couple of minutes on a long report.
             </Txt>
           </View>
         ) : null}
