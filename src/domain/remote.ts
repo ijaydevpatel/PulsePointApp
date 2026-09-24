@@ -132,6 +132,22 @@ export const REMOTE_NOTICE: Record<Exclude<RemoteStatus, 'OK'>, string> = {
  * REMOTE_NOTICE's promise of "your on-device result above" is simply untrue
  * here, and it was appearing directly under a failed upload.
  */
+/**
+ * Said instead when the reading service is merely busy.
+ *
+ * Gemini answers 503 "this model is currently experiencing high demand" when
+ * it has queued the request away, and the app rendered that as "The report
+ * could not be read", which points the blame at the document. Nothing is wrong
+ * with the document, and the next attempt usually works.
+ */
+export const BUSY_NOTICE = 'The reading service is busy right now. Nothing was read - try again in a moment.';
+
+/** True for the transient overload and rate-limit cases, which are worth retrying. */
+export function isBusy(detail: string | undefined): boolean {
+  if (!detail) return false;
+  return /\b503\b|high demand|overload|quota|rate limit|too many requests|unavailable/i.test(detail);
+}
+
 export const REPORT_NOTICE: Record<Exclude<RemoteStatus, 'OK'>, string> = {
   UNAUTHENTICATED: 'Sign in to have a report read.',
   UNAVAILABLE: 'Reading a report needs a connection. Nothing was read.',

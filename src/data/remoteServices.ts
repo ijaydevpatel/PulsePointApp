@@ -7,6 +7,7 @@
 import {
   AgentProfile, MedicineCheck, MedicineCheckRequest, MedicineCheckService,
   RemoteOutcome, RemoteStatus, REMOTE_NOTICE, COLLISION_NOTICE, REPORT_NOTICE,
+  BUSY_NOTICE, isBusy,
   SymptomAnalysis, SymptomAnalysisRequest, SymptomAnalysisService,
   ProbableCondition, MatrixSeverity,
   DailyStatus, DashboardService, Intelligence, RiskTrend,
@@ -438,10 +439,25 @@ export class RemoteReportAnalyzer implements ReportService {
         elapsedMs: Date.now() - started,
       };
     } catch (error) {
-      return fail(
-        classify(error, this.api.configured), started, REPORT_NOTICE,
-        serverDetail(error),
-      );
+      const detail = serverDetail(error);
+
+      /*
+       * A queued request is not a failed document. Gemini's 503 says the model
+       * is busy, and saying "the report could not be read" over that sends
+       * someone off to find a different file for a problem that clears on its
+       * own. The reason is still shown, because "busy" without evidence is the
+       * kind of reassurance that hides a real fault.
+       */
+      if (isBusy(detail)) {
+        return {
+          status: 'FAILED',
+          data: null,
+          notice: `${BUSY_NOTICE} (${detail})`,
+          elapsedMs: Date.now() - started,
+        };
+      }
+
+      return fail(classify(error, this.api.configured), started, REPORT_NOTICE, detail);
     }
   }
 }

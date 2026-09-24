@@ -17,7 +17,7 @@
  */
 import { ApiClient, ApiError, DEFAULT_TIMEOUT_MS } from '../src/data/apiClient';
 import { RemoteSymptomAnalysis, RemoteReportAnalyzer } from '../src/data/remoteServices';
-import { REMOTE_NOTICE, REPORT_NOTICE } from '../src/domain/remote';
+import { REMOTE_NOTICE, REPORT_NOTICE, isBusy } from '../src/domain/remote';
 
 const OK_BODY = {
   probabilityMatrix: [{ name: 'Common cold', confidence: 70, severity: 'Medium' }],
@@ -302,5 +302,58 @@ describe('a report the model filled in partially', () => {
   it('says so when the body is empty', async () => {
     const out = await returning({});
     expect(out.notice).toContain('empty response');
+  });
+});
+
+describe('a busy reading service', () => {
+  const FILE = { uri: 'file:///r.pdf', name: 'r.pdf', mimeType: 'application/pdf' };
+
+  const failingWith = (message: string, status = 500) => {
+    const api = new ApiClient('https://example.test', DEFAULT_TIMEOUT_MS, (async () => ({
+      ok: false, status,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ message }),
+    })) as any);
+    api.setTokenProvider(async () => 'token');
+    return new RemoteReportAnalyzer(api).analyze(FILE);
+  };
+
+  it('does not blame the document for a 503', async () => {
+    /*
+     * The real message, from the screenshot. Rendering "the report could not
+     * be read" over this sends someone looking for a different file to fix a
+     * problem that clears on its own.
+     */
+    const out = await failingWith(
+      'Report Analysis Fault: Gemini API Error (503): This model is currently experiencing high demand.',
+    );
+
+    expect(out.notice).toContain('busy');
+    expect(out.notice).not.toContain('could not be read');
+    // The reason stays: "busy" with no evidence would hide a real fault.
+    expect(out.notice).toContain('503');
+  });
+
+  it('still blames the request when the request is the problem', async () => {
+    const out = await failingWith('Report Analysis Fault: Unsupported file type.', 400);
+
+    expect(out.notice).toContain('could not be read');
+    expect(out.notice).toContain('Unsupported file type');
+  });
+
+  it('recognises the transient cases and not the permanent ones', () => {
+    for (const d of [
+      'Gemini API Error (503): high demand',
+      'AI Quota Exceeded. Please try again in 1 minute.',
+      'Error 429: Too Many Requests',
+      'The model is overloaded',
+    ]) expect(isBusy(d)).toBe(true);
+
+    for (const d of [
+      'Unsupported file type',
+      'GEMINI_API_KEY is missing from clinical environment.',
+      'Gemini API Error (404): model not found',
+      undefined,
+    ]) expect(isBusy(d)).toBe(false);
   });
 });
