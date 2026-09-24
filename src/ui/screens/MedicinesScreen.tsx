@@ -1,19 +1,30 @@
 /**
- * FR6 - on-device interaction check.
+ * The medicine conflict checker: two agents in, one collision report out.
  *
- * Type-ahead is not a nicety. The check can only compare medicines the table
- * recognises, so anything raising the recognition rate directly raises how much
- * of the user's list actually gets checked. Suggesting a match as they type
- * turns a spelling error into a tap instead of an unrecognised entry.
+ * ── Why this is two fields and not a list ────────────────────────────────────
+ *
+ * It used to build an arbitrary-length list and compare every pair against a
+ * bundled table of 35 rules. That is a different feature. What this tab is for
+ * is the question people arrive with - "can I take these two together" - and
+ * the check behind it compares exactly two agents, so a list of five was an
+ * interface promising something the engine could not do.
+ *
+ * ── The table is still here ──────────────────────────────────────────────────
+ *
+ * Not as the check, but for two things the check cannot provide. It powers the
+ * type-ahead, which turns a spelling mistake into a tap and is the difference
+ * between the model reading "Dolo 650" and reading "dolo65". And it runs the
+ * pair locally as well, which costs nothing and leaves the result screen
+ * something true to show when the network does not answer.
  */
 import React, { useMemo, useState } from 'react';
-import { View, TextInput, ScrollView, StyleSheet, LayoutAnimation } from 'react-native';
+import { View, TextInput, ScrollView, StyleSheet } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
 import {
-  Button, Card, SectionLabel, EmptyState, Txt, Springy, Enter, tap,
+  Button, Card, SectionLabel, Txt, Springy, Enter, tap,
 } from '../components/Primitives';
 import { Icon } from '../components/Icon';
-import { useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE, circle } from '../theme';
+import { useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE } from '../theme';
 import { BundledInteractionTable } from '../../data/interactionTable';
 import { CheckInteractionsUseCase } from '../../domain/checkInteractions';
 import { InteractionReport } from '../../domain/medicines';
@@ -21,49 +32,100 @@ import {
   MedicineCheck, MedicineCheckService, RemoteOutcome,
 } from '../../domain/remote';
 
-export function MedicinesScreen({ onReport, check, onCheck }: {
-  onReport: (r: InteractionReport) => void;
-  /** The hosted collision check. Optional: the screen works without it. */
+type Slot = 'a' | 'b';
+
+export function MedicinesScreen({ onRun, check, onCheck }: {
+  /** The on-device table result and the two names, before the model answers. */
+  onRun: (report: InteractionReport, pair: [string, string]) => void;
   check?: MedicineCheckService;
-  /** null while in flight, undefined when no check was started at all. */
   onCheck?: (outcome: RemoteOutcome<MedicineCheck> | null | undefined) => void;
 }) {
   const { c: P } = useTheme();
-  const [items, setItems] = useState<string[]>([]);
-  const [draft, setDraft] = useState('');
-  const [focus, setFocus] = useState(false);
+  const [first, setFirst] = useState('');
+  const [second, setSecond] = useState('');
+  const [focused, setFocused] = useState<Slot | null>(null);
 
   const table = useMemo(() => new BundledInteractionTable(), []);
   const useCase = useMemo(() => new CheckInteractionsUseCase(table), [table]);
 
-  const suggestions = useMemo(
-    () => table.suggest(draft).filter((d) => !items.some((i) => table.resolve(i)?.id === d.id)),
-    [draft, items, table],
-  );
-  const unknownDraft = draft.trim().length > 2 && table.resolve(draft) === null;
+  const valueOf = (slot: Slot) => (slot === 'a' ? first : second);
+  const setValue = (slot: Slot, v: string) => (slot === 'a' ? setFirst(v) : setSecond(v));
 
-  const add = (value?: string) => {
-    const v = (value ?? draft).trim();
-    if (!v) return;
-    const resolved = table.resolve(v);
-    const already = items.some((i) => {
-      const r = table.resolve(i);
-      return r && resolved && r.id === resolved.id;
-    });
-    if (already || items.includes(v)) { setDraft(''); return; }
-    LayoutAnimation.configureNext(LayoutAnimation.create(200, 'easeInEaseOut', 'opacity'));
-    setItems([...items, resolved ? resolved.name : v]);
-    setDraft('');
-    tap(resolved ? 'success' : 'warn');
+  /*
+   * Suggestions only for the field being typed in, and only while it is
+   * focused. Two open lists at once on a phone would cover the button.
+   */
+  const suggestions = useMemo(() => {
+    if (!focused) return [];
+    const draft = (focused === 'a' ? first : second).trim();
+    if (draft.length < 2) return [];
+    const other = table.resolve(focused === 'a' ? second : first);
+    return table
+      .suggest(draft)
+      .filter((d) => !other || d.id !== other.id)
+      .slice(0, 4);
+  }, [focused, first, second, table]);
+
+  const bothEntered = first.trim().length > 0 && second.trim().length > 0;
+
+  const run = () => {
+    if (!bothEntered) return;
+    tap('medium');
+
+    /*
+     * Canonical names where the table knows them, what was typed where it does
+     * not. Resolving means "Dolo 650", "dolo650" and "DOLO-650" reach the
+     * model as one thing; falling back to the raw text means an unrecognised
+     * medicine is still checked rather than silently dropped, which is the
+     * failure mode this feature exists to prevent.
+     */
+    const med1 = table.resolve(first)?.name ?? first.trim();
+    const med2 = table.resolve(second)?.name ?? second.trim();
+
+    onRun(useCase.execute([med1, med2]), [med1, med2]);
+
+    if (!onCheck) return;
+    // Cleared first, always, so a previous pair's verdict cannot sit on screen
+    // beside a new pair's names.
+    onCheck(undefined);
+    if (!check) return;
+
+    onCheck(null);   // in flight
+    void check.check({ med1, med2 }).then(onCheck);
   };
 
-  const remove = (m: string) => {
-    LayoutAnimation.configureNext(LayoutAnimation.create(200, 'easeInEaseOut', 'opacity'));
-    setItems(items.filter((x) => x !== m));
-    tap('light');
-  };
+  const field = (slot: Slot, label: string, placeholder: string) => {
+    const on = focused === slot;
+    const typed = valueOf(slot).trim();
+    const known = typed.length > 1 && table.resolve(typed) !== null;
 
-  const recognised = items.filter((i) => table.resolve(i) !== null).length;
+    return (
+      <>
+        <SectionLabel>{label}</SectionLabel>
+        <View style={[st.field, {
+          borderColor: on ? P.accent : P.line,
+          backgroundColor: P.surface,
+        }]}>
+          <Icon name="search" size={18} color={on ? P.accent : P.faint} />
+          <TextInput
+            style={[st.input, { color: P.ink, ...TYPE.body }]}
+            value={valueOf(slot)}
+            onChangeText={(v) => setValue(slot, v)}
+            onFocus={() => setFocused(slot)}
+            onBlur={() => setFocused((f) => (f === slot ? null : f))}
+            placeholder={placeholder}
+            placeholderTextColor={P.faint}
+            autoCapitalize="words"
+            autoCorrect={false}
+            accessibilityLabel={label}
+          />
+          {/* Quietly confirms the table recognised it. Absence is not an
+              error - an unknown name is still sent. */}
+          {known ? <Icon name="check" size={16} color={P.ok} /> : null}
+        </View>
+      </>
+    );
+  };
 
   return (
     <ScrollView
@@ -71,197 +133,90 @@ export function MedicinesScreen({ onReport, check, onCheck }: {
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}
     >
-      {/*
-        Named for what it does, not for what it holds.
-        "Medicines" described the list on this screen; the screen is a conflict
-        checker and the list is how you feed it. The old subtitle counted the
-        bundled table - 67 medicines, 35 interactions, offline - which was a
-        statement about the implementation, and became wrong the moment the
-        hosted check was wired in beside it.
-      */}
       <ScreenHeader
         title="Medicine conflict checker"
         subtitle="Check medicine collision"
       />
 
       <View style={{ paddingHorizontal: S.xl }}>
-        <Enter index={1}>
-          <SectionLabel>Your medicines</SectionLabel>
-          <View style={{ flexDirection: 'row', gap: S.sm }}>
-            <TextInput
-              style={[st.input, {
-                borderColor: focus ? P.accent : P.line,
-                backgroundColor: P.surface,
-                color: P.ink,
-                ...TYPE.body,
-              }]}
-              value={draft}
-              onChangeText={setDraft}
-              onSubmitEditing={() => add()}
-              onFocus={() => setFocus(true)}
-              onBlur={() => setFocus(false)}
-              placeholder="Brand or generic name"
-              placeholderTextColor={P.faint}
-              autoCapitalize="words"
-              autoCorrect={false}
-              accessibilityLabel="Medicine name"
-              returnKeyType="done"
-            />
-            <Springy
-              onPress={() => add()}
-              disabled={!draft.trim()}
-              weight="medium"
-              accessibilityLabel="Add medicine"
-              style={[st.add, {
-                backgroundColor: draft.trim() ? P.accent : P.sunken,
-                opacity: draft.trim() ? 1 : 0.6,
-              }]}
-            >
-              <Icon name="plus" size={22} color={draft.trim() ? P.onAccent : P.faint} weight="bold" />
-            </Springy>
-          </View>
+        {/*
+          Deliberately not wrapped in Enter. This block re-renders on every
+          keystroke, and an entrance animation around a focused text input is
+          one more thing that can interfere with the field while someone is
+          typing in it - the same reason the symptom note box is left out.
+        */}
+        <View>
+          {field('a', 'First medicine', 'e.g. Paracetamol')}
+          <View style={{ height: S.lg }} />
+          {field('b', 'Second medicine', 'e.g. Ibuprofen')}
 
           {suggestions.length > 0 ? (
-            <View style={st.suggestions}>
+            <View style={{ marginTop: S.sm }}>
               {suggestions.map((d) => (
                 <Springy
                   key={d.id}
-                  onPress={() => add(d.name)}
-                  weight="select"
-                  scaleTo={0.94}
-                  accessibilityLabel={`Add ${d.name}`}
-                  style={[st.suggestion, { backgroundColor: P.accentSoft }]}
+                  onPress={() => {
+                    if (focused) setValue(focused, d.name);
+                    tap('success');
+                  }}
+                  scaleTo={0.98}
+                  accessibilityLabel={`Use ${d.name}`}
+                  style={[st.suggestion, { backgroundColor: P.sunken }]}
                 >
-                  <Icon name="plus" size={13} color={P.accent} weight="bold" />
-                  <Txt t="micro" c={P.accent}>{d.name}</Txt>
+                  <Icon name="pill" size={15} color={P.muted} />
+                  <Txt t="body" style={{ flex: 1 }}>{d.name}</Txt>
                 </Springy>
               ))}
             </View>
           ) : null}
 
-          {unknownDraft && suggestions.length === 0 ? (
-            <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginTop: S.sm }}>
-              <Icon name="alert" size={14} color={P.warn} />
-              <Txt t="caption" c={P.warn} style={{ flex: 1 }}>
-                Not in the table. You can still add it - it will be listed as unrecognised
-                rather than quietly skipped.
+          <View style={{ height: S.xl }} />
+          <Button
+            title="Run collision check"
+            icon={bothEntered ? 'shield' : undefined}
+            disabled={!bothEntered}
+            onPress={run}
+          />
+        </View>
+
+        <Enter index={1}>
+          <View style={{ height: S.xxl }} />
+          <Card glass={true}>
+            <View style={st.noteRow}>
+              <Icon name="alert" size={16} color={P.muted} />
+              <Txt t="caption" style={{ flex: 1 }}>
+                The check looks for biochemical interference between the two -
+                a shared active ingredient, or competing liver and kidney
+                pathways. It does not know about anything else you take, and it
+                is not a substitute for asking a pharmacist.
               </Txt>
             </View>
-          ) : null}
+          </Card>
         </Enter>
-
-        <View style={{ height: S.xl }} />
-
-        {items.length === 0 ? (
-          <EmptyState
-            icon="pill"
-            title="No medicines added"
-            body="Add two or more and the app will check them against a table stored on your device. It works with no connection."
-          />
-        ) : (
-          <>
-            {items.map((m, i) => {
-              const known = table.resolve(m) !== null;
-              return (
-                <Enter key={m} index={i}>
-                  <Card style={{
-                    marginBottom: S.sm, paddingVertical: S.md,
-                    flexDirection: 'row', alignItems: 'center', gap: S.md,
-                  }}>
-                    <View style={[st.dot, {
-                      backgroundColor: known ? P.accent + '1F' : P.warn + '1F',
-                    }]}>
-                      <Icon name={known ? 'pill' : 'alert'} size={17} color={known ? P.accent : P.warn} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Txt t="bodyStrong">{m}</Txt>
-                      {!known ? (
-                        <Txt t="micro" c={P.warn} style={{ marginTop: 2 }}>Not in the table</Txt>
-                      ) : null}
-                    </View>
-                    <Springy
-                      onPress={() => remove(m)}
-                      scaleTo={0.85}
-                      accessibilityLabel={`Remove ${m}`}
-                      style={st.remove}
-                    >
-                      <Icon name="close" size={17} color={P.faint} />
-                    </Springy>
-                  </Card>
-                </Enter>
-              );
-            })}
-
-            <View style={{ height: S.lg }} />
-            <Button
-              title={
-                recognised < 2
-                  ? 'Add another recognised medicine'
-                  : `Check ${recognised} medicines`
-              }
-              disabled={recognised < 2}
-              icon={recognised < 2 ? undefined : 'shield'}
-              onPress={() => {
-                tap('medium');
-
-                /*
-                 * On-device table first, exactly as the symptom check does it:
-                 * the answer arrives at the speed of the phone, and the hosted
-                 * opinion fills in underneath when it arrives. Making someone
-                 * watch a spinner for a network call they may not need is the
-                 * behaviour being designed out.
-                 */
-                onReport(useCase.execute(items));
-
-                if (!onCheck) return;
-
-                /*
-                 * Cleared on every run, including the runs that do not start a
-                 * check. Without this the previous pair's verdict would still
-                 * be on screen beside the new pair's table result, which is
-                 * the worst kind of wrong: plausible and stale.
-                 */
-                onCheck(undefined);
-                if (!check) return;
-
-                /*
-                 * The endpoint compares exactly two agents, so this sends the
-                 * first two the table recognised. Resolved to their canonical
-                 * names rather than what was typed, so "Dolo 650" and
-                 * "dolo650" reach the model as the same thing.
-                 */
-                const pair = items
-                  .map((i) => table.resolve(i)?.name)
-                  .filter((n): n is string => typeof n === 'string')
-                  .slice(0, 2);
-                const [med1, med2] = pair;
-                if (!med1 || !med2) return;
-
-                onCheck(null);   // in flight
-                void check.check({ med1, med2 }).then(onCheck);
-              }}
-            />
-          </>
-        )}
       </View>
     </ScrollView>
   );
 }
 
 const st = StyleSheet.create({
-  input: {
-    flex: 1, minHeight: TOUCH + 8, borderRadius: R.pill, borderWidth: 1.5,
+  field: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S.md,
+    minHeight: TOUCH + 8,
+    borderRadius: R.pill,
+    borderWidth: 1.5,
     paddingHorizontal: S.xl,
   },
-  add: {
-    ...circle(TOUCH + 8),
-    alignItems: 'center', justifyContent: 'center',
-  },
-  suggestions: { flexDirection: 'row', flexWrap: 'wrap', gap: S.sm, marginTop: S.md },
+  input: { flex: 1, paddingVertical: S.md },
   suggestion: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: S.md, paddingVertical: 9, borderRadius: R.pill,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: S.md,
+    minHeight: TOUCH,
+    borderRadius: R.md,
+    paddingHorizontal: S.lg,
+    marginTop: S.xs,
   },
-  dot: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  remove: { ...circle(TOUCH - 6), alignItems: 'center', justifyContent: 'center' },
+  noteRow: { flexDirection: 'row', gap: S.md, alignItems: 'flex-start' },
 });

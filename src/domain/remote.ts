@@ -65,13 +65,31 @@ export interface SymptomAnalysisRequest {
 
 /* ────────────────────────── medicine/check ────────────────────────── */
 
+/** One side of the pair, as the label audit returns it. */
+export interface AgentProfile {
+  /** Active ingredient and dose, e.g. "Paracetamol 500 mg". */
+  readonly active: string;
+  readonly binders: string;
+  readonly coatings: string;
+  readonly additives: string;
+}
+
 export interface MedicineCheck {
   readonly compatibilityVerdict: string;
   readonly riskLevel: string;
   readonly riskPercentage: number;
   readonly dangerDetected: boolean;
   readonly conflictFlags: readonly string[];
+  /** The mechanism: what the two do to each other. */
+  readonly interactionCause: string;
+  /** The longer clinical reading, with the model's analogy. */
   readonly explanation: string;
+  /** What to actually do about it. */
+  readonly patientAdvice: string;
+  /** The enzyme or route involved, e.g. "CYP2E1 oxidation". */
+  readonly metabolicPathway: string;
+  readonly agentA: AgentProfile | null;
+  readonly agentB: AgentProfile | null;
   readonly safeAlternatives: readonly string[];
   readonly warnings: readonly string[];
 }

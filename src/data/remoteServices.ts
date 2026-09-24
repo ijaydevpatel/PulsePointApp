@@ -5,7 +5,7 @@
  * so the UI always has something honest to render (R2 / QR2).
  */
 import {
-  MedicineCheck, MedicineCheckRequest, MedicineCheckService,
+  AgentProfile, MedicineCheck, MedicineCheckRequest, MedicineCheckService,
   RemoteOutcome, RemoteStatus, REMOTE_NOTICE,
   SymptomAnalysis, SymptomAnalysisRequest, SymptomAnalysisService,
   ProbableCondition, MatrixSeverity,
@@ -61,6 +61,36 @@ const ANALYSIS_TIMEOUT_MS = 90000;
  * string.
  */
 const SYNOPSIS_SENTENCES = 5;
+
+/**
+ * The collision check's prose, per block.
+ *
+ * Four rather than the synopsis's five because this screen carries three of
+ * them - mechanism, rationale, advice - and the server prompt asks the model
+ * for "6-8 sentence exhaustive deep-dive" on one of them alone. Unchecked,
+ * that is a wall of text on a phone.
+ */
+const COLLISION_SENTENCES = 4;
+
+/** One side of the label audit, or null when the model omitted it. */
+function agentProfile(raw: any): AgentProfile | null {
+  const active = typeof raw?.active === 'string' ? raw.active.trim() : '';
+  if (!active) return null;
+
+  const inactive = raw?.inactive ?? {};
+  const field = (v: unknown): string => (typeof v === 'string' ? v.trim() : '');
+
+  return {
+    active,
+    binders: field(inactive.binders),
+    coatings: field(inactive.coatings),
+    additives: field(inactive.additives),
+  };
+}
+
+/** Trim and cap a prose field, tolerating a missing one. */
+const prose = (v: unknown): string =>
+  (typeof v === 'string' ? limitSentences(v, COLLISION_SENTENCES) : '');
 
 export class RemoteSymptomAnalysis implements SymptomAnalysisService {
   constructor(private readonly api: ApiClient) {}
@@ -129,13 +159,22 @@ export class RemoteMedicineCheck implements MedicineCheckService {
           riskPercentage: num(raw?.riskPercentage, 0, 100),
           dangerDetected: raw?.dangerDetected === true,
           conflictFlags: strings(raw?.conflictFlags),
-          // Same cap as the synopsis, for the same reason: the model writes a
-          // pharmacology essay and the screen has room for a paragraph. The
-          // conflict flags and warnings are separate fields and are not
-          // touched, so nothing cautionary depends on this string.
-          explanation: typeof raw?.explanation === 'string'
-            ? limitSentences(raw.explanation, SYNOPSIS_SENTENCES)
-            : '',
+
+          /*
+           * Every prose field is capped. The model is asked for an exhaustive
+           * deep-dive and delivers one; the flags, warnings and alternatives
+           * are separate list fields and are untouched, so nothing cautionary
+           * depends on the shortened text.
+           */
+          interactionCause: prose(raw?.interactionCause),
+          explanation: prose(raw?.explanation),
+          patientAdvice: prose(raw?.patientAdvice),
+
+          metabolicPathway: typeof raw?.metabolicPathway === 'string'
+            ? raw.metabolicPathway.trim() : '',
+          agentA: agentProfile(raw?.techIngredients1),
+          agentB: agentProfile(raw?.techIngredients2),
+
           safeAlternatives: strings(raw?.safeAlternatives),
           warnings: strings(raw?.warnings),
         },

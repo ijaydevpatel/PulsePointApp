@@ -35,7 +35,7 @@ import { GlassBackground } from './components/LiquidGlass';
 import { TriageScreen } from './screens/TriageScreen';
 import { ResultScreen } from './screens/ResultScreen';
 import { MedicinesScreen } from './screens/MedicinesScreen';
-import { InteractionScreen } from './screens/InteractionScreen';
+import { CollisionScreen } from './screens/CollisionScreen';
 import { CareScreen } from './screens/CareScreen';
 import { RecordsScreen } from './screens/RecordsScreen';
 import { MoreScreen } from './screens/MoreScreen';
@@ -86,6 +86,8 @@ function AppContent() {
    */
   const [analysis, setAnalysis] = useState<RemoteOutcome<SymptomAnalysis> | null>(null);
   const [report, setReport] = useState<InteractionReport | null>(null);
+  /** The pair being reported on, so the result screen can name them. */
+  const [pair, setPair] = useState<[string, string]>(['', '']);
   /**
    * The hosted collision check for the current pair.
    *
@@ -167,7 +169,10 @@ function AppContent() {
         ) : null;
       case 'interactions':
         return report ? (
-          <InteractionScreen report={report} check={check} onBack={pop} onEdit={pop} />
+          <CollisionScreen
+            pair={pair} check={check} report={report}
+            onBack={pop} onEdit={pop}
+          />
         ) : null;
       case 'profile':
         return (
@@ -241,10 +246,10 @@ function AppContent() {
         return (
           <MedicinesScreen
             check={services.medicines}
-            onReport={(r) => { setReport(r); push('interactions'); }}
+            onRun={(r, p) => { setReport(r); setPair(p); push('interactions'); }}
             // The screen clears this on every run before deciding whether to
             // start a check, so a previous pair's verdict can never appear
-            // beside a new pair's table result.
+            // beside a new pair's names.
             onCheck={setCheck}
           />
         );
