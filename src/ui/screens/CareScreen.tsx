@@ -26,7 +26,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, ScrollView, StyleSheet, TextInput, Linking, Platform, ActivityIndicator,
 } from 'react-native';
-import MapLibreGL from '@maplibre/maplibre-react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Card, SectionLabel, Txt, Springy, Enter, tap } from '../components/Primitives';
 import { Icon, IconName } from '../components/Icon';
@@ -37,13 +36,39 @@ import {
 import { Fix } from '../../data/locationFix';
 
 /*
- * No API key, and none needed.
+ * MapLibre, loaded only if it is actually installed.
  *
- * MapLibre is the same engine the website uses. The style below is a public
- * demo tile source; swapping it for a paid provider is a one-line change here
- * and nothing else in this file would move.
+ * ── Why this is not a plain import ───────────────────────────────────────────
+ *
+ * MapLibre is a native module: it cannot be added by a Metro reload, only by
+ * an install and a rebuild. A static `import` of it makes the whole app
+ * unbuildable until that has happened - the JS bundle step cannot resolve the
+ * module and fails, so every other tab goes down with the map. That is exactly
+ * what happened here, and one broken screen must not be able to take the app
+ * with it.
+ *
+ * The specifier is held in a variable on purpose. Metro resolves literal
+ * requires at build time and fails the bundle on a missing one; a computed
+ * specifier is left to run time, where a missing module is a catchable error
+ * rather than a broken build.
+ *
+ * So: the map renders when the package is there, and the list renders either
+ * way. The list is the part that answers "which is nearest and is it open",
+ * which is most of the value of this screen.
+ *
+ * No API key, and none needed - the style below is a public tile source.
  */
-MapLibreGL.setAccessToken(null);
+const MAPLIBRE_MODULE = '@maplibre/maplibre-react-native';
+
+let MapLibreGL: any = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
+  MapLibreGL = require(MAPLIBRE_MODULE);
+  MapLibreGL = MapLibreGL?.default ?? MapLibreGL;
+  MapLibreGL?.setAccessToken?.(null);
+} catch {
+  MapLibreGL = null;
+}
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
 
@@ -157,7 +182,21 @@ export function CareScreen({ service, fix }: {
         <View style={{ height: S.lg }} />
 
         <View style={[st.mapFrame, { borderColor: P.line, backgroundColor: P.sunken }]}>
-          {fix ? (
+          {!MapLibreGL ? (
+            /*
+             * Says what is missing rather than showing an empty grey box. The
+             * list below is unaffected and is already populated.
+             */
+            <View style={st.mapPlaceholder}>
+              <Icon name="pin" size={22} color={P.faint} />
+              <Txt t="caption" c={P.muted} style={{ marginTop: S.sm, textAlign: 'center' }}>
+                The map needs a rebuild with the map library installed.
+              </Txt>
+              <Txt t="micro" c={P.faint} style={{ marginTop: 2 }}>
+                The list below works without it.
+              </Txt>
+            </View>
+          ) : fix ? (
             <MapLibreGL.MapView style={st.map} mapStyle={STYLE_URL} logoEnabled={false}>
               <MapLibreGL.Camera
                 defaultSettings={{ centerCoordinate: [fix.lon, fix.lat], zoomLevel: 13 }}
