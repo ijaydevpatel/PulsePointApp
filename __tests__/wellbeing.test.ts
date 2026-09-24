@@ -119,3 +119,47 @@ describe('check-in streak', () => {
     expect(s.days).toBe(2);
   });
 });
+
+/* ────────────────────────── symptom catalogue ───────────────────────────── */
+
+import { CATALOGUE } from '../src/data/symptomCatalogue';
+
+describe('the symptom catalogue', () => {
+  it('has no duplicate codes or labels', () => {
+    // The website list was merged into this one; a duplicate would show as two
+    // identical rows that set the same flag.
+    expect(new Set(CATALOGUE.map((c) => c.code)).size).toBe(CATALOGUE.length);
+    expect(new Set(CATALOGUE.map((c) => c.label)).size).toBe(CATALOGUE.length);
+  });
+
+  it('still contains every code a red-flag rule matches on', () => {
+    // redFlags.ts matches by code. A symptom the rules reference but the list
+    // does not offer is a rule that can never fire — silently.
+    const codes = new Set(CATALOGUE.map((c) => c.code));
+
+    // The thirteen codes redFlags.ts matches on, listed explicitly so this
+    // fails loudly if one is renamed rather than inferring from the rules and
+    // agreeing with whatever they happen to say.
+    const referenced = [
+      'chest_pain', 'breathlessness', 'radiating_pain', 'facial_droop',
+      'arm_weakness', 'speech_difficulty', 'confusion', 'fever', 'headache',
+      'neck_stiffness', 'photophobia', 'rash_non_blanching', 'vomiting',
+    ];
+
+    for (const code of referenced) {
+      expect(`${code} in catalogue: ${codes.has(code)}`).toBe(`${code} in catalogue: true`);
+    }
+  });
+
+  it('keeps the two rashes distinct', () => {
+    // A non-blanching rash is the meningococcal sign; an itchy rash is not.
+    // Collapsing them would lose the rule that exists to catch the first.
+    expect(CATALOGUE.some((c) => c.code === 'rash_non_blanching')).toBe(true);
+    expect(CATALOGUE.some((c) => c.code === 'skin_rash')).toBe(true);
+  });
+
+  it('leads with the red-flag symptoms', () => {
+    // Someone with chest pain should not scroll past "itching" to find it.
+    expect(CATALOGUE[0]!.code).toBe('chest_pain');
+  });
+});

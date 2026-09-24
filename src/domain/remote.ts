@@ -298,3 +298,22 @@ export interface ConditionsService {
   /** Resolves location then fetches. DENIED when permission is refused. */
   current(): Promise<{ state: LocationState; data: Conditions | null; notice: string | null }>;
 }
+
+/* ───────────────────────────────  profile  ─────────────────────────────── */
+
+/**
+ * The parts of the account the checker needs.
+ *
+ * Age is here rather than asked on the triage screen. It is a fact about the
+ * person, not about this episode, so making them re-pick it every time was
+ * both friction and a chance to get it wrong — and the answer drives real
+ * red-flag rules (a fever at 70 is not a fever at 30).
+ */
+export interface UserProfile {
+  /** Years. Null when the profile has never recorded one. */
+  readonly age: number | null;
+}
+
+export interface ProfileService {
+  me(): Promise<RemoteOutcome<UserProfile>>;
+}

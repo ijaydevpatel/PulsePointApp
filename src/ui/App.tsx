@@ -217,6 +217,7 @@ function AppContent() {
           <TriageScreen
             classifier={classifier} store={store}
             analysis={services.symptoms}
+            profile={services.profile}
             // Cleared on every new assessment so the result screen never shows
             // the previous episode's matrix while this one is still in flight.
             onResult={(r, ms) => {

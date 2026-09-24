@@ -11,6 +11,7 @@ import {
   ProbableCondition, MatrixSeverity,
   DailyStatus, DashboardService, Intelligence, RiskTrend,
   ReportStage,
+  ProfileService, UserProfile,
 } from '../domain/remote';
 import { ApiClient, ApiError } from './apiClient';
 
@@ -363,6 +364,38 @@ export class RemoteDashboard implements DashboardService {
           model: text(raw?.neuralPulse?.model) || null,
           generationSeconds: typeof genMs === 'number' && Number.isFinite(genMs) ? genMs : null,
         },
+        notice: null,
+        elapsedMs: Date.now() - started,
+      };
+    } catch (error) {
+      return fail(classify(error, this.api.configured), started);
+    }
+  }
+}
+
+
+/* ───────────────────────────────  profile  ─────────────────────────────── */
+
+/**
+ * GET /api/profile.
+ *
+ * The backend defaults `age` to 0 for a profile that has never set one, so a
+ * zero is read as "unknown" rather than as a newborn — which would otherwise
+ * put every account with an empty profile into the child red-flag rules.
+ */
+export class RemoteProfile implements ProfileService {
+  constructor(private readonly api: ApiClient) {}
+
+  async me(): Promise<RemoteOutcome<UserProfile>> {
+    const started = Date.now();
+    try {
+      const raw = await this.api.get<any>('/api/profile');
+      const age = raw?.age;
+      const usable = typeof age === 'number' && Number.isFinite(age) && age > 0 && age < 120;
+
+      return {
+        status: 'OK',
+        data: { age: usable ? Math.round(age) : null },
         notice: null,
         elapsedMs: Date.now() - started,
       };

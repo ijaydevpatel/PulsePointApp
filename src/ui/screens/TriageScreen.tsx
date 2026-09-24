@@ -11,7 +11,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, ScrollView, StyleSheet, ActivityIndicator, LayoutAnimation,
-  Platform, UIManager, Animated, Easing,
+  Platform, UIManager, Animated, Easing, TextInput,
 } from 'react-native';
 import { AgeBand, Symptom, SymptomEpisode, TriageResult } from '../../domain/entities';
 import { AssessSymptomsUseCase } from '../../domain/assessSymptoms';
@@ -19,10 +19,10 @@ import { CATALOGUE } from '../../data/symptomCatalogue';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Card, SectionLabel, Chip, Txt, Springy, Enter, tap } from '../components/Primitives';
 import { Icon } from '../components/Icon';
-import { useTheme, S, R, TOUCH, TAB_CLEARANCE, MOTION, circle } from '../theme';
+import { useTheme, S, R, TOUCH, TAB_CLEARANCE, MOTION, TYPE, circle } from '../theme';
 import { EpisodeStore, Classifier } from '../../domain/ports';
 import {
-  SymptomAnalysis, SymptomAnalysisService, RemoteOutcome,
+  SymptomAnalysis, SymptomAnalysisService, ProfileService, RemoteOutcome,
 } from '../../domain/remote';
 
 // Only needed on the old architecture; the setter does not exist under Fabric,
@@ -31,11 +31,26 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const AGES: { key: AgeBand; label: string }[] = [
-  { key: 'CHILD', label: 'Under 12' },
-  { key: 'ADULT', label: '12–64' },
-  { key: 'OLDER_ADULT', label: '65+' },
-];
+/**
+ * Age band from the account's recorded age.
+ *
+ * The screen used to ask this every time. It is a fact about the person, not
+ * about this episode, so re-asking was friction and a chance to get it wrong —
+ * and it drives real red-flag rules, where a fever at 70 is not a fever at 30.
+ *
+ * ADULT is the fallback when the profile has no age. That is a deliberate
+ * choice and not a neutral one: it means the two age-specific rules cannot
+ * fire, so the checker under-triages a child or an older adult whose profile
+ * is blank. The alternative — guessing an age — would be worse, because a
+ * wrong band fires the wrong rules rather than none. The banner below says so
+ * on screen rather than leaving it silent.
+ */
+function bandForAge(age: number | null): AgeBand {
+  if (age === null) return 'ADULT';
+  if (age < 12) return 'CHILD';
+  if (age >= 65) return 'OLDER_ADULT';
+  return 'ADULT';
+}
 const DURATIONS = [
   { hours: 6, label: 'Today' }, { hours: 24, label: '1 day' },
   { hours: 72, label: '3 days' }, { hours: 168, label: 'A week+' },
@@ -52,7 +67,7 @@ const LEVELS = [
   { v: 7, label: 'Strong' }, { v: 9, label: 'Severe' },
 ];
 
-export function TriageScreen({ classifier, store, onResult, analysis, onAnalysis }: {
+export function TriageScreen({ classifier, store, onResult, analysis, profile, onAnalysis }: {
   classifier: Classifier; store: EpisodeStore;
   onResult: (r: TriageResult, ms: number) => void;
   /**
@@ -60,12 +75,27 @@ export function TriageScreen({ classifier, store, onResult, analysis, onAnalysis
    * tests still run — with nothing behind it.
    */
   analysis?: SymptomAnalysisService;
+  /** Supplies the recorded age, so the screen no longer has to ask for it. */
+  profile?: ProfileService;
   /** Delivers the hosted matrix once it lands, so Result can render it. */
   onAnalysis?: (a: RemoteOutcome<SymptomAnalysis>) => void;
 }) {
   const { c: P, elev } = useTheme();
-  const [age, setAge] = useState<AgeBand>('ADULT');
+  const [profileAge, setProfileAge] = useState<number | null | undefined>(undefined);
   const [duration, setDuration] = useState(6);
+  const [note, setNote] = useState('');
+
+  // undefined while loading, null when the profile has no age on file.
+  useEffect(() => {
+    let alive = true;
+    if (!profile) { setProfileAge(null); return; }
+    void profile.me().then((r) => {
+      if (alive) setProfileAge(r.status === 'OK' ? r.data?.age ?? null : null);
+    });
+    return () => { alive = false; };
+  }, [profile]);
+
+  const age = bandForAge(profileAge ?? null);
   const [picked, setPicked] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState(false);
 
@@ -73,6 +103,8 @@ export function TriageScreen({ classifier, store, onResult, analysis, onAnalysis
     () => new AssessSymptomsUseCase(classifier, store), [classifier, store],
   );
   const count = Object.keys(picked).length;
+  // Either input is enough on its own.
+  const canSubmit = count > 0 || note.trim().length > 0;
 
   /*
    * The action is revealed by the first selection rather than sitting there
@@ -84,20 +116,20 @@ export function TriageScreen({ classifier, store, onResult, analysis, onAnalysis
   useEffect(() => {
     Animated.parallel([
       Animated.timing(fabIn, {
-        toValue: count > 0 ? 1 : 0,
+        toValue: canSubmit ? 1 : 0,
         duration: MOTION.fast,
         easing: Easing.out(Easing.quad),
         useNativeDriver: true,
       }),
       Animated.spring(fabScale, {
-        toValue: count > 0 ? 1 : 0.6,
+        toValue: canSubmit ? 1 : 0.6,
         damping: MOTION.spring.damping,
         stiffness: MOTION.spring.stiffness,
         mass: MOTION.spring.mass,
         useNativeDriver: true,
       }),
     ]).start();
-  }, [count, fabIn, fabScale]);
+  }, [canSubmit, fabIn, fabScale]);
 
   const toggle = (code: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.create(180, 'easeInEaseOut', 'opacity'));
@@ -129,6 +161,7 @@ export function TriageScreen({ classifier, store, onResult, analysis, onAnalysis
       const r = await useCase.execute(episode);
       onResult(r, Date.now() - t0);
       setPicked({});
+      setNote('');
 
       // Then the hosted matrix, which enriches the result screen. Deliberately
       // not awaited before onResult: making the user watch a spinner for a
@@ -137,7 +170,7 @@ export function TriageScreen({ classifier, store, onResult, analysis, onAnalysis
         void analysis
           .analyze({
             activeSymptoms: symptoms.map((s) => s.label),
-            customSymptom: '',
+            customSymptom: note.trim(),
           })
           .then(onAnalysis);
       }
@@ -151,24 +184,10 @@ export function TriageScreen({ classifier, store, onResult, analysis, onAnalysis
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <ScreenHeader
-          title="How are you feeling?"
-          subtitle="Checked on your device. Nothing is sent."
-        />
+        <ScreenHeader title="How are you feeling?" />
 
         <View style={st.body}>
-          <Enter index={1}>
-            <SectionLabel>Age</SectionLabel>
-            <View style={st.row}>
-              {AGES.map((a) => (
-                <Chip key={a.key} label={a.label} selected={age === a.key}
-                  onPress={() => setAge(a.key)} />
-              ))}
-            </View>
-          </Enter>
-
           <Enter index={2}>
-            <View style={{ height: S.xxl }} />
             <SectionLabel>How long</SectionLabel>
             <View style={st.row}>
               {DURATIONS.map((d) => (
@@ -189,6 +208,31 @@ export function TriageScreen({ classifier, store, onResult, analysis, onAnalysis
               ) : null}
             </View>
             <View style={{ height: S.md }} />
+          </Enter>
+
+          <Enter index={3}>
+            <View style={{ height: S.xxl }} />
+            <SectionLabel>Anything else</SectionLabel>
+            {/*
+              Either/or, not both-required. Some things have no chip — a taste
+              that has gone, a pain that only comes at night — and a list can
+              never be long enough to cover them. This box takes them in the
+              person's own words and goes to the model alongside whatever was
+              ticked, so the check works with a selection, with a description,
+              or with both.
+            */}
+            <TextInput
+              style={[st.note, { borderColor: P.line, backgroundColor: P.surface, color: P.ink }]}
+              value={note}
+              onChangeText={setNote}
+              placeholder="Describe what you're feeling, if it isn't listed above"
+              placeholderTextColor={P.faint}
+              multiline
+              textAlignVertical="top"
+              accessibilityLabel="Describe your symptoms"
+            />
+            <View style={{ height: S.xxl }} />
+            <SectionLabel>Or pick from the list</SectionLabel>
           </Enter>
 
           {CATALOGUE.map((c, i) => {
@@ -259,7 +303,7 @@ export function TriageScreen({ classifier, store, onResult, analysis, onAnalysis
         obstructed — you could not see the item you had just tapped.
       */}
       <Animated.View
-        pointerEvents={count === 0 ? 'none' : 'box-none'}
+        pointerEvents={canSubmit ? 'box-none' : 'none'}
         style={[
           st.fabWrap,
           { bottom: TAB_CLEARANCE + S.sm, opacity: fabIn, transform: [{ scale: fabScale }] },
@@ -272,7 +316,7 @@ export function TriageScreen({ classifier, store, onResult, analysis, onAnalysis
         ) : (
           <Springy
             onPress={assess}
-            disabled={count === 0}
+            disabled={!canSubmit}
             weight="medium"
             scaleTo={0.9}
             accessibilityLabel={`Check ${count} selected symptom${count === 1 ? '' : 's'}`}
@@ -310,6 +354,11 @@ const st = StyleSheet.create({
   level: {
     minHeight: 34, paddingHorizontal: S.lg, borderRadius: R.pill,
     borderWidth: 1, alignItems: 'center', justifyContent: 'center',
+  },
+  note: {
+    minHeight: 96, borderRadius: R.lg, borderWidth: StyleSheet.hairlineWidth * 2,
+    paddingHorizontal: S.lg, paddingTop: S.md, paddingBottom: S.md,
+    ...TYPE.body,
   },
   fabWrap: { position: 'absolute', right: S.xl },
   fab: { ...circle(60), alignItems: 'center', justifyContent: 'center' },
