@@ -100,3 +100,25 @@ export const UNITS = (TABS.length - 1) + SELECTED_UNITS;
  */
 export const MIN_BAR_WIDTH =
   UNITS * 44 + 2 * BAR_PAD + 2 * BAR_SIDE_MARGIN;
+
+/**
+ * Where the selected pill sits, for a bar of this width.
+ *
+ * Pure arithmetic, and deliberately here rather than in the component: the
+ * row is divided by flex weights, so the slot boundaries are decided by the
+ * same numbers that decide the layout. Measuring the tabs to find out where
+ * they are would be asking the screen a question the maths has already
+ * answered - and would drift the moment a label changed length.
+ *
+ * Returns zeroes before the bar has been laid out, which the caller treats as
+ * "not ready to draw yet" rather than as a position.
+ */
+export function pillSlot(barWidth: number, index: number): { left: number; width: number } {
+  const inner = barWidth - BAR_PAD * 2;
+  if (!(inner > 0)) return { left: 0, width: 0 };
+
+  const unit = inner / UNITS;
+  const i = Math.min(Math.max(index, 0), TABS.length - 1);
+
+  return { left: BAR_PAD + i * unit, width: SELECTED_UNITS * unit };
+}

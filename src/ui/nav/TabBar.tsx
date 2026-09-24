@@ -36,16 +36,17 @@
  * The touch-target floor falls out of the same arithmetic rather than being
  * hoped for; see MIN_BAR_WIDTH below.
  */
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  View, Text, StyleSheet, Pressable,
+  View, Text, StyleSheet, Pressable, Animated, Easing, LayoutChangeEvent,
   LayoutAnimation, Platform, UIManager, AccessibilityInfo,
   useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  BAR_PAD, BAR_SIDE_MARGIN, MIN_BAR_WIDTH, SELECTED_UNITS, TABS, TabKey,
+  BAR_PAD, BAR_SIDE_MARGIN, MIN_BAR_WIDTH, SELECTED_UNITS, TABS, TabKey, pillSlot,
 } from './routes';
+import { useReveal } from '../useReveal';
 import { TYPE, S, R, TOUCH } from '../theme';
 import { Icon } from '../components/Icon';
 
@@ -136,6 +137,55 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
    * side margins first - losing the floating inset is a far smaller loss than
    * losing a tappable control.
    */
+  /*
+   * ── The selected pill slides ───────────────────────────────────────────
+   *
+   * It used to be a background colour on whichever tab was selected, so
+   * moving between tabs made it disappear from one place and reappear in
+   * another. The eye reads that as two pills, not one moving, and loses the
+   * thing it was tracking.
+   *
+   * One pill now, drawn behind the row and animated between slots.
+   *
+   * Its position needs no measurement of the tabs themselves, which matters
+   * because measuring them is what this component was built to avoid. The row
+   * is divided by flex weights, so the arithmetic is already decided: the
+   * unselected tabs take one unit each, the selected one takes
+   * SELECTED_UNITS, and UNITS is their total. Given the bar's inner width the
+   * slot boundaries follow exactly, and one onLayout supplies that.
+   *
+   * left and width are animated on the JS driver because neither is a
+   * transform - the native driver cannot touch them. That is fine at this
+   * size: it is one view moving for 260ms.
+   */
+  const [barWidth, setBarWidth] = useState(0);
+  const onBarLayout = (e: LayoutChangeEvent) => setBarWidth(e.nativeEvent.layout.width);
+
+  const index = Math.max(0, TABS.findIndex((t) => t.key === active));
+  const { left: pillLeft, width: pillWidth } = pillSlot(barWidth, index);
+
+  const { value: leftV, animateTo: slideTo, set: setLeft } = useReveal(0, 0);
+  const { value: widthV, animateTo: growTo, set: setWidth } = useReveal(0, 0);
+
+  /** False until the first real layout, so the pill appears in place. */
+  const placed = useRef(false);
+
+  useEffect(() => {
+    if (pillWidth <= 0) return;
+
+    // First paint, or reduce-motion: be where you belong, without travelling.
+    if (!placed.current || reduceMotion.current) {
+      placed.current = true;
+      setLeft(pillLeft);
+      setWidth(pillWidth);
+      return;
+    }
+
+    const config = { duration: 260, easing: Easing.out(Easing.cubic) };
+    slideTo(pillLeft, config);
+    growTo(pillWidth, config);
+  }, [pillLeft, pillWidth, slideTo, growTo, setLeft, setWidth]);
+
   const margin = width < MIN_BAR_WIDTH ? S.xs : SIDE_MARGIN;
 
   return (
@@ -146,7 +196,18 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
       ]}
       pointerEvents="box-none"
     >
-      <View style={st.bar} accessibilityRole="tablist">
+      <View style={st.bar} accessibilityRole="tablist" onLayout={onBarLayout}>
+        {/*
+          Behind the row, and not a sibling of any one tab - that is what lets
+          it survive the selection moving.
+        */}
+        {pillWidth > 0 ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[st.pill, { left: leftV, width: widthV }]}
+          />
+        ) : null}
+
         {TABS.map((t) => {
           const on = t.key === active;
           return (
@@ -160,7 +221,7 @@ export function TabBar({ active, onSelect }: { active: TabKey; onSelect: (k: Tab
               style={({ pressed }) => [
                 st.tab,
                 { flex: on ? SELECTED_UNITS : 1 },
-                on && st.tabOn,
+                on && st.tabOnPadding,
                 pressed && { opacity: 0.75 },
               ]}
             >
@@ -220,9 +281,20 @@ const st = StyleSheet.create({
     borderRadius: R.pill,
     paddingHorizontal: 4,
   },
-  tabOn: {
-    backgroundColor: PILL,
+  /*
+   * Padding only. The white is the sliding pill's job now; leaving it here as
+   * well would put a second, stationary pill under the moving one.
+   */
+  tabOnPadding: {
     paddingHorizontal: 12,
+  },
+
+  pill: {
+    position: 'absolute',
+    top: PAD,
+    height: TOUCH,
+    borderRadius: R.pill,
+    backgroundColor: PILL,
   },
 
   label: {
