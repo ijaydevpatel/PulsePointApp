@@ -409,8 +409,9 @@ function EnvCard({
       ) : null}
 
       <Txt t="micro" c={P.faint} style={{ marginTop: S.md }}>
-        Open-Meteo, for your current location. Coordinates are used for this
-        lookup only and are not stored.
+        {d.source === 'device'
+          ? 'Open-Meteo, for your current location. Coordinates are used for this lookup only and are not stored.'
+          : 'Open-Meteo, for your approximate area — your device position was not available, so this was resolved from your connection. Nothing is stored.'}
       </Txt>
     </Card>
   );

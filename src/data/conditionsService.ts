@@ -1,24 +1,41 @@
 /**
- * Real environmental conditions for the device's location.
+ * Real environmental conditions for wherever the person is.
  *
  * ── Why this does not come from our own backend ──────────────────────────────
  *
- * `/api/dashboard/intel` returns `{ aqi: 38, uv: 5, humidity: 62 }` — the same
- * three numbers for every user, every request, marked "Static fallback" in the
- * route. The website renders them under "Environmental Pulse" as though they
- * were measurements. Porting that to the phone would mean shipping a fixed
- * number labelled as the air quality where someone is standing.
+ * `/api/dashboard/intel` used to return `{ aqi: 38, uv: 5, humidity: 62 }` —
+ * the same three numbers for every user, every request, marked "Static
+ * fallback" in the route. Rendering those as measurements is the thing this
+ * file exists to avoid.
  *
- * Open-Meteo is used instead: free, no API key, no account, and no request
- * signing — so nothing secret has to be stored in the app to call it. Two
- * endpoints, because air quality and weather are separate products there.
+ * Open-Meteo is used instead: free, no API key, no account, no request
+ * signing — so nothing secret has to ship in the app. Two endpoints, because
+ * air quality and weather are separate products there.
+ *
+ * ── Why GPS is not required ──────────────────────────────────────────────────
+ *
+ * Two earlier attempts at this failed on a real device, and both failed for
+ * the same underlying reason: they treated a satellite fix as mandatory.
+ *
+ * It is not. Air quality and UV are regional — the reading is identical
+ * anywhere within several kilometres — so the precision GPS provides is
+ * precision this feature throws away. Meanwhile a GPS fix is the single most
+ * failure-prone thing a phone can be asked for: it needs sky, it needs the
+ * device toggle on, it needs a prior fix to warm-start from, and on an
+ * emulator it needs a position to have been set by hand. Any one of those
+ * missing and the card stalls.
+ *
+ * So the order is now: use a position if one is readily available, and
+ * otherwise resolve the city from the network. The second path needs no
+ * permission, no hardware and no settings, which means the card has a working
+ * answer in every state the first path fails in.
  *
  * ── Failure is a state, not an exception ─────────────────────────────────────
  *
- * Every field is nullable and every failure path returns a notice rather than
- * throwing. A missing reading renders as "—". The one thing this must never do
- * is substitute a default: a humidity figure that is actually a fallback
- * constant is indistinguishable, on screen, from a measurement.
+ * Every field is nullable and every path returns a notice rather than
+ * throwing. A missing reading renders as an em dash. The one thing this must
+ * never do is substitute a default: a humidity figure that is really a
+ * fallback constant is indistinguishable, on screen, from a measurement.
  */
 import * as Location from 'expo-location';
 import { Conditions, ConditionsService, LocationState } from '../domain/remote';
@@ -26,29 +43,39 @@ import { Conditions, ConditionsService, LocationState } from '../domain/remote';
 const AIR = 'https://air-quality-api.open-meteo.com/v1/air-quality';
 const WEATHER = 'https://api.open-meteo.com/v1/forecast';
 
-/** Beyond this a reading is not worth waiting for on a dashboard. */
-const TIMEOUT_MS = 8000;
+/**
+ * City-level coordinates from the network route, keyless and permissionless.
+ *
+ * Accuracy is roughly city-scale, which is the resolution this feature
+ * actually uses. It sees the device's public IP — but so does every server the
+ * app already talks to, including Open-Meteo itself, so this reveals nothing
+ * that was not already in transit.
+ */
+const IP_LOOKUP = 'https://ipapi.co/json/';
+
+const NET_TIMEOUT_MS = 8000;
 
 /**
- * A live fix gets longer than a network request.
+ * Short, because it is no longer the only way through.
  *
- * Nothing blocks on this — the rest of Home has already rendered — and 8s was
- * short enough that a cold radio lost the race even when it was about to
- * succeed.
+ * When a satellite fix was mandatory this had to be generous, and a slow
+ * radio still lost. Now that the network route is waiting behind it, a fix
+ * that has not arrived in four seconds is simply not the fastest way to
+ * answer, and falling through beats making someone watch a spinner.
  */
-const FIX_TIMEOUT_MS = 15000;
+const FIX_TIMEOUT_MS = 4000;
 
-async function getJson(url: string): Promise<any | null> {
+async function getJson(url: string, timeoutMs = NET_TIMEOUT_MS): Promise<any | null> {
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
   try {
     const res = await fetch(url, { signal: ctl.signal });
     if (!res.ok) return null;
 
     /*
-     * Captive portals and ISP interception pages answer 200 with HTML. Parsing
-     * that as JSON throws somewhere unhelpful, so the content type is checked
-     * before the body is trusted — the same guard the API client uses.
+     * Captive portals and ISP interception pages answer 200 with HTML.
+     * Parsing that as JSON throws somewhere unhelpful, so the content type is
+     * checked before the body is trusted — the same guard the API client uses.
      */
     const type = res.headers.get('content-type') ?? '';
     if (!type.includes('json')) return null;
@@ -70,127 +97,85 @@ function firstNumber(series: unknown): number | null {
   return null;
 }
 
+const isCoord = (v: unknown): v is number =>
+  typeof v === 'number' && Number.isFinite(v);
+
+interface Fix {
+  lat: number;
+  lon: number;
+  /** How it was obtained, so the card can say. */
+  source: 'device' | 'network';
+}
+
+/**
+ * A device position, but only if one is available without waiting on hardware.
+ *
+ * Returns null rather than throwing on every failure mode — denied, services
+ * off, no cached fix, slow radio — because the caller has somewhere else to
+ * go and none of these are worth surfacing as errors.
+ */
+async function deviceFix(): Promise<Fix | null> {
+  try {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== Location.PermissionStatus.GRANTED) return null;
+
+    // Permission granted is not the same as location being switched on.
+    if (!(await Location.hasServicesEnabledAsync())) return null;
+
+    // A cached fix costs nothing and is plenty accurate for this.
+    const cached = await Location.getLastKnownPositionAsync({ maxAge: 60 * 60 * 1000 });
+    if (cached) {
+      return { lat: cached.coords.latitude, lon: cached.coords.longitude, source: 'device' };
+    }
+
+    const live = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), FIX_TIMEOUT_MS)),
+    ]);
+    if (!live) return null;
+
+    return { lat: live.coords.latitude, lon: live.coords.longitude, source: 'device' };
+  } catch {
+    // Includes the case where the native module is missing entirely, which is
+    // what happens in a build made before expo-location was added.
+    return null;
+  }
+}
+
+/** City-level coordinates from the network. No permission, no hardware. */
+async function networkFix(): Promise<Fix | null> {
+  const data = await getJson(IP_LOOKUP);
+  const lat = data?.latitude;
+  const lon = data?.longitude;
+  if (!isCoord(lat) || !isCoord(lon)) return null;
+  return { lat, lon, source: 'network' };
+}
+
 export class OpenMeteoConditions implements ConditionsService {
   async current(): Promise<{ state: LocationState; data: Conditions | null; notice: string | null }> {
-    /*
-     * Permission first. A refusal is an ordinary answer — the rest of the
-     * dashboard is unaffected by it — so it returns a state rather than an
-     * error, and the wording avoids implying the person did something wrong.
-     */
-    let granted = false;
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      granted = status === Location.PermissionStatus.GRANTED;
-    } catch {
+    const fix = (await deviceFix()) ?? (await networkFix());
+
+    if (!fix) {
       return {
         state: 'UNAVAILABLE',
         data: null,
-        notice: 'Location is not available on this device.',
+        notice: 'Could not work out where you are. Check your connection and try again.',
       };
     }
 
-    if (!granted) {
-      return {
-        state: 'DENIED',
-        data: null,
-        notice: 'Allow location to see conditions where you are.',
-      };
-    }
-
-    /*
-     * Permission granted is not the same as location being on.
-     *
-     * Android keeps the app grant and the device-wide toggle separate, so a
-     * user can have said yes to PulsePoint while Location itself is switched
-     * off — or be on an emulator that has never had a position set. In that
-     * state the cached fix is null and the live one never resolves, which is
-     * precisely the stall this card was showing, under a message that blamed
-     * the fix rather than the setting.
-     *
-     * Checking first means the notice can say the one thing that actually
-     * helps.
-     */
-    try {
-      const servicesOn = await Location.hasServicesEnabledAsync();
-      if (!servicesOn) {
-        return {
-          state: 'UNAVAILABLE',
-          data: null,
-          notice: 'Location is switched off on this device. Turn it on to see local conditions.',
-        };
-      }
-    } catch {
-      // Older platforms can throw here; fall through and let the fix decide.
-    }
-
-    /*
-     * Last known position first, then a live fix.
-     *
-     * getCurrentPositionAsync waits for the radio to produce a reading. On an
-     * emulator with no simulated route, and on a real phone indoors or
-     * straight after boot, that can hang until it throws — which is what put
-     * "Could not get a location fix just now" on the dashboard even with
-     * permission granted.
-     *
-     * The cached fix is returned by the OS instantly and is easily precise
-     * enough: this is a lookup for city-scale air quality, not navigation. A
-     * live fix is only attempted when there is no cached one, and it is raced
-     * against a timeout so a silent radio degrades to a notice rather than to
-     * a card that spins forever.
-     */
-    let lat: number;
-    let lon: number;
-    try {
-      const cached = await Location.getLastKnownPositionAsync({
-        // Anything from the last hour is fine for weather and AQI.
-        maxAge: 60 * 60 * 1000,
-      });
-
-      /*
-       * Accuracy.Low, not Balanced.
-       *
-       * Balanced asks for a GPS-grade fix, which needs sky and can take tens
-       * of seconds indoors. Low is satisfied by cell towers and wifi — it
-       * resolves in a second or two, works inside a building, and is accurate
-       * to a few hundred metres, which is far more than a city-scale air
-       * quality lookup needs.
-       */
-      const pos = cached ?? await Promise.race([
-        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), FIX_TIMEOUT_MS)),
-      ]);
-
-      if (!pos) {
-        return {
-          state: 'UNAVAILABLE',
-          data: null,
-          notice: 'Could not get a position. Pull down to retry.',
-        };
-      }
-
-      lat = pos.coords.latitude;
-      lon = pos.coords.longitude;
-    } catch {
-      return {
-        state: 'UNAVAILABLE',
-        data: null,
-        notice: 'Location is unavailable on this device.',
-      };
-    }
+    const { lat, lon } = fix;
 
     const [air, weather] = await Promise.all([
       getJson(`${AIR}?latitude=${lat}&longitude=${lon}&hourly=european_aqi,us_aqi&timezone=auto&forecast_days=1`),
       getJson(`${WEATHER}?latitude=${lat}&longitude=${lon}&current=relative_humidity_2m&daily=uv_index_max&timezone=auto&forecast_days=1`),
     ]);
 
-    // us_aqi is the 0–500 scale the website's "38" implies; european_aqi is
-    // the fallback because Open-Meteo does not serve US AQI everywhere.
+    // us_aqi is the 0–500 scale most people recognise; european_aqi is the
+    // fallback, because Open-Meteo does not serve the US scale everywhere.
     const aqi = firstNumber(air?.hourly?.us_aqi) ?? firstNumber(air?.hourly?.european_aqi);
     const uvIndex = firstNumber(weather?.daily?.uv_index_max);
     const humidityRaw = weather?.current?.relative_humidity_2m;
-    const humidity = typeof humidityRaw === 'number' && Number.isFinite(humidityRaw)
-      ? humidityRaw
-      : null;
+    const humidity = isCoord(humidityRaw) ? humidityRaw : null;
 
     if (aqi === null && uvIndex === null && humidity === null) {
       return {
@@ -202,7 +187,7 @@ export class OpenMeteoConditions implements ConditionsService {
 
     return {
       state: 'OK',
-      data: { uvIndex, aqi, humidity, lat, lon },
+      data: { uvIndex, aqi, humidity, lat, lon, source: fix.source },
       notice: null,
     };
   }

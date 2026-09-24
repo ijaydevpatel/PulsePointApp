@@ -264,6 +264,15 @@ export interface Conditions {
   /** Coordinates the reading is for, so the UI can say where it applies. */
   readonly lat: number;
   readonly lon: number;
+  /**
+   * Where the coordinates came from.
+   *
+   * 'device' is a position from the phone; 'network' is city-level, resolved
+   * from the connection when no device position was available. The card says
+   * which, because "conditions near you" means something different in each
+   * case and the reader should not have to guess.
+   */
+  readonly source: 'device' | 'network';
 }
 
 export type LocationState = 'OK' | 'DENIED' | 'UNAVAILABLE';
