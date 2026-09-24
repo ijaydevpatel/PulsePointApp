@@ -13,6 +13,7 @@ import {
   ReportStage,
   ProfileService, UserProfile,
 } from '../domain/remote';
+import { limitSentences } from '../domain/sentences';
 import { ApiClient, ApiError } from './apiClient';
 
 const SEVERITIES: readonly MatrixSeverity[] = ['Critical', 'High', 'Medium', 'Low'];
@@ -50,6 +51,17 @@ function fail<T>(status: Failure, started: number): RemoteOutcome<T> {
  */
 const ANALYSIS_TIMEOUT_MS = 90000;
 
+/**
+ * How many sentences of synopsis the result screen will show.
+ *
+ * The server prompt asks for four or five in two separate places and the model
+ * returns seven or eight anyway. A prompt is a request; this is the constraint.
+ * See domain/sentences.ts for why cutting this text is safe - in short, the
+ * escalation on that screen is decided on the device and does not read this
+ * string.
+ */
+const SYNOPSIS_SENTENCES = 5;
+
 export class RemoteSymptomAnalysis implements SymptomAnalysisService {
   constructor(private readonly api: ApiClient) {}
 
@@ -62,7 +74,9 @@ export class RemoteSymptomAnalysis implements SymptomAnalysisService {
       }, ANALYSIS_TIMEOUT_MS);
 
       const matrix = readMatrix(raw?.probabilityMatrix);
-      const summary = typeof raw?.summaryText === 'string' ? raw.summaryText.trim() : '';
+      const summary = typeof raw?.summaryText === 'string'
+        ? limitSentences(raw.summaryText, SYNOPSIS_SENTENCES)
+        : '';
 
       // An empty matrix and an empty summary is the blank panel. Treat it as a
       // failure rather than rendering a successful-looking void.

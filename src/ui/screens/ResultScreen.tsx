@@ -15,7 +15,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, ScrollView, StyleSheet, Linking, Animated, Easing } from 'react-native';
 import { TriageResult, BAND_LABEL, BAND_ADVICE, requiresEscalation } from '../../domain/entities';
-import { SeveritySpine } from '../components/SeveritySpine';
 import { Card, SectionLabel, Button, Txt, Springy, Enter, tap } from '../components/Primitives';
 import { Icon } from '../components/Icon';
 import { useTheme, TYPE, S, R, TOUCH, TAB_CLEARANCE, MOTION, circle } from '../theme';
@@ -93,7 +92,6 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
             >
               <Icon name="chevronLeft" size={20} color={band.onSolid} />
             </Springy>
-            <SeveritySpine band={result.band} height={30} width={5} color={band.onSolid} />
           </View>
 
           <Enter index={1}>
