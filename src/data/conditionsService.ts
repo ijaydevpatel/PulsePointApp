@@ -39,6 +39,7 @@
  */
 import * as Location from 'expo-location';
 import { Conditions, ConditionsService, LocationState } from '../domain/remote';
+import { Fix, zoneFix } from './locationFix';
 
 const AIR = 'https://air-quality-api.open-meteo.com/v1/air-quality';
 const WEATHER = 'https://api.open-meteo.com/v1/forecast';
@@ -51,7 +52,10 @@ const WEATHER = 'https://api.open-meteo.com/v1/forecast';
  * app already talks to, including Open-Meteo itself, so this reveals nothing
  * that was not already in transit.
  */
-const IP_LOOKUP = 'https://ipapi.co/json/';
+const IP_LOOKUPS = [
+  'https://ipwho.is/',
+  'https://ipapi.co/json/',
+] as const;
 
 const NET_TIMEOUT_MS = 8000;
 
@@ -100,13 +104,6 @@ function firstNumber(series: unknown): number | null {
 const isCoord = (v: unknown): v is number =>
   typeof v === 'number' && Number.isFinite(v);
 
-interface Fix {
-  lat: number;
-  lon: number;
-  /** How it was obtained, so the card can say. */
-  source: 'device' | 'network';
-}
-
 /**
  * A device position, but only if one is available without waiting on hardware.
  *
@@ -142,24 +139,44 @@ async function deviceFix(): Promise<Fix | null> {
   }
 }
 
-/** City-level coordinates from the network. No permission, no hardware. */
+/**
+ * City-level coordinates from the network. No permission, no hardware.
+ *
+ * Two providers, tried in order. The single provider this had before was
+ * enough to make the whole card fail when it answered 403 — free IP services
+ * reject unfamiliar user agents and rate-limit aggressively, so treating any
+ * one of them as reliable was the mistake.
+ *
+ * An explicit Accept header goes out because that 403 is usually a service
+ * guessing the caller is a scraper.
+ */
 async function networkFix(): Promise<Fix | null> {
-  const data = await getJson(IP_LOOKUP);
-  const lat = data?.latitude;
-  const lon = data?.longitude;
-  if (!isCoord(lat) || !isCoord(lon)) return null;
-  return { lat, lon, source: 'network' };
+  for (const url of IP_LOOKUPS) {
+    const data = await getJson(url);
+    // ipwho.is nests nothing; ipapi.co uses the same key names. Both also
+    // report failure in-band with a 200, so success is checked explicitly.
+    if (data && data.success === false) continue;
+
+    const lat = data?.latitude;
+    const lon = data?.longitude;
+    if (isCoord(lat) && isCoord(lon)) return { lat, lon, source: 'network' };
+  }
+  return null;
 }
 
 export class OpenMeteoConditions implements ConditionsService {
   async current(): Promise<{ state: LocationState; data: Conditions | null; notice: string | null }> {
-    const fix = (await deviceFix()) ?? (await networkFix());
+    /*
+     * Three tiers, best first. The last one cannot fail, so the only way to
+     * reach the notice below is for the weather service itself to be down.
+     */
+    const fix = (await deviceFix()) ?? (await networkFix()) ?? zoneFix();
 
     if (!fix) {
       return {
         state: 'UNAVAILABLE',
         data: null,
-        notice: 'Could not work out where you are. Check your connection and try again.',
+        notice: 'Conditions are unavailable right now.',
       };
     }
 
@@ -187,7 +204,7 @@ export class OpenMeteoConditions implements ConditionsService {
 
     return {
       state: 'OK',
-      data: { uvIndex, aqi, humidity, lat, lon, source: fix.source },
+      data: { uvIndex, aqi, humidity, lat, lon, source: fix.source, place: fix.label ?? null },
       notice: null,
     };
   }

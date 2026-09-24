@@ -408,10 +408,18 @@ function EnvCard({
         </>
       ) : null}
 
+      {/*
+        Says which tier answered. "Conditions near you" means three different
+        things across device, network and time-zone fixes, and the reader is
+        entitled to know which one they are looking at before drawing any
+        conclusion from the numbers.
+      */}
       <Txt t="micro" c={P.faint} style={{ marginTop: S.md }}>
         {d.source === 'device'
-          ? 'Open-Meteo, for your current location. Coordinates are used for this lookup only and are not stored.'
-          : 'Open-Meteo, for your approximate area — your device position was not available, so this was resolved from your connection. Nothing is stored.'}
+          ? 'Live from Open-Meteo for your current location. Coordinates are used for this lookup only and are not stored.'
+          : d.source === 'network'
+            ? 'Live from Open-Meteo for your approximate area, resolved from your connection. Nothing is stored.'
+            : `Live from Open-Meteo for ${d.place ?? 'your region'}, based on your device time zone. Turn on location for readings where you actually are.`}
       </Txt>
     </Card>
   );

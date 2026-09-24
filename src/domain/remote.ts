@@ -272,7 +272,9 @@ export interface Conditions {
    * which, because "conditions near you" means something different in each
    * case and the reader should not have to guess.
    */
-  readonly source: 'device' | 'network';
+  readonly source: 'device' | 'network' | 'timezone';
+  /** City name, when the fix came from the time zone. */
+  readonly place: string | null;
 }
 
 export type LocationState = 'OK' | 'DENIED' | 'UNAVAILABLE';
