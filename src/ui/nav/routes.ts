@@ -77,7 +77,7 @@ export const DEFAULT_TAB: TabKey = 'home';
  * it beside TABS also means the test suite can import both without pulling in
  * a component.
  */
-export const SELECTED_UNITS = 2.7;
+export const SELECTED_UNITS = 2.4;
 /** Inner padding of the capsule, per side. */
 export const BAR_PAD = 6;
 /** Gap between the capsule and the screen edge, per side. */
@@ -100,8 +100,18 @@ export const BAR_SIDE_MARGIN = 16;
  */
 export const PILL_ICON = 20;
 export const PILL_GAP = 6;
-export const PILL_PAD_H = 9;
-export const PILL_FONT = 13;
+export const PILL_PAD_H = 8;
+export const PILL_FONT = 12.5;
+
+/**
+ * Breathing space inside the drawn pill, per side.
+ *
+ * Distinct from PILL_PAD_H, which pads the tab's touch area. This pads the
+ * white shape, and it is what stops the pill growing with the screen: the tab
+ * keeps its full share of the row for tapping, and the pill is drawn no wider
+ * than its contents need.
+ */
+export const PILL_COMFORT = 14;
 
 /**
  * Rough width of a label, in dp.
@@ -115,9 +125,14 @@ export function labelWidth(label: string, fontSize = PILL_FONT): number {
   return label.length * fontSize * 0.58;
 }
 
-/** Everything the selected pill must hold: glyph, gap, padding, label. */
+/** Glyph, gap and label - what actually has to be on screen. */
 export function pillContentWidth(label: string): number {
-  return PILL_ICON + PILL_GAP + PILL_PAD_H * 2 + labelWidth(label);
+  return PILL_ICON + PILL_GAP + labelWidth(label);
+}
+
+/** The same, plus the tab's own horizontal padding. The width a slot needs. */
+export function pillSlotNeeded(label: string): number {
+  return pillContentWidth(label) + PILL_PAD_H * 2;
 }
 
 export const UNITS = (TABS.length - 1) + SELECTED_UNITS;
@@ -151,7 +166,14 @@ export const MIN_BAR_WIDTH =
  * Returns zeroes before the bar has been laid out, which the caller treats as
  * "not ready to draw yet" rather than as a position.
  */
-export function pillSlot(barWidth: number, index: number): { left: number; width: number } {
+/**
+ * The slot a tab occupies: its share of the row, untouched.
+ *
+ * This is pure flex arithmetic and needs no measurement. Unselected tabs take
+ * one unit, the selected one takes SELECTED_UNITS, UNITS is the total, and the
+ * bar's inner width divides between them.
+ */
+export function tabSlot(barWidth: number, index: number): { left: number; width: number } {
   const inner = barWidth - BAR_PAD * 2;
   if (!(inner > 0)) return { left: 0, width: 0 };
 
@@ -160,3 +182,28 @@ export function pillSlot(barWidth: number, index: number): { left: number; width
 
   return { left: BAR_PAD + i * unit, width: SELECTED_UNITS * unit };
 }
+
+/**
+ * Where the white pill is actually drawn: the slot, clamped to its contents.
+ *
+ * Distinct from the slot on purpose. The tab keeps its whole share of the row
+ * for tapping, and only the shape is clamped. Without that the pill grew with
+ * the screen while "Symptoms" did not - on a wide phone a 140dp shape around
+ * 85dp of content, which reads as a pill that does not know what it is for.
+ *
+ * Where the slot is the tighter of the two, the slot wins and the label gets
+ * every pixel available: the clamp can only ever make the pill smaller than
+ * its share, never smaller than the screen allows.
+ */
+export function pillSlot(barWidth: number, index: number): { left: number; width: number } {
+  const slot = tabSlot(barWidth, index);
+  if (slot.width <= 0) return slot;
+
+  const i = Math.min(Math.max(index, 0), TABS.length - 1);
+  const wanted = pillContentWidth(TABS[i]?.label ?? '') + PILL_COMFORT * 2;
+  const width = Math.min(slot.width, wanted);
+
+  // Centred in the slot, so clamping never shifts it off its own tab.
+  return { left: slot.left + (slot.width - width) / 2, width };
+}
+
