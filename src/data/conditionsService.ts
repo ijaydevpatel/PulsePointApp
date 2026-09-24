@@ -111,6 +111,32 @@ const isCoord = (v: unknown): v is number =>
  * off, no cached fix, slow radio — because the caller has somewhere else to
  * go and none of these are worth surfacing as errors.
  */
+/**
+ * City name for a pair of coordinates, via the OS geocoder.
+ *
+ * Strictly best-effort: it is wrapped, raced and allowed to return undefined,
+ * because a reading labelled only by its numbers is still a reading, and
+ * failing the whole card over a missing name would repeat the mistake that
+ * took three attempts to stop making.
+ */
+async function placeName(lat: number, lon: number): Promise<string | undefined> {
+  try {
+    const results = await Promise.race([
+      Location.reverseGeocodeAsync({ latitude: lat, longitude: lon }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+    ]);
+    const first = Array.isArray(results) ? results[0] : null;
+    if (!first) return undefined;
+
+    // city is usually right; district and region cover the cases where the
+    // geocoder has no city for a rural or newly built area.
+    const name = first.city || first.subregion || first.district || first.region;
+    return name ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 async function deviceFix(): Promise<Fix | null> {
   try {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -121,17 +147,15 @@ async function deviceFix(): Promise<Fix | null> {
 
     // A cached fix costs nothing and is plenty accurate for this.
     const cached = await Location.getLastKnownPositionAsync({ maxAge: 60 * 60 * 1000 });
-    if (cached) {
-      return { lat: cached.coords.latitude, lon: cached.coords.longitude, source: 'device' };
-    }
-
-    const live = await Promise.race([
+    const pos = cached ?? await Promise.race([
       Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), FIX_TIMEOUT_MS)),
     ]);
-    if (!live) return null;
+    if (!pos) return null;
 
-    return { lat: live.coords.latitude, lon: live.coords.longitude, source: 'device' };
+    const lat = pos.coords.latitude;
+    const lon = pos.coords.longitude;
+    return { lat, lon, source: 'device', place: await placeName(lat, lon) };
   } catch {
     // Includes the case where the native module is missing entirely, which is
     // what happens in a build made before expo-location was added.
@@ -159,7 +183,14 @@ async function networkFix(): Promise<Fix | null> {
 
     const lat = data?.latitude;
     const lon = data?.longitude;
-    if (isCoord(lat) && isCoord(lon)) return { lat, lon, source: 'network' };
+    if (!isCoord(lat) || !isCoord(lon)) continue;
+
+    // Both providers already name the city alongside the coordinates, so the
+    // label is free here — no second request, no geocoder.
+    const city = typeof data?.city === 'string' ? data.city.trim() : '';
+    const region = typeof data?.region === 'string' ? data.region.trim() : '';
+
+    return { lat, lon, source: 'network', place: city || region || undefined };
   }
   return null;
 }
@@ -204,7 +235,7 @@ export class OpenMeteoConditions implements ConditionsService {
 
     return {
       state: 'OK',
-      data: { uvIndex, aqi, humidity, lat, lon, source: fix.source, place: fix.label ?? null },
+      data: { uvIndex, aqi, humidity, lat, lon, source: fix.source, place: fix.place ?? null },
       notice: null,
     };
   }

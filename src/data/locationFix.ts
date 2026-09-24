@@ -35,8 +35,15 @@ export interface Fix {
   readonly lat: number;
   readonly lon: number;
   readonly source: FixSource;
-  /** Present for the time-zone tier, for the label. */
-  readonly label?: string;
+  /**
+   * Place name to show on the card, when one is known.
+   *
+   * Every tier can supply this: the IP lookup returns a city outright, the
+   * time zone is named after one, and a device fix can be reverse-geocoded by
+   * the OS. It is still optional, because a reverse geocode is best-effort and
+   * a reading without a name beats no reading.
+   */
+  readonly place?: string;
 }
 
 /**
@@ -117,14 +124,14 @@ export function zoneFix(): Fix | null {
 
   const exact = ZONE_COORDS[zone];
   if (exact) {
-    return { lat: exact[0], lon: exact[1], source: 'timezone', label: exact[2] };
+    return { lat: exact[0], lon: exact[1], source: 'timezone', place: exact[2] };
   }
 
   // 'Asia/Something_Unlisted' still tells us the continent.
   const region = zone.split('/')[0];
   const fallback = region ? REGION_COORDS[region] : undefined;
   if (fallback) {
-    return { lat: fallback[0], lon: fallback[1], source: 'timezone', label: fallback[2] };
+    return { lat: fallback[0], lon: fallback[1], source: 'timezone', place: fallback[2] };
   }
 
   return null;

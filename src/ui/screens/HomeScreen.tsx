@@ -421,6 +421,22 @@ function EnvCard({
 
   return (
     <Card style={{ padding: S.lg }}>
+      {/*
+        Where the readings are for, above the readings themselves.
+        Three numbers with no place attached invite the assumption that they
+        are measured at the phone — which is only true on the device tier. The
+        pin and the name say what they actually describe.
+      */}
+      {d.place ? (
+        <View style={[st.placeRow, { borderBottomColor: P.line }]}>
+          <Icon name="pin" size={14} color={P.muted} />
+          <Txt t="bodyStrong" numberOfLines={1} style={{ flex: 1 }}>{d.place}</Txt>
+          {d.source !== 'device' ? (
+            <Txt t="micro" c={P.faint}>approximate</Txt>
+          ) : null}
+        </View>
+      ) : null}
+
       <View style={st.metrics}>
         <Metric icon="sun" label="UV INDEX" value={show(d.uvIndex)} />
         <Metric icon="search" label="AQI" value={show(d.aqi)} />
@@ -445,7 +461,7 @@ function EnvCard({
           ? 'Live from Open-Meteo for your current location. Coordinates are used for this lookup only and are not stored.'
           : d.source === 'network'
             ? 'Live from Open-Meteo for your approximate area, resolved from your connection. Nothing is stored.'
-            : `Live from Open-Meteo for ${d.place ?? 'your region'}, based on your device time zone. Turn on location for readings where you actually are.`}
+            : 'Live from Open-Meteo, located by your device time zone. Turn on location for readings where you actually are.'}
       </Txt>
     </Card>
   );
@@ -518,6 +534,11 @@ const st = StyleSheet.create({
     gap: S.sm, marginTop: S.sm,
   },
 
+  placeRow: {
+    flexDirection: 'row', alignItems: 'center', gap: S.sm,
+    paddingBottom: S.md, marginBottom: S.lg,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
   metrics: { flexDirection: 'row', justifyContent: 'space-around' },
   metric: { alignItems: 'center', flex: 1 },
   metricIcon: {

@@ -19,7 +19,7 @@ describe('time-zone location fix', () => {
     pretendZone('Asia/Kolkata');
     const fix = zoneFix()!;
     expect(fix.source).toBe('timezone');
-    expect(fix.label).toBe('Kolkata');
+    expect(fix.place).toBe('Kolkata');
     expect(fix.lat).toBeCloseTo(22.57, 1);
     expect(fix.lon).toBeCloseTo(88.36, 1);
   });
@@ -27,7 +27,7 @@ describe('time-zone location fix', () => {
   it('accepts the legacy alias for the same place', () => {
     // Older Androids still report Asia/Calcutta.
     pretendZone('Asia/Calcutta');
-    expect(zoneFix()!.label).toBe('Kolkata');
+    expect(zoneFix()!.place).toBe('Kolkata');
   });
 
   it('falls back to the region for an unlisted zone', () => {
@@ -36,7 +36,7 @@ describe('time-zone location fix', () => {
     pretendZone('Asia/Thimphu');
     const fix = zoneFix()!;
     expect(fix.source).toBe('timezone');
-    expect(fix.label).toBe('Asia');
+    expect(fix.place).toBe('Asia');
   });
 
   it('produces valid coordinates for every zone it knows', () => {
