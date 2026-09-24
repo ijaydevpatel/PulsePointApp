@@ -77,7 +77,7 @@ export const DEFAULT_TAB: TabKey = 'home';
  * it beside TABS also means the test suite can import both without pulling in
  * a component.
  */
-export const SELECTED_UNITS = 2.7;
+export const SELECTED_UNITS = 2.45;
 /** Inner padding of the capsule, per side. */
 export const BAR_PAD = 6;
 /** Gap between the capsule and the screen edge, per side. */
@@ -100,7 +100,7 @@ export const BAR_SIDE_MARGIN = 16;
  */
 export const PILL_ICON = 20;
 export const PILL_GAP = 6;
-export const PILL_PAD_H = 9;
+export const PILL_PAD_H = 8;
 export const PILL_FONT = 13;
 
 /**
@@ -129,7 +129,7 @@ export const UNITS = (TABS.length - 1) + SELECTED_UNITS;
  *   available  = width - 2*BAR_SIDE_MARGIN - 2*BAR_PAD
  *   unselected = available / UNITS  ≥  44
  *
- * With five tabs that is 6.7 units and needs about 339dp. The narrowest
+ * With five tabs that is 6.45 units and needs about 328dp. The narrowest
  * Android phone in circulation is 320dp, which is below that - so the bar
  * sheds its side margins there, and the floor still holds with 45dp per tab.
  * Losing the floating inset is a far smaller loss than losing a touch target.

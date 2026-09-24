@@ -126,15 +126,26 @@ describe('every tab stays tappable', () => {
   });
 
   it('leaves the longest label breathing room, not just a fit', () => {
-    // A pill that clears its label by a hair reads as cramped even when
-    // nothing truncates. Eight points is about one character of slack.
+    /*
+     * Four points, and the number is a trade rather than a preference.
+     *
+     * The pill fills its slot, so its width is a share of the row: widening
+     * it for comfort at 320dp widens it everywhere, and at 400dp it becomes a
+     * shape visibly larger than its contents. Drawing it narrower than the
+     * slot instead was tried and reverted - it left bare bar showing inside
+     * the first and last tabs, where the slot runs to the capsule's edge.
+     *
+     * So this asks for enough that nothing looks pinched on the narrowest
+     * phone, and no more. The longest label is what sets the floor; a shorter
+     * one would let the whole pill come down.
+     */
     const width = 320;
     const margin = width < MIN_BAR_WIDTH ? 4 : BAR_SIDE_MARGIN;
     const available = width - margin * 2 - BAR_PAD * 2;
     const selected = (available / UNITS) * SELECTED_UNITS;
 
     const longest = TABS.reduce((a, b) => (labelWidth(a.label) > labelWidth(b.label) ? a : b));
-    expect(selected - pillContentWidth(longest.label)).toBeGreaterThanOrEqual(8);
+    expect(selected - pillContentWidth(longest.label)).toBeGreaterThanOrEqual(4);
   });
 
   it('does not buy that room by starving the other tabs', () => {
