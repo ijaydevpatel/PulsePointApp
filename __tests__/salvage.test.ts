@@ -153,3 +153,67 @@ describe('the analyzer using it', () => {
     expect(out.data).toBeNull();
   });
 });
+
+describe('a complete report', () => {
+  const FILE = { uri: 'file:///r.pdf', name: 'r.pdf', mimeType: 'application/pdf' };
+
+  const returning = (body: unknown) => {
+    const api = new ApiClient('https://example.test', DEFAULT_TIMEOUT_MS, (async () => ({
+      ok: true, status: 200,
+      headers: { get: () => 'application/json' },
+      json: async () => body,
+    })) as any);
+    api.setTokenProvider(async () => 'token');
+    return new RemoteReportAnalyzer(api).analyze(FILE);
+  };
+
+  it('reads the risk whatever word the model used for it', async () => {
+    /*
+     * The screen said "Overall risk: Unknown" on a report that had assessed
+     * one. The check was an exact match against four canonical words, so
+     * anything else - a different case, a synonym, a trailing word - fell
+     * through and the app reported that no assessment had been made.
+     */
+    for (const [given, expected] of [
+      ['Moderate', 'Moderate'], ['moderate', 'Moderate'], ['MEDIUM', 'Moderate'],
+      ['Moderate risk', 'Moderate'], ['high', 'High'], ['Critical', 'Critical'],
+      ['Severe', 'Critical'], ['low', 'Low'],
+    ] as const) {
+      const out = await returning({ findings: 'x.', riskLevel: given });
+      expect(out.data?.riskLevel).toBe(expected);
+    }
+  });
+
+  it('still says Unknown rather than guessing', async () => {
+    // Never inferred from the other fields: deriving a risk level from a
+    // marker count would be the app making the clinical call.
+    const out = await returning({
+      findings: 'Three markers are outside their reference ranges.',
+      abnormalMarkers: ['A', 'B', 'C'],
+    });
+    expect(out.data?.riskLevel).toBe('Unknown');
+  });
+
+  it('keeps findings to a readable length', async () => {
+    const wall = Array.from({ length: 12 }, (_, i) => `Sentence ${i + 1}.`).join(' ');
+    const out = await returning({ findings: wall, riskLevel: 'Low' });
+
+    const sentences = (String(out.data?.findings).match(/[.!?](\s|$)/g) ?? []).length;
+    expect(sentences).toBe(5);
+    expect(String(out.data?.findings).trim()).toMatch(/[.!?]$/);
+  });
+
+  it('leaves the markers and the plan alone', async () => {
+    // Only the two prose blocks are capped. The plan is the part the reader
+    // opened the screen for, and the markers are a list, not a paragraph.
+    const out = await returning({
+      findings: 'Short.',
+      abnormalMarkers: ['One', 'Two', 'Three', 'Four', 'Five', 'Six'],
+      advice: 'Context here.\n1. First.\n2. Second.\n3. Third.\n4. Fourth.\n5. Fifth.',
+      riskLevel: 'Moderate',
+    });
+
+    expect(out.data?.abnormalMarkers).toHaveLength(6);
+    expect(out.data?.advice).toContain('5. Fifth.');
+  });
+});

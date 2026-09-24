@@ -376,7 +376,40 @@ function readNews(v: unknown): readonly NewsItem[] {
 
 /* ═════════════════════════════ analyzer ════════════════════════════════════ */
 
-const RISKS: readonly ReportRisk[] = ['Low', 'Moderate', 'High', 'Critical'];
+/**
+ * How long the report's prose blocks are allowed to be.
+ *
+ * Findings came back as a single unbroken wall - the prompt asks for a
+ * "detail-heavy segmented audit", and on a long document that is most of a
+ * phone screen before the reader reaches what any of it means. The markers,
+ * the implication and the plan are all separate fields and untouched.
+ */
+const FINDINGS_SENTENCES = 5;
+const IMPLICATION_SENTENCES = 4;
+
+/**
+ * Risk word to band, forgivingly.
+ *
+ * An exact-match check against the four canonical words meant "moderate",
+ * "MEDIUM" or "Moderate risk" all fell through to Unknown - the screen then
+ * said the risk had not been assessed when it had. Matching is now
+ * case-insensitive, and the words the model actually reaches for are mapped
+ * onto the band they mean.
+ *
+ * Unknown is still a real answer, for when nothing recognisable came back.
+ * It is never guessed at from the other fields: inventing a risk level from
+ * a marker count would be the app making the clinical call.
+ */
+function readRisk(value: unknown): ReportRisk {
+  if (typeof value !== 'string') return 'Unknown';
+  const word = value.trim().toLowerCase();
+
+  if (word.includes('critical') || word.includes('severe')) return 'Critical';
+  if (word.includes('high')) return 'High';
+  if (word.includes('moderate') || word.includes('medium')) return 'Moderate';
+  if (word.includes('low') || word.includes('minimal')) return 'Low';
+  return 'Unknown';
+}
 
 /** Defensive: the pipeline's shape is set by the backend, not guaranteed. */
 function readStages(v: unknown): ReportStage[] {
@@ -419,7 +452,7 @@ function toReport(
     abnormalMarkers: markers,
     implications,
     advice,
-    riskLevel: RISKS.includes(raw?.riskLevel) ? raw.riskLevel as ReportRisk : 'Unknown',
+    riskLevel: readRisk(raw?.riskLevel),
     stages: readStages(raw?.neuralPulse?.stages),
     totalSeconds: typeof raw?.neuralPulse?.generationTime === 'number'
       ? raw.neuralPulse.generationTime
@@ -447,8 +480,8 @@ export class RemoteReportAnalyzer implements ReportService {
        * reason at all. That is what a bare "could not be read" with nothing in
        * brackets means.
        */
-      const findings = str(raw?.findings, '');
-      const implications = str(raw?.implications, '');
+      const findings = limitSentences(str(raw?.findings, ''), FINDINGS_SENTENCES);
+      const implications = limitSentences(str(raw?.implications, ''), IMPLICATION_SENTENCES);
       const advice = str(raw?.advice, '');
       const markers = strings(raw?.abnormalMarkers);
 
@@ -483,8 +516,8 @@ export class RemoteReportAnalyzer implements ReportService {
         : null;
 
       if (salvaged) {
-        const findings = str(salvaged.findings, '');
-        const implications = str(salvaged.implications, '');
+        const findings = limitSentences(str(salvaged.findings, ''), FINDINGS_SENTENCES);
+        const implications = limitSentences(str(salvaged.implications, ''), IMPLICATION_SENTENCES);
         const advice = str(salvaged.advice, '');
         const markers = strings(salvaged.abnormalMarkers);
 
