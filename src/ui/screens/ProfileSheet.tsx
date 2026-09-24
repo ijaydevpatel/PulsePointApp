@@ -40,7 +40,6 @@ interface Row {
  */
 const ROWS: readonly Row[] = [
   { key: 'records', icon: 'records',   label: 'Records',  hint: 'Past assessments held on this device' },
-  { key: 'chat',    icon: 'message',   label: 'Chat',     hint: 'Ask about a symptom or a medicine' },
   { key: 'news',    icon: 'newspaper', label: 'Health news', hint: 'Recent articles' },
   { key: 'settings', icon: 'shield',   label: 'Settings', hint: 'Appearance, data and about' },
 ];

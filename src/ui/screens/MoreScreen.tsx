@@ -10,7 +10,6 @@ import { RouteKey } from '../nav/routes';
 
 const ITEMS: { key: RouteKey; title: string; sub: string; icon: IconName; phase?: number; tint?: string }[] = [
   { key: 'chat',      title: 'Talk to a Doctor', sub: 'Consult with our AI medical assistant', icon: 'message', tint: '#3A46E8' },
-  { key: 'documents', title: 'Medical Analyzer', sub: 'Analyze blood tests and reports', icon: 'file', tint: '#3ECF98' },
   { key: 'news',      title: 'Health News',    sub: 'Stay updated with latest health insights', icon: 'newspaper', tint: '#FF9A52' },
   { key: 'checkin',   title: 'Daily Check-in', sub: 'Track your mood and recovery trend', icon: 'clock', tint: '#8F97FF' },
 ];

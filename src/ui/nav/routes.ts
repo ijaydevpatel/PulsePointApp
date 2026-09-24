@@ -33,13 +33,12 @@ export type TabKey =
   | 'home'        // app-only: health summary
   | 'triage'      // web: /dashboard/symptoms
   | 'medicines'   // web: /dashboard/medicine
-  | 'documents'   // web: /dashboard/reports
+  | 'chat'        // web: /dashboard/chat
   | 'care';       // web: /dashboard/map
 
 export type RouteKey =
   | TabKey
   | 'records'      // reached from the profile sheet
-  | 'chat'         // reached from the profile sheet
   | 'news'         // reached from the profile sheet
   | 'result'       // pushed from triage
   | 'interactions' // pushed from medicines
@@ -62,7 +61,7 @@ export const TABS: readonly TabDef[] = [
   { key: 'home',      label: 'Home',      icon: 'home',    web: null },
   { key: 'triage',    label: 'Symptoms',  icon: 'pulse',   web: '/dashboard/symptoms' },
   { key: 'medicines', label: 'Medicines', icon: 'pill',    web: '/dashboard/medicine' },
-  { key: 'documents', label: 'Reports',   icon: 'file',    web: '/dashboard/reports' },
+  { key: 'chat',      label: 'AI Doctor', icon: 'message', web: '/dashboard/chat' },
   { key: 'care',      label: 'Map',       icon: 'pin',     web: '/dashboard/map' },
 ];
 

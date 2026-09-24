@@ -6,16 +6,14 @@
  */
 import {
   AgentProfile, MedicineCheck, MedicineCheckRequest, MedicineCheckService,
-  RemoteOutcome, RemoteStatus, REMOTE_NOTICE, COLLISION_NOTICE, REPORT_NOTICE,
+  RemoteOutcome, RemoteStatus, REMOTE_NOTICE, COLLISION_NOTICE,
   BUSY_NOTICE, isBusy,
   SymptomAnalysis, SymptomAnalysisRequest, SymptomAnalysisService,
   ProbableCondition, MatrixSeverity,
   DailyStatus, DashboardService, Intelligence, RiskTrend,
-  ReportStage,
   ProfileService, UserProfile,
 } from '../domain/remote';
 import { limitSentences } from '../domain/sentences';
-import { salvageJson } from '../domain/salvageJson';
 import { ApiClient, ApiError } from './apiClient';
 
 const SEVERITIES: readonly MatrixSeverity[] = ['Critical', 'High', 'Medium', 'Low'];
@@ -99,24 +97,6 @@ function serverDetail(error: unknown): string | undefined {
  */
 const ANALYSIS_TIMEOUT_MS = 90000;
 
-/**
- * Sized against what the server actually does, not against a guess.
- *
- * The route runs two stages. Extraction is one call to Gemini 2.5 Flash.
- * Synthesis is 3.7, then 3.5 if 3.7 is busy, then Groq if both are - one
- * attempt each, no waiting in between. So the worst case is four model calls
- * in sequence, and only the first carries the document.
- *
- * Three minutes covers that with room to spare. It was briefly five, sized
- * against an earlier server chain of four models with two attempts per stage,
- * every attempt re-uploading the file; that chain is gone and the ceiling
- * comes down with it.
- *
- * Still bounded, deliberately. A browser fetch has no deadline at all, which
- * is why the website never saw this, but a phone left on "reading" for ever
- * is its own failure.
- */
-const REPORT_TIMEOUT_MS = 180000;
 
 /**
  * How many sentences of synopsis the result screen will show.
@@ -284,7 +264,6 @@ function readMatrix(v: unknown): readonly ProbableCondition[] {
 import {
   ChatGreeting, ChatReply, ChatService,
   NewsFeed, NewsItem, NewsService,
-  ReportAnalysis, ReportRisk, ReportService, UploadFile,
 } from '../domain/remote';
 
 export class RemoteChat implements ChatService {
@@ -372,186 +351,6 @@ function readNews(v: unknown): readonly NewsItem[] {
       image: typeof n.image === 'string' ? n.image : '',
       category: typeof n.category === 'string' ? n.category : '',
     }));
-}
-
-/* ═════════════════════════════ analyzer ════════════════════════════════════ */
-
-/**
- * How long the report's prose blocks are allowed to be.
- *
- * Findings came back as a single unbroken wall - the prompt asks for a
- * "detail-heavy segmented audit", and on a long document that is most of a
- * phone screen before the reader reaches what any of it means. The markers,
- * the implication and the plan are all separate fields and untouched.
- */
-const FINDINGS_SENTENCES = 5;
-const IMPLICATION_SENTENCES = 4;
-
-/**
- * Risk word to band, forgivingly.
- *
- * An exact-match check against the four canonical words meant "moderate",
- * "MEDIUM" or "Moderate risk" all fell through to Unknown - the screen then
- * said the risk had not been assessed when it had. Matching is now
- * case-insensitive, and the words the model actually reaches for are mapped
- * onto the band they mean.
- *
- * Unknown is still a real answer, for when nothing recognisable came back.
- * It is never guessed at from the other fields: inventing a risk level from
- * a marker count would be the app making the clinical call.
- */
-function readRisk(value: unknown): ReportRisk {
-  if (typeof value !== 'string') return 'Unknown';
-  const word = value.trim().toLowerCase();
-
-  if (word.includes('critical') || word.includes('severe')) return 'Critical';
-  if (word.includes('high')) return 'High';
-  if (word.includes('moderate') || word.includes('medium')) return 'Moderate';
-  if (word.includes('low') || word.includes('minimal')) return 'Low';
-  return 'Unknown';
-}
-
-/** Defensive: the pipeline's shape is set by the backend, not guaranteed. */
-function readStages(v: unknown): ReportStage[] {
-  if (!Array.isArray(v)) return [];
-  return v.flatMap((x: any) => {
-    const model = typeof x?.model === 'string' ? x.model.trim() : '';
-    if (!model) return [];
-    return [{
-      stage: typeof x?.stage === 'string' ? x.stage : '',
-      model,
-      seconds: typeof x?.seconds === 'number' && Number.isFinite(x.seconds) ? x.seconds : null,
-    }];
-  });
-}
-
-/** The fields worth lifting out of a reply that will not parse. */
-const REPORT_FIELDS = [
-  'documentType', 'patientIdentity', 'findings',
-  'abnormalMarkers', 'implications', 'advice', 'riskLevel',
-] as const;
-
-/**
- * One mapping, used by both the parsed reply and the salvaged one.
- *
- * Shared deliberately: a salvaged report that rendered differently from a
- * clean one would be a second code path to keep in step, and the whole point
- * is that the reader cannot tell the difference because there is none.
- */
-function toReport(
-  raw: any,
-  findings: string,
-  markers: readonly string[],
-  implications: string,
-  advice: string,
-): ReportAnalysis {
-  return {
-    documentType: str(raw?.documentType, 'Document'),
-    patientIdentity: str(raw?.patientIdentity, '[UNKNOWN]'),
-    findings,
-    abnormalMarkers: markers,
-    implications,
-    advice,
-    riskLevel: readRisk(raw?.riskLevel),
-    stages: readStages(raw?.neuralPulse?.stages),
-    totalSeconds: typeof raw?.neuralPulse?.generationTime === 'number'
-      ? raw.neuralPulse.generationTime
-      : null,
-  };
-}
-
-export class RemoteReportAnalyzer implements ReportService {
-  constructor(private readonly api: ApiClient) {}
-
-  async analyze(file: UploadFile): Promise<RemoteOutcome<ReportAnalysis>> {
-    const started = Date.now();
-    try {
-      // The route is upload.single('reportFile'), so the field name is not
-      // negotiable - a mismatch surfaces as "No file uploaded" from multer.
-      const raw = await this.api.upload<any>(
-        '/api/reports/analyze', 'reportFile', file, REPORT_TIMEOUT_MS,
-      );
-
-      /*
-       * The model decides which of these it fills in, and it does not always
-       * fill in `findings`. Requiring that one field meant a response with a
-       * perfectly good set of implications and advice was thrown away as a
-       * failure - and thrown away silently, because this path reported no
-       * reason at all. That is what a bare "could not be read" with nothing in
-       * brackets means.
-       */
-      const findings = limitSentences(str(raw?.findings, ''), FINDINGS_SENTENCES);
-      const implications = limitSentences(str(raw?.implications, ''), IMPLICATION_SENTENCES);
-      const advice = str(raw?.advice, '');
-      const markers = strings(raw?.abnormalMarkers);
-
-      if (!findings && !implications && !advice && markers.length === 0) {
-        /*
-         * Nothing usable came back. Name the keys the server did send: a 200
-         * with the wrong shape is otherwise indistinguishable from a 200 with
-         * an empty one, and neither is visible from the screen.
-         */
-        const keys = raw && typeof raw === 'object' ? Object.keys(raw) : [];
-        return fail(
-          'FAILED', started, REPORT_NOTICE,
-          keys.length ? `server sent: ${keys.slice(0, 8).join(', ')}` : 'empty response',
-        );
-      }
-
-      return {
-        status: 'OK',
-        data: toReport(raw, findings, markers, implications, advice),
-        notice: null,
-        elapsedMs: Date.now() - started,
-      };
-    } catch (error) {
-      /*
-       * The server could not parse the model's reply, but it returned the
-       * reply. Recover it here rather than discarding an answer that was
-       * already generated - see domain/salvageJson for why these arrive
-       * truncated and what is and is not repaired.
-       */
-      const salvaged = error instanceof ApiError
-        ? salvageJson((error.body as any)?.raw, REPORT_FIELDS)
-        : null;
-
-      if (salvaged) {
-        const findings = limitSentences(str(salvaged.findings, ''), FINDINGS_SENTENCES);
-        const implications = limitSentences(str(salvaged.implications, ''), IMPLICATION_SENTENCES);
-        const advice = str(salvaged.advice, '');
-        const markers = strings(salvaged.abnormalMarkers);
-
-        if (findings || implications || advice || markers.length > 0) {
-          return {
-            status: 'OK',
-            data: toReport(salvaged, findings, markers, implications, advice),
-            notice: null,
-            elapsedMs: Date.now() - started,
-          };
-        }
-      }
-
-      const detail = serverDetail(error);
-
-      /*
-       * A queued request is not a failed document. Gemini's 503 says the model
-       * is busy, and saying "the report could not be read" over that sends
-       * someone off to find a different file for a problem that clears on its
-       * own. The reason is still shown, because "busy" without evidence is the
-       * kind of reassurance that hides a real fault.
-       */
-      if (isBusy(detail)) {
-        return {
-          status: 'FAILED',
-          data: null,
-          notice: `${BUSY_NOTICE} (${detail})`,
-          elapsedMs: Date.now() - started,
-        };
-      }
-
-      return fail(classify(error, this.api.configured), started, REPORT_NOTICE, detail);
-    }
-  }
 }
 
 function str(v: unknown, fallback: string): string {

@@ -44,7 +44,6 @@ import { HomeScreen } from './screens/HomeScreen';
 import { ProfileSheet } from './screens/ProfileSheet';
 import { ChatScreen } from './screens/ChatScreen';
 import { NewsScreen } from './screens/NewsScreen';
-import { AnalyzerScreen } from './screens/AnalyzerScreen';
 import { CheckInScreen } from './screens/SimpleScreens';
 import { ThemeContext, buildTheme, Scheme } from './theme';
 
@@ -201,7 +200,6 @@ function AppContent() {
       case 'records':   return <RecordsScreen store={store} refreshKey={historyKey} onBack={pop} />;
       case 'chat':      return <ChatScreen service={services.chat} onBack={pop} />;
       case 'news':      return <NewsScreen service={services.news} onBack={pop} />;
-      case 'documents': return <AnalyzerScreen service={services.reports} onBack={pop} />;
       case 'checkin':   return <CheckInScreen onBack={pop} />;
       default:          return null;
     }
@@ -248,7 +246,13 @@ function AppContent() {
             onCheck={setCheck}
           />
         );
-      case 'documents': return <AnalyzerScreen service={services.reports} />;
+      /*
+       * The chat is a tab now rather than a page reached from the profile
+       * sheet, so it gets no onBack: there is nowhere to go back to from a
+       * root destination, and a back arrow on one would be a control that
+       * does nothing.
+       */
+      case 'chat':      return <ChatScreen service={services.chat} />;
       case 'care':      return <CareScreen />;
     }
   }

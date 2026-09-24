@@ -42,7 +42,7 @@ const OFF_PILL = '#A6A6A6';
 describe('the navigation graph', () => {
   it('carries exactly the five named destinations, in order', () => {
     expect(TABS.map((t) => t.key)).toEqual([
-      'home', 'triage', 'medicines', 'documents', 'care',
+      'home', 'triage', 'medicines', 'chat', 'care',
     ] satisfies TabKey[]);
   });
 

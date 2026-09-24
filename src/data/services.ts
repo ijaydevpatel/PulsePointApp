@@ -10,7 +10,7 @@
 import { ApiClient, TokenProvider } from './apiClient';
 import {
   RemoteSymptomAnalysis, RemoteMedicineCheck,
-  RemoteChat, RemoteNews, RemoteReportAnalyzer, RemoteDashboard, RemoteProfile,
+  RemoteChat, RemoteNews, RemoteDashboard, RemoteProfile,
 } from './remoteServices';
 import { OpenMeteoConditions } from './conditionsService';
 
@@ -20,7 +20,6 @@ export interface Services {
   readonly medicines: RemoteMedicineCheck;
   readonly chat: RemoteChat;
   readonly news: RemoteNews;
-  readonly reports: RemoteReportAnalyzer;
   readonly dashboard: RemoteDashboard;
   readonly profile: RemoteProfile;
   /**
@@ -51,7 +50,6 @@ export function createServices(getToken: TokenProvider): Services {
     medicines: new RemoteMedicineCheck(api),
     chat: new RemoteChat(api),
     news: new RemoteNews(api),
-    reports: new RemoteReportAnalyzer(api),
     dashboard: new RemoteDashboard(api),
     profile: new RemoteProfile(api),
     conditions: new OpenMeteoConditions(),
