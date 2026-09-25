@@ -64,27 +64,91 @@ describe('the precise fix the map runs on', () => {
     expect(asked.accuracy).toBe(current.Accuracy.High);
   });
 
-  it('never falls back to a stale cached position', async () => {
-    // A precise answer or none. A cached one dressed up as precise is the
-    // failure this whole file is about.
+  it('does not reach for the cache when the device answers', async () => {
     const { preciseFix } = load();
     await preciseFix();
 
     expect(current.getLastKnownPositionAsync).not.toHaveBeenCalled();
   });
 
+  it('falls back the way the website does when high accuracy will not answer', async () => {
+    /*
+     * The website asks the browser twice: enableHighAccuracy with
+     * maximumAge 0, then a cheaper pass that will take a cached reading up to
+     * a minute old. The app had only the first of those, so indoors - where a
+     * high-accuracy attempt just times out - it returned nothing, and the
+     * screen fell through to an IP lookup that put the person in the wrong
+     * place entirely.
+     */
+    const highThenNothing = jest.fn(async ({ accuracy }: any) => (
+      accuracy === 4 ? null : position(-36.8568, 174.7645, 60)
+    ));
+    current = mockLocation({ getCurrentPositionAsync: highThenNothing });
+    jest.resetModules();
+
+    const { preciseFix } = load();
+    const out = await preciseFix();
+
+    const asked = (highThenNothing.mock.calls as any[]).map((c) => c[0].accuracy);
+    expect(asked).toEqual([current.Accuracy.High, current.Accuracy.Balanced]);
+    expect(out.kind).toBe('ok');
+  });
+
+  it('takes a recent cached reading before giving up entirely', async () => {
+    current = mockLocation({ getCurrentPositionAsync: jest.fn(async () => null) });
+    jest.resetModules();
+
+    const { preciseFix } = load();
+    const out = await preciseFix();
+
+    const asked = (current.getLastKnownPositionAsync.mock.calls as any[])[0][0];
+    expect(asked.maxAge).toBe(60 * 1000);
+    expect(out.kind).toBe('ok');
+  });
+
+  it('says why there is no position, rather than just failing', async () => {
+    /*
+     * The reasons are not interchangeable: a refused permission is fixed in
+     * Settings, a disabled service with a toggle, and a device that has not
+     * got a fix yet by waiting. Collapsing them into null is what led to
+     * quietly substituting an IP lookup.
+     */
+    current = mockLocation({
+      hasServicesEnabledAsync: jest.fn(async () => false),
+    });
+    jest.resetModules();
+    expect((await load().preciseFix()).kind).toBe('off');
+
+    current = mockLocation({
+      requestForegroundPermissionsAsync: jest.fn(async () => ({ status: 'denied' })),
+    });
+    jest.resetModules();
+    expect((await load().preciseFix()).kind).toBe('denied');
+
+    current = mockLocation({
+      getCurrentPositionAsync: jest.fn(async () => ({
+        ...position(37.422, -122.084, 5), mocked: true,
+      })),
+    });
+    jest.resetModules();
+    expect((await load().preciseFix()).kind).toBe('mocked');
+  });
+
   it('reports how accurate the reading actually was', async () => {
     const { preciseFix } = load();
-    const fix = await preciseFix();
+    const out = await preciseFix();
 
-    expect(fix.accuracyM).toBe(8);
-    expect(fix.source).toBe('device');
-    expect(fix.lat).toBeCloseTo(-36.8568, 4);
+    expect(out.kind).toBe('ok');
+    expect(out.fix.accuracyM).toBe(8);
+    expect(out.fix.source).toBe('device');
+    expect(out.fix.lat).toBeCloseTo(-36.8568, 4);
   });
 
   it('gives up rather than guessing when the device will not say', async () => {
     current = mockLocation({
       getCurrentPositionAsync: jest.fn(() => new Promise(() => { /* never */ })),
+      // Nothing cached either, or the second stage would rescue it.
+      getLastKnownPositionAsync: jest.fn(async () => null),
     });
     jest.resetModules();
 
@@ -99,13 +163,22 @@ describe('the precise fix the map runs on', () => {
      * advances past a timer that does not exist yet, and the test hangs on a
      * promise nothing will ever resolve.
      */
-    for (let i = 0; i < 20; i += 1) await Promise.resolve();
-    jest.advanceTimersByTime(20000);
+    /*
+     * Both stages have to time out, not just the first: fifteen seconds of
+     * high accuracy, then twelve of balanced. Each cut-off is armed only
+     * after the previous stage's promise settles, so the clock has to be
+     * advanced twice with the microtasks flushed in between.
+     */
+    for (const _ of [0, 1]) {
+      for (let i = 0; i < 30; i += 1) await Promise.resolve();
+      jest.advanceTimersByTime(20000);
+    }
+    for (let i = 0; i < 30; i += 1) await Promise.resolve();
 
-    const fix = await pending;
+    const out = await pending;
     jest.useRealTimers();
 
-    expect(fix).toBeNull();
+    expect(out.kind).toBe('unavailable');
   });
 
   it('refuses a mocked reading, however precise it claims to be', async () => {
@@ -129,7 +202,7 @@ describe('the precise fix the map runs on', () => {
     jest.resetModules();
 
     const { preciseFix } = load();
-    expect(await preciseFix()).toBeNull();
+    expect((await preciseFix()).kind).not.toBe('ok');
   });
 
   it('accepts a real reading that happens to be precise', async () => {
@@ -143,10 +216,10 @@ describe('the precise fix the map runs on', () => {
     jest.resetModules();
 
     const { preciseFix } = load();
-    const fix = await preciseFix();
+    const out = await preciseFix();
 
-    expect(fix).not.toBeNull();
-    expect(fix.accuracyM).toBe(5);
+    expect(out.kind).toBe('ok');
+    expect(out.fix.accuracyM).toBe(5);
   });
 
   it('returns nothing without permission, rather than a worse answer', async () => {
@@ -157,7 +230,7 @@ describe('the precise fix the map runs on', () => {
 
     const { preciseFix } = load();
 
-    expect(await preciseFix()).toBeNull();
+    expect((await preciseFix()).kind).not.toBe('ok');
     expect(current.getCurrentPositionAsync).not.toHaveBeenCalled();
   });
 });

@@ -45,7 +45,7 @@ import { useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE, Palette } from '../theme';
 import {
   Facility, FacilityKind, FacilityService, KIND_LABEL, matches,
 } from '../../domain/facilities';
-import { Fix, preciseFix, recentPreciseFix } from '../../data/locationFix';
+import { Fix, FixOutcome, preciseFix, recentPreciseFix } from '../../data/locationFix';
 
 /*
  * MapLibre, loaded only if it is actually installed.
@@ -168,6 +168,17 @@ const KIND_ICON: Record<FacilityKind, IconName> = {
  * the city; the time zone is a city outright. Someone deciding whether to walk
  * somewhere deserves to know which of those they are reading.
  */
+/** What to say, and what to do about it, when there is no device position. */
+const PROBLEM: Record<Exclude<FixOutcome['kind'], 'ok'>, string> = {
+  denied: 'PulsePoint cannot read your location. Allow location access in '
+    + 'Settings to see where you are.',
+  off: 'Location is switched off on this device. Turn it on to see where you are.',
+  mocked: 'This device is reporting a simulated location, so it is not being '
+    + 'used. On an emulator this is normal.',
+  unavailable: 'Your device has not produced a location fix yet. This can take '
+    + 'a minute indoors.',
+};
+
 function whereFrom(fix: Fix | null): string {
   if (!fix) return 'FINDING YOU';
 
@@ -225,6 +236,7 @@ export function CareScreen({ service, fix: given }: {
   const [precise, setPrecise] = useState<Fix | null>(() => recentPreciseFix());
   const [tried, setTried] = useState(() => recentPreciseFix() !== null);
   const [locating, setLocating] = useState(false);
+  const [problem, setProblem] = useState<Exclude<FixOutcome['kind'], 'ok'> | null>(null);
 
   /*
    * Nothing is shown until something has actually been measured.
@@ -243,11 +255,18 @@ export function CareScreen({ service, fix: given }: {
 
   const sharpen = useCallback(async () => {
     setLocating(true);
-    const better = await preciseFix();
-    if (better) setPrecise(better);
+    const outcome = await preciseFix();
+
+    if (outcome.kind === 'ok') {
+      setPrecise(outcome.fix);
+      setProblem(null);
+    } else {
+      setProblem(outcome.kind);
+    }
+
     setTried(true);
     setLocating(false);
-    return better;
+    return outcome.kind === 'ok' ? outcome.fix : null;
   }, []);
 
   useEffect(() => {
@@ -325,17 +344,29 @@ export function CareScreen({ service, fix: given }: {
    * was centred on - so the dot is drawn from that. One source of truth, and
    * it cannot disagree with the list.
    */
+  /*
+   * The "you are here" dot is drawn from `precise` alone, never from `fix`.
+   *
+   * `fix` can be the app-wide fallback - an IP lookup, or the time zone - and
+   * a dot drawn from one of those is indistinguishable on screen from a real
+   * GPS reading that happens to be wrong. The website has no such fallback at
+   * all: if the browser will not say where it is, the site shows no position.
+   * That is the behaviour being copied. The fallback still centres the map
+   * and drives the search, because a list of nearby places is useful even
+   * when the exact position is not known - but it does not get to claim it is
+   * the person.
+   */
   const me = useMemo(() => ({
     type: 'FeatureCollection' as const,
-    features: fix
+    features: precise
       ? [{
         type: 'Feature' as const,
         id: 'me',
-        geometry: { type: 'Point' as const, coordinates: [fix.lon, fix.lat] },
+        geometry: { type: 'Point' as const, coordinates: [precise.lon, precise.lat] },
         properties: {},
       }]
       : [],
-  }), [fix]);
+  }), [precise]);
 
   /* ─────────────────────────── the sheet ────────────────────────────── */
 
@@ -713,8 +744,25 @@ export function CareScreen({ service, fix: given }: {
             <Empty busy={busy} notice={notice} query={query} onRetry={load} />
           }
           ListHeaderComponent={
-            // Only when there is a list to sit above; otherwise Empty says it.
-            notice && shown.length > 0 ? (
+            <>
+              {/*
+                Says why there is no blue dot. Without this the screen looks
+                identical to one that simply has not finished loading, and the
+                three causes have three different fixes - Settings, a toggle,
+                or standing near a window.
+              */}
+              {problem && !precise ? (
+                <View style={[st.banner, { borderColor: P.line, backgroundColor: P.sunken }]}>
+                  <Icon name="pin" size={16} color={P.warn} />
+                  <Txt t="caption" c={P.muted} style={{ flex: 1 }}>
+                    {PROBLEM[problem]}
+                  </Txt>
+                  <Springy onPress={() => { void sharpen(); }} scaleTo={0.94}>
+                    <Txt t="bodyStrong" c={P.accent}>Retry</Txt>
+                  </Springy>
+                </View>
+              ) : null}
+              {notice && shown.length > 0 ? (
               <View style={[st.banner, { borderColor: P.line, backgroundColor: P.sunken }]}>
                 <Icon name="alert" size={16} color={P.warn} />
                 <Txt t="caption" c={P.muted} style={{ flex: 1 }}>
@@ -723,8 +771,9 @@ export function CareScreen({ service, fix: given }: {
                 <Springy onPress={() => { tap('light'); void load(); }} scaleTo={0.94}>
                   <Txt t="bodyStrong" c={P.accent}>Retry</Txt>
                 </Springy>
-              </View>
-            ) : null
+                </View>
+              ) : null}
+            </>
           }
           ListFooterComponent={
             shown.length > 0 ? (

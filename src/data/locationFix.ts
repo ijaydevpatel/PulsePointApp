@@ -241,32 +241,84 @@ export function recentPreciseFix(maxAgeMs = 60_000): Fix | null {
   return Date.now() - lastPrecise.at <= maxAgeMs ? lastPrecise.fix : null;
 }
 
-export async function preciseFix(): Promise<Fix | null> {
+/**
+ * Why there is no position, when there is none.
+ *
+ * The reasons are not interchangeable and the screen cannot act on "null":
+ * a refused permission is fixed in Settings, a disabled location service is
+ * fixed with a toggle, and a device that simply has not got a fix yet is
+ * fixed by waiting near a window. Collapsing them into nothing is what led to
+ * quietly substituting an IP lookup, which is worse than saying so.
+ */
+export type FixOutcome =
+  | { kind: 'ok'; fix: Fix }
+  | { kind: 'denied' }
+  | { kind: 'off' }
+  | { kind: 'mocked' }
+  | { kind: 'unavailable' };
+
+const within = <T>(work: Promise<T>, ms: number): Promise<T | null> => Promise.race([
+  work.catch(() => null),
+  new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+]);
+
+/**
+ * The device's own position, by the website's method.
+ *
+ * ── Two stages, as the website has ───────────────────────────────────────────
+ *
+ * The website asks the browser twice: `enableHighAccuracy: true` with
+ * `maximumAge: 0` and fifteen seconds, and on failure a cheaper pass with
+ * `enableHighAccuracy: false`, twelve seconds, and a cached value up to a
+ * minute old. That second stage is why the website answers indoors where a
+ * single high-accuracy attempt would simply time out - and the app had only
+ * the first stage, so indoors it returned nothing at all.
+ *
+ * The mapping is exact: `maximumAge` in the browser is expo's
+ * `getLastKnownPositionAsync({ maxAge })`, and enableHighAccuracy false is
+ * `Accuracy.Balanced`.
+ *
+ * ── And nothing else ─────────────────────────────────────────────────────────
+ *
+ * The website has no IP tier and no time-zone tier behind this. If the
+ * browser will not say where it is, the site shows no position rather than a
+ * substituted one, and that is the behaviour worth copying: an IP lookup
+ * returns the internet provider's idea of the city and is indistinguishable,
+ * on screen, from a real fix that happens to be wrong.
+ */
+export async function preciseFix(): Promise<FixOutcome> {
   try {
     const Location = await import('expo-location');
 
     const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== Location.PermissionStatus.GRANTED) return null;
-    if (!await Location.hasServicesEnabledAsync()) return null;
+    if (status !== Location.PermissionStatus.GRANTED) return { kind: 'denied' };
+    if (!await Location.hasServicesEnabledAsync()) return { kind: 'off' };
 
-    /*
-     * Fifteen seconds, because a cold GPS fix indoors routinely takes ten and
-     * the old four-second cut-off is part of why this was falling through to
-     * the IP tier - which returns the internet provider's idea of the city
-     * centre, not where the person is standing.
-     */
-    const pos = await Promise.race([
+    // Stage one: the best the hardware can do, no cached value accepted.
+    let pos = await within(
       Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 15000)),
-    ]);
+      15000,
+    );
 
-    if (!pos || isMocked(pos)) return null;
+    // Stage two: cheaper, and a recent cached reading is better than none.
+    if (!pos) {
+      pos = await within(
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        12000,
+      );
+    }
+    if (!pos) {
+      pos = await Location.getLastKnownPositionAsync({ maxAge: 60 * 1000 });
+    }
+
+    if (!pos) return { kind: 'unavailable' };
+    if (isMocked(pos)) return { kind: 'mocked' };
 
     const fix = await describe(Location, pos);
     lastPrecise = { fix, at: Date.now() };
-    return fix;
+    return { kind: 'ok', fix };
   } catch {
-    return null;
+    return { kind: 'unavailable' };
   }
 }
 
