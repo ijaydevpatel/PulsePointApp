@@ -95,6 +95,15 @@ try {
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
 
+/**
+ * The one colour on this map that never means a facility.
+ *
+ * Deliberately outside the category palette: the accent is crimson and the
+ * two blue-ish categories are lighter periwinkles, so nothing the person can
+ * tap is this blue.
+ */
+const ME_BLUE = '#1B6EF3';
+
 /* ──────────────────────────── sheet geometry ────────────────────────────── */
 
 /**
@@ -305,13 +314,35 @@ export function CareScreen({ service, fix }: {
    * does nothing, and an instant jump is a far better failure than that.
    */
   const moveTo = useCallback((lon: number, lat: number, zoom: number, duration: number) => {
-    const c = camera.current;
-    if (!c) return;
     const to = { center: [lon, lat] as [number, number], zoom };
 
-    if (typeof c.flyTo === 'function') c.flyTo({ ...to, duration });
-    else if (typeof c.easeTo === 'function') c.easeTo({ ...to, duration });
-    else c.jumpTo?.(to);
+    /*
+     * Camera moves throw, and that is why the button did nothing.
+     *
+     * Every one of these methods goes through setStop, which calls
+     * findNodeHandle on the native camera and throws "NativeCameraComponent
+     * ref is null, wait for the map being initialized" when the map has not
+     * finished coming up. Uncaught, that is a press that silently fails -
+     * and the map is at its slowest to initialise exactly when someone is
+     * most likely to jab at the locate button.
+     *
+     * So the throw is caught and the move is tried once more on the next
+     * frame, by which time the map is up.
+     */
+    const go = () => {
+      const c = camera.current;
+      if (!c) return false;
+      try {
+        if (typeof c.flyTo === 'function') c.flyTo({ ...to, duration });
+        else if (typeof c.easeTo === 'function') c.easeTo({ ...to, duration });
+        else c.jumpTo?.(to);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (!go()) requestAnimationFrame(() => { go(); });
   }, []);
 
   /** Tapping a row is a question about where it is, so the map answers it. */
@@ -403,20 +434,62 @@ export function CareScreen({ service, fix }: {
               />
             </MapLibreGL.GeoJSONSource>
 
+            {/*
+              ── Telling "me" apart from 522 facilities ────────────────────
+
+              A blue dot was not enough. Every facility is a flat coloured
+              disc too, and two of the categories - dental and therapy - are
+              already blue-ish, so the person's own position read as one more
+              pin in the pile. Colour alone cannot carry this.
+
+              So it differs in all three ways a mark can: shape, size and
+              words. It is concentric rather than flat - a ring around a core,
+              which no facility pin is - it is larger than even a selected
+              pin, and it is captioned.
+
+              The caption is the part that actually settles it, and it is set
+              to overlap and ignore placement so that it is never the label
+              MapLibre drops when a street gets crowded. Every other label on
+              this map may be dropped; this one may not.
+            */}
             <MapLibreGL.GeoJSONSource id="me" data={me}>
               <MapLibreGL.Layer
                 id="me-halo"
                 type="circle"
-                paint={{ 'circle-radius': 18, 'circle-color': '#2E7DF7', 'circle-opacity': 0.15 }}
+                paint={{ 'circle-radius': 24, 'circle-color': ME_BLUE, 'circle-opacity': 0.14 }}
+              />
+              <MapLibreGL.Layer
+                id="me-disc"
+                type="circle"
+                paint={{
+                  'circle-radius': 12,
+                  'circle-color': '#FFFFFF',
+                  'circle-stroke-width': 2.5,
+                  'circle-stroke-color': ME_BLUE,
+                }}
               />
               <MapLibreGL.Layer
                 id="me-dot"
                 type="circle"
+                paint={{ 'circle-radius': 5.5, 'circle-color': ME_BLUE }}
+              />
+              <MapLibreGL.Layer
+                id="me-label"
+                type="symbol"
+                layout={{
+                  'text-field': 'You are here',
+                  'text-font': ['Noto Sans Bold'],
+                  'text-size': 12,
+                  'text-anchor': 'top',
+                  'text-offset': [0, 1.7],
+                  // Never dropped, at any zoom, however crowded the street.
+                  'text-allow-overlap': true,
+                  'text-ignore-placement': true,
+                }}
                 paint={{
-                  'circle-radius': 7,
-                  'circle-color': '#2E7DF7',
-                  'circle-stroke-width': 3,
-                  'circle-stroke-color': '#FFFFFF',
+                  'text-color': ME_BLUE,
+                  'text-halo-color': '#FFFFFF',
+                  'text-halo-width': 2,
                 }}
               />
             </MapLibreGL.GeoJSONSource>

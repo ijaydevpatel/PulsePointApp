@@ -109,6 +109,43 @@ describe('the MapLibre API the Map tab is written against', () => {
     }
   });
 
+  it('marks the person by more than colour', () => {
+    /*
+     * A blue dot was not enough: every facility is a flat coloured disc too,
+     * and two categories are already blue-ish. The own-position mark differs
+     * in shape (concentric), size, and words.
+     */
+    expect(source).toContain('me-halo');
+    expect(source).toContain('me-disc');
+    expect(source).toContain('me-dot');
+    expect(source).toContain('You are here');
+  });
+
+  it('never lets the "you are here" caption be dropped', () => {
+    /*
+     * MapLibre drops colliding labels, and on a crowded street the one label
+     * that must survive is the one saying where the reader is standing.
+     */
+    const block = /id="me-label"[\s\S]*?\/>/.exec(source)?.[0] ?? '';
+
+    expect(block).toContain("'text-allow-overlap': true");
+    expect(block).toContain("'text-ignore-placement': true");
+    // No minzoom: it is wanted at every scale, unlike the facility labels.
+    expect(block).not.toContain('minzoom');
+  });
+
+  it('survives a camera move made before the map is up', () => {
+    /*
+     * Every camera method goes through setStop, which throws
+     * "NativeCameraComponent ref is null" until the native view exists.
+     * Uncaught, that is a locate button that silently does nothing.
+     */
+    const block = /const moveTo = useCallback[\s\S]*?\n  \}, \[\]\);/.exec(source)?.[0] ?? '';
+
+    expect(block).toContain('catch');
+    expect(block).toContain('requestAnimationFrame');
+  });
+
   it('draws the person\'s own position rather than relying on UserLocation', () => {
     /*
      * MapLibre's UserLocation runs its own location provider - a second
