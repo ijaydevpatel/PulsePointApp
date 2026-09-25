@@ -31,12 +31,20 @@ export type FacilityKind =
   | 'PHARMACY'
   | 'EYE_CARE'
   | 'LABORATORY'
+  | 'THERAPY'
+  | 'CARE_HOME'
+  | 'SUPPLIES'
   | 'ALTERNATIVE'
   | 'OTHER';
 
 export interface Facility {
   readonly id: string;
   readonly name: string;
+  /**
+   * False when `name` is a category label standing in for a missing OSM name.
+   * The UI needs to know the difference; the de-duplicator needs it more.
+   */
+  readonly named: boolean;
   readonly kind: FacilityKind;
   readonly lat: number;
   readonly lon: number;
@@ -58,6 +66,9 @@ export const KIND_LABEL: Record<FacilityKind, string> = {
   PHARMACY: 'Pharmacy',
   EYE_CARE: 'Eye care',
   LABORATORY: 'Laboratory',
+  THERAPY: 'Therapy',
+  CARE_HOME: 'Care home',
+  SUPPLIES: 'Medical supplies',
   ALTERNATIVE: 'Alternative medicine',
   OTHER: 'Health service',
 };
@@ -100,6 +111,7 @@ export function classify(tags: Tags): FacilityKind {
   const healthcare = (tags.healthcare ?? '').toLowerCase();
   const speciality = (tags['healthcare:speciality'] ?? '').toLowerCase();
   const shop = (tags.shop ?? '').toLowerCase();
+  const office = (tags.office ?? '').toLowerCase();
 
   if (isUrgent(tags)) return 'URGENT_CARE';
   if (amenity === 'hospital' || healthcare === 'hospital') return 'HOSPITAL';
@@ -121,8 +133,31 @@ export function classify(tags: Tags): FacilityKind {
     || healthcare === 'diagnostic'
     || healthcare === 'sample_collection'
     || healthcare === 'radiology'
+    || healthcare === 'mri'
+    || healthcare === 'scanning'
     || amenity === 'laboratory'
+    || speciality.includes('radiology')
   ) return 'LABORATORY';
+
+  if (
+    healthcare === 'physiotherapist'
+    || healthcare === 'rehabilitation'
+    || healthcare === 'psychotherapist'
+    || healthcare === 'occupational_therapist'
+    || healthcare === 'speech_therapist'
+    || healthcare === 'podiatrist'
+    || office === 'therapist'
+  ) return 'THERAPY';
+
+  // A care home is somewhere people live, not somewhere to turn up unwell -
+  // worth showing and worth not calling a clinic.
+  if (
+    amenity === 'nursing_home'
+    || amenity === 'social_facility'
+    || healthcare === 'nursing_home'
+  ) return 'CARE_HOME';
+
+  if (shop === 'medical_supply' || shop === 'hearing_aids') return 'SUPPLIES';
 
   if (
     healthcare === 'alternative'
@@ -135,7 +170,12 @@ export function classify(tags: Tags): FacilityKind {
 
   if (
     amenity === 'clinic' || amenity === 'doctors' || amenity === 'health_post'
-    || healthcare === 'clinic' || healthcare === 'doctor' || healthcare === 'centre'
+    || amenity === 'healthcare'
+    || healthcare === 'clinic' || healthcare === 'doctor'
+    || healthcare === 'centre' || healthcare === 'center'
+    || healthcare === 'midwife' || healthcare === 'nurse'
+    || healthcare === 'yes'
+    || office === 'physician' || office === 'healthcare'
   ) return 'CLINIC';
 
   return 'OTHER';

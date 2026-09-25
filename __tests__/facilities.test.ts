@@ -53,6 +53,33 @@ describe('what counts as which kind of place', () => {
     expect(classify({ amenity: 'hospital' })).toBe('HOSPITAL');
   });
 
+  it('reads the categories the wider query now returns', () => {
+    /*
+     * The query was widened to `nwr["healthcare"]` with no value filter, plus
+     * office and shop keys, so values that used to be unreachable now arrive.
+     * Left unclassified they would all land in OTHER, which is a grey pin and
+     * the label "Health service" - true, and useless.
+     */
+    expect(classify({ healthcare: 'physiotherapist' })).toBe('THERAPY');
+    expect(classify({ healthcare: 'psychotherapist' })).toBe('THERAPY');
+    expect(classify({ healthcare: 'rehabilitation' })).toBe('THERAPY');
+    expect(classify({ office: 'therapist' })).toBe('THERAPY');
+
+    expect(classify({ amenity: 'nursing_home' })).toBe('CARE_HOME');
+    expect(classify({ amenity: 'social_facility' })).toBe('CARE_HOME');
+
+    expect(classify({ shop: 'medical_supply' })).toBe('SUPPLIES');
+    expect(classify({ shop: 'hearing_aids' })).toBe('SUPPLIES');
+
+    expect(classify({ healthcare: 'mri' })).toBe('LABORATORY');
+    expect(classify({ healthcare: 'scanning' })).toBe('LABORATORY');
+
+    // A GP practice is frequently tagged as an office and nothing else.
+    expect(classify({ office: 'physician' })).toBe('CLINIC');
+    expect(classify({ healthcare: 'yes' })).toBe('CLINIC');
+    expect(classify({ healthcare: 'midwife' })).toBe('CLINIC');
+  });
+
   it('falls back rather than guessing', () => {
     expect(classify({ healthcare: 'something_new' })).toBe('OTHER');
     expect(classify({})).toBe('OTHER');
@@ -120,7 +147,7 @@ describe('distance', () => {
 
   it('orders nearest first, then by name for a tie', () => {
     const f = (name: string, km: number): Facility => ({
-      id: name, name, kind: 'CLINIC', lat: 0, lon: 0, km,
+      id: name, name, named: true, kind: 'CLINIC', lat: 0, lon: 0, km,
       open24h: false, urgent: false, phone: null, address: null,
     });
     const sorted = [f('Beta', 2), f('Alpha', 2), f('Near', 0.5)].sort(byDistance);
@@ -140,11 +167,53 @@ describe('reading an Overpass response', () => {
     expect(f.km).toBeCloseTo(0, 5);
   });
 
-  it('drops what it cannot name or place', () => {
-    // OSM is full of half-entered places. A row that says nothing wastes a tap
-    // on a screen someone may be using in a hurry.
-    expect(toFacility(node(1, { amenity: 'clinic' }), AT.lat, AT.lon)).toBeNull();
+  it('drops only what it cannot place', () => {
+    // A position is the one thing that cannot be substituted: an element with
+    // no coordinates cannot be put on a map or measured a distance to.
     expect(toFacility({ type: 'way', id: 2, tags: { name: 'No position' } }, AT.lat, AT.lon)).toBeNull();
+  });
+
+  it('keeps an unnamed place under its category', () => {
+    /*
+     * These used to be dropped. That removed real places from a map of real
+     * places - a pharmacy nobody has typed a name for is still a pharmacy,
+     * still open, and still where it is.
+     */
+    const f = toFacility(node(1, { amenity: 'pharmacy' }), AT.lat, AT.lon)!;
+
+    expect(f).not.toBeNull();
+    expect(f.kind).toBe('PHARMACY');
+    expect(f.name).toBe(KIND_LABEL.PHARMACY);
+    expect(f.named).toBe(false);
+  });
+
+  it('marks a real name as real', () => {
+    const f = toFacility(node(1, { amenity: 'pharmacy', name: 'Unichem' }), AT.lat, AT.lon)!;
+    expect(f.named).toBe(true);
+    expect(f.name).toBe('Unichem');
+  });
+
+  it('falls back to name:en rather than to the category', () => {
+    const f = toFacility(node(1, { amenity: 'clinic', 'name:en': 'Harbour Clinic' }), AT.lat, AT.lon)!;
+    expect(f.name).toBe('Harbour Clinic');
+    expect(f.named).toBe(true);
+  });
+
+  it('does not merge two different unnamed places of the same kind', () => {
+    /*
+     * The de-duplication key is name plus rounded position, and every unnamed
+     * pharmacy shares the same stand-in name. Keyed that way, two real
+     * pharmacies a hundred metres apart would collapse into one - inventing a
+     * duplicate rather than finding one.
+     */
+    const list = readFacilities({
+      elements: [
+        node(1, { amenity: 'pharmacy' }, 0.0002),
+        node(2, { amenity: 'pharmacy' }, 0.0004),
+      ],
+    }, AT.lat, AT.lon);
+
+    expect(list).toHaveLength(2);
   });
 
   it('collapses the same place mapped twice', () => {
@@ -221,6 +290,58 @@ describe('when Overpass will not answer', () => {
     expect(r.notice).toBeNull();
   });
 
+  it('asks for enough server time to answer a city centre', async () => {
+    /*
+     * This is the bug the Map tab shipped with. The query carried
+     * `[out:json][timeout:20]`, and a dense city centre takes Overpass well
+     * over twenty seconds - so the *server* aborted, returned nothing, and the
+     * screen reported "did not respond in time" for a query the website
+     * answers fine. The website asks for 45 and gets an answer.
+     */
+    let sent = '';
+    const fetchImpl = (async (_url: string, init: any) => {
+      sent = String(init.body);
+      return ok({ elements: [] });
+    }) as any;
+
+    await new OverpassFacilities(fetchImpl).near(AT);
+
+    const query = decodeURIComponent(sent.replace(/^data=/, ''));
+    const declared = Number(/\[timeout:(\d+)\]/.exec(query)?.[1]);
+
+    expect(declared).toBeGreaterThanOrEqual(45);
+  });
+
+  it('sends the query form-encoded, as every mirror expects', async () => {
+    let init: any = null;
+    const fetchImpl = (async (_url: string, i: any) => { init = i; return ok({ elements: [] }); }) as any;
+
+    await new OverpassFacilities(fetchImpl).near(AT);
+
+    expect(init.headers['Content-Type']).toBe('application/x-www-form-urlencoded');
+    expect(String(init.body).startsWith('data=')).toBe(true);
+  });
+
+  it('asks for the tags that carry health places', async () => {
+    // Each of these is a whole category that vanishes from the map if the
+    // query stops asking for it, with nothing on screen to say so.
+    let sent = '';
+    const fetchImpl = (async (_url: string, init: any) => {
+      sent = decodeURIComponent(String(init.body).replace(/^data=/, ''));
+      return ok({ elements: [] });
+    }) as any;
+
+    await new OverpassFacilities(fetchImpl).near(AT);
+
+    for (const key of ['"amenity"', '"healthcare"', '"shop"', '"office"']) {
+      expect(sent).toContain(key);
+    }
+    // node, way and relation at once - a hospital is usually a building
+    // outline, not a point.
+    expect(sent).toContain('nwr[');
+    expect(sent).toContain('out center;');
+  });
+
   it('reports a failure rather than an empty neighbourhood', async () => {
     const fetchImpl = (async () => { throw new Error('Network request failed'); }) as any;
     const r = await new OverpassFacilities(fetchImpl).near(AT);
@@ -253,7 +374,7 @@ describe('when Overpass will not answer', () => {
 
 describe('the filter', () => {
   const f: Facility = {
-    id: 'x', name: 'Symonds Street Dental', kind: 'DENTIST',
+    id: 'x', name: 'Symonds Street Dental', named: true, kind: 'DENTIST',
     lat: 0, lon: 0, km: 0.3, open24h: false, urgent: false, phone: null, address: null,
   };
 

@@ -1,33 +1,45 @@
 /**
- * Health facilities near the person: a map, and the same places as a list.
+ * Health facilities near the person: a full-screen map, and the same places in
+ * a sheet that pulls up from the bottom.
  *
- * ── What this replaced ───────────────────────────────────────────────────────
+ * ── Why the map is the screen ────────────────────────────────────────────────
  *
- * Four invented Auckland facilities behind a "Phase 6" notice. On a screen
- * whose entire job is to say where to go, sample data is worse than an empty
- * screen: it is indistinguishable from a working feature until someone drives
- * to a clinic that does not exist.
+ * It used to be a 260dp box inside a scrolling page, under a header and a
+ * search field. That is the shape of a page that happens to contain a map, and
+ * it wastes the thing a map is for: at that size you can see your own dot and
+ * about four pins, and panning it fights the page scroll underneath. Every
+ * other tab here is a page, and this one is not - so the map takes the whole
+ * screen and everything else floats over it.
  *
- * ── Map and list, not map or list ────────────────────────────────────────────
+ * ── Why a sheet rather than a sidebar ────────────────────────────────────────
  *
- * The map answers "what is around me"; the list answers "which is nearest and
- * is it open". Neither answers both, and on a phone the list is the one that
- * survives a bad connection - the tiles can fail while the data is already
- * here, so the list renders from the same array either way.
+ * The website puts the list in a left-hand panel, which works when there is a
+ * spare third of a screen going. On a phone there is not. A sheet is the same
+ * idea turned ninety degrees: dragged down it is a caption under the map,
+ * dragged up it is the full list, and the person chooses which without either
+ * one being taken away.
+ *
+ * ── Tap a row, and the map answers ───────────────────────────────────────────
+ *
+ * A list of names and distances still does not say *where*. Tapping a row
+ * flies the camera to that place, enlarges its pin, and drops the sheet out of
+ * the way, so the question "where is this one" is answered on the map rather
+ * than by a second screen.
  *
  * ── The two flags ────────────────────────────────────────────────────────────
  *
  * Open 24 hours and Urgent care are called out because they are the reason
  * this screen gets opened at night. Both come from OSM tags and neither is
- * inferred: an untagged facility simply shows neither, rather than being
- * described as closed.
+ * inferred: an untagged facility shows neither, rather than being described as
+ * closed.
  */
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View, ScrollView, StyleSheet, TextInput, Linking, Platform, ActivityIndicator,
+  View, StyleSheet, TextInput, Linking, Platform, ActivityIndicator,
+  Animated, PanResponder, FlatList, useWindowDimensions,
 } from 'react-native';
-import { ScreenHeader } from '../components/ScreenHeader';
-import { Card, SectionLabel, Txt, Springy, Enter, tap } from '../components/Primitives';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Txt, Springy, tap } from '../components/Primitives';
 import { Icon, IconName } from '../components/Icon';
 import { useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE, Palette } from '../theme';
 import {
@@ -52,25 +64,22 @@ import { Fix } from '../../data/locationFix';
  * specifier is left to run time, where a missing module is a catchable error
  * rather than a broken build.
  *
- * So: the map renders when the package is there, and the list renders either
- * way. The list is the part that answers "which is nearest and is it open",
- * which is most of the value of this screen.
- *
  * No API key, and none needed - the style below is a public tile source.
  */
 const MAPLIBRE_MODULE = '@maplibre/maplibre-react-native';
 
 /*
- * The guard checks for the component, not just the module.
+ * The guard checks for the components, not just the module.
  *
  * Checking `MapLibreGL != null` was not enough. v11 renamed most of the API -
  * MapView became Map, ShapeSource became GeoJSONSource, and the per-type layer
  * components collapsed into one Layer with a `type` prop. The module loaded
  * perfectly and every component came back undefined, which React reports as
- * "Element type is invalid ... got: undefined" from somewhere deep in the
- * tree rather than as a missing module.
+ * "Element type is invalid ... got: undefined" from somewhere deep in the tree
+ * rather than as a missing module.
  *
- * So the condition is whether the piece actually being rendered exists.
+ * So the condition is whether the pieces actually being rendered exist.
+ * __tests__/mapApi.test.ts keeps this honest against the installed package.
  */
 let MapLibreGL: any = null;
 try {
@@ -86,6 +95,29 @@ try {
 
 const STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
 
+/* ──────────────────────────── sheet geometry ────────────────────────────── */
+
+/**
+ * How much of the sheet stays on screen when it is down.
+ *
+ * Enough for the grabber, the filter field and the count - the three things
+ * worth seeing while looking at the map - and not a row more, because every
+ * pixel here is a pixel of map.
+ *
+ * TAB_CLEARANCE is added rather than assumed: the tab bar floats over the
+ * bottom of the screen, so a sheet that peeks by less than that peeks entirely
+ * underneath it.
+ */
+const PEEK = 132 + TAB_CLEARANCE;
+
+/** How far below the top of the screen the sheet stops when fully up. */
+const SHEET_TOP_GAP = 76;
+
+/** Past this much of a flick, direction wins over position. */
+const FLICK = 0.5;
+
+/* ────────────────────────────── presentation ────────────────────────────── */
+
 /** One colour per category, so a pin and its row read as the same thing. */
 function kindColour(P: Palette, kind: FacilityKind): string {
   switch (kind) {
@@ -96,6 +128,9 @@ function kindColour(P: Palette, kind: FacilityKind): string {
     case 'DENTIST':       return '#8F97FF';
     case 'EYE_CARE':      return '#3ECFCF';
     case 'LABORATORY':    return P.warn;
+    case 'THERAPY':       return '#5B8DEF';
+    case 'CARE_HOME':     return '#B07BD8';
+    case 'SUPPLIES':      return '#7A8699';
     case 'ALTERNATIVE':   return '#3ECF98';
     default:              return P.muted;
   }
@@ -109,9 +144,15 @@ const KIND_ICON: Record<FacilityKind, IconName> = {
   PHARMACY: 'pill',
   EYE_CARE: 'eye',
   LABORATORY: 'file',
+  THERAPY: 'pulse',
+  CARE_HOME: 'home',
+  SUPPLIES: 'shield',
   ALTERNATIVE: 'shield',
   OTHER: 'pin',
 };
+
+const distance = (km: number) =>
+  (km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`);
 
 /** Opens the platform's own maps app, which knows about routes and traffic. */
 function openDirections(f: Facility) {
@@ -125,17 +166,24 @@ function openDirections(f: Facility) {
   });
 }
 
+/* ──────────────────────────────── screen ────────────────────────────────── */
+
 export function CareScreen({ service, fix }: {
   service?: FacilityService;
   /** Where to search from. Null while the location is still being resolved. */
   fix?: Fix | null;
 }) {
   const { c: P } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { height: screenH } = useWindowDimensions();
 
   const [facilities, setFacilities] = useState<readonly Facility[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(true);
   const [query, setQuery] = useState('');
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const camera = useRef<any>(null);
 
   const load = useCallback(async () => {
     if (!service || !fix) return;
@@ -153,215 +201,399 @@ export function CareScreen({ service, fix }: {
     [facilities, query],
   );
 
+  /*
+   * `selected` is baked into the feature rather than drawn as a second layer,
+   * so the highlighted pin cannot end up painted underneath an ordinary one.
+   */
   const pins = useMemo(() => ({
     type: 'FeatureCollection' as const,
     features: shown.map((f) => ({
       type: 'Feature' as const,
       id: f.id,
       geometry: { type: 'Point' as const, coordinates: [f.lon, f.lat] },
-      properties: { colour: kindColour(P, f.kind) },
+      properties: {
+        colour: kindColour(P, f.kind),
+        selected: f.id === selected,
+      },
     })),
-  }), [shown, P]);
+  }), [shown, P, selected]);
+
+  /* ─────────────────────────── the sheet ────────────────────────────── */
+
+  const sheetTop = insets.top + SHEET_TOP_GAP;
+  const sheetH = Math.max(PEEK, screenH - sheetTop);
+  /** Travel between fully up (0) and peeking (this). */
+  const down = Math.max(0, sheetH - PEEK);
+
+  /*
+   * JS driver, deliberately.
+   *
+   * A native-driven value is moved out of the React tree, and when Android
+   * detaches and re-attaches a view the value is lost and never re-applied -
+   * which is what made content vanish on scroll across this app. Here the
+   * value also has to be read and written by the pan handlers, which a native
+   * value cannot be.
+   */
+  const y = useRef(new Animated.Value(down)).current;
+  const at = useRef(down);
+  const from = useRef(down);
+
+  useEffect(() => {
+    // Keep the resting position correct if the window changes size (rotation,
+    // split screen) rather than leaving the sheet parked off its own travel.
+    at.current = Math.min(at.current, down);
+    y.setValue(at.current);
+  }, [down, y]);
+
+  const settle = useCallback((to: number) => {
+    at.current = to;
+    Animated.spring(y, {
+      toValue: to, useNativeDriver: false,
+      damping: 22, stiffness: 220, mass: 0.9,
+    }).start();
+  }, [y]);
+
+  const collapse = useCallback(() => settle(down), [settle, down]);
+
+  const pan = useMemo(() => PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dy) > 3,
+    onPanResponderGrant: () => { from.current = at.current; },
+    onPanResponderMove: (_e, g) => {
+      const next = Math.min(down, Math.max(0, from.current + g.dy));
+      at.current = next;
+      y.setValue(next);
+    },
+    onPanResponderRelease: (_e, g) => {
+      // A deliberate flick beats where the finger happened to stop; a slow
+      // drag falls to whichever end it is nearer.
+      if (g.vy > FLICK) return settle(down);
+      if (g.vy < -FLICK) return settle(0);
+      settle(at.current > down / 2 ? down : 0);
+    },
+  }), [down, y, settle]);
+
+  /** Tapping a row is a question about where it is, so the map answers it. */
+  const locate = useCallback((f: Facility) => {
+    tap('light');
+    setSelected(f.id);
+    camera.current?.flyTo({ center: [f.lon, f.lat], zoom: 16, duration: 900 });
+    collapse();
+  }, [collapse]);
+
+  const recentre = useCallback(() => {
+    if (!fix) return;
+    tap('light');
+    setSelected(null);
+    camera.current?.flyTo({ center: [fix.lon, fix.lat], zoom: 13, duration: 700 });
+  }, [fix]);
+
+  /* ─────────────────────────────── render ───────────────────────────────── */
 
   return (
-    <ScrollView
-      contentContainerStyle={{ paddingBottom: TAB_CLEARANCE + S.xxl }}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
-      <ScreenHeader
-        title="Care near you"
-        subtitle={fix?.place ? `Around ${fix.place}` : 'Health facilities nearby'}
-      />
+    <View style={{ flex: 1, backgroundColor: P.sunken }}>
+      {/* The map is the screen; everything else floats over it. */}
+      <View style={StyleSheet.absoluteFill}>
+        {!MapLibreGL ? (
+          <Centred>
+            <Icon name="pin" size={22} color={P.faint} />
+            <Txt t="caption" c={P.muted} style={st.centredText}>
+              The map needs a rebuild with the map library installed.
+            </Txt>
+            <Txt t="micro" c={P.faint} style={{ marginTop: 2 }}>
+              The list still works without it.
+            </Txt>
+          </Centred>
+        ) : fix ? (
+          <MapLibreGL.Map style={{ flex: 1 }} mapStyle={STYLE_URL} logo={false} compass={false}>
+            <MapLibreGL.Camera
+              ref={camera}
+              initialViewState={{ center: [fix.lon, fix.lat], zoom: 13 }}
+            />
+            <MapLibreGL.UserLocation />
 
-      <View style={{ paddingHorizontal: S.xl }}>
-        {/*
-          Not wrapped in Enter: it re-renders on every keystroke, and an
-          entrance animation around a focused field is one more thing that can
-          interfere while someone is typing in it.
-        */}
-        <View style={[st.search, { borderColor: P.line, backgroundColor: P.surface }]}>
-          <Icon name="search" size={18} color={P.faint} />
-          <TextInput
-            style={[st.searchInput, { color: P.ink, ...TYPE.body }]}
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Filter by name or type"
-            placeholderTextColor={P.faint}
-            autoCorrect={false}
-            accessibilityLabel="Filter facilities"
-          />
-        </View>
-
-        <View style={{ height: S.lg }} />
-
-        <View style={[st.mapFrame, { borderColor: P.line, backgroundColor: P.sunken }]}>
-          {!MapLibreGL ? (
-            /*
-             * Says what is missing rather than showing an empty grey box. The
-             * list below is unaffected and is already populated.
-             */
-            <View style={st.mapPlaceholder}>
-              <Icon name="pin" size={22} color={P.faint} />
-              <Txt t="caption" c={P.muted} style={{ marginTop: S.sm, textAlign: 'center' }}>
-                The map needs a rebuild with the map library installed.
-              </Txt>
-              <Txt t="micro" c={P.faint} style={{ marginTop: 2 }}>
-                The list below works without it.
-              </Txt>
-            </View>
-          ) : fix ? (
-            <MapLibreGL.Map style={st.map} mapStyle={STYLE_URL} logo={false} compass={false}>
-              <MapLibreGL.Camera
-                initialViewState={{ center: [fix.lon, fix.lat], zoom: 13 }}
+            <MapLibreGL.GeoJSONSource id="facilities" data={pins}>
+              <MapLibreGL.Layer
+                id="facility-pins"
+                type="circle"
+                paint={{
+                  // Data-driven so the selected pin grows in place rather than
+                  // being drawn again by a second layer.
+                  'circle-radius': ['case', ['get', 'selected'], 11, 6],
+                  'circle-color': ['get', 'colour'],
+                  'circle-stroke-width': ['case', ['get', 'selected'], 3, 2],
+                  'circle-stroke-color': '#FFFFFF',
+                }}
               />
-              <MapLibreGL.UserLocation />
-
-              <MapLibreGL.GeoJSONSource id="facilities" data={pins}>
-                <MapLibreGL.Layer
-                  id="facility-pins"
-                  type="circle"
-                  paint={{
-                    'circle-radius': 6,
-                    'circle-color': ['get', 'colour'],
-                    'circle-stroke-width': 2,
-                    'circle-stroke-color': '#FFFFFF',
-                  }}
-                />
-              </MapLibreGL.GeoJSONSource>
-            </MapLibreGL.Map>
-          ) : (
-            <View style={st.mapPlaceholder}>
-              <ActivityIndicator color={P.accent} />
-              <Txt t="caption" c={P.muted} style={{ marginTop: S.sm }}>
-                Finding where you are
-              </Txt>
-            </View>
-          )}
-        </View>
-
-        <View style={{ height: S.xl }} />
-
-        <View style={st.listHead}>
-          <SectionLabel style={{ marginBottom: 0 }}>Nearest first</SectionLabel>
-          {!busy ? (
-            <Txt t="micro" c={P.faint}>
-              {`${shown.length} ${shown.length === 1 ? 'place' : 'places'}`}
+            </MapLibreGL.GeoJSONSource>
+          </MapLibreGL.Map>
+        ) : (
+          <Centred>
+            <ActivityIndicator color={P.accent} />
+            <Txt t="caption" c={P.muted} style={st.centredText}>
+              Finding where you are
             </Txt>
-          ) : null}
-        </View>
-
-        {busy ? (
-          <Card elevated={1}>
-            <Txt t="caption" c={P.muted}>Looking for health facilities nearby.</Txt>
-          </Card>
-        ) : null}
-
-        {!busy && notice ? (
-          <Card elevated={1}>
-            <Txt t="caption" c={P.muted}>{notice}</Txt>
-            <View style={{ height: S.md }} />
-            <Springy onPress={() => { tap('light'); void load(); }} scaleTo={0.96}>
-              <Txt t="bodyStrong" c={P.accent}>Try again</Txt>
-            </Springy>
-          </Card>
-        ) : null}
-
-        {!busy && !notice && shown.length === 0 ? (
-          <Card elevated={1}>
-            <Txt t="caption" c={P.muted}>
-              {`Nothing matches "${query.trim()}". Clear the filter to see everything nearby.`}
-            </Txt>
-          </Card>
-        ) : null}
-
-        {shown.slice(0, 60).map((f, i) => (
-          <Enter key={f.id} index={Math.min(i, 9)}>
-            <Card style={{ marginBottom: S.sm }} onPress={() => { tap('light'); openDirections(f); }}>
-              <View style={st.row}>
-                <View style={[st.dot, { backgroundColor: kindColour(P, f.kind) }]}>
-                  <Icon name={KIND_ICON[f.kind]} size={15} color="#FFFFFF" weight="bold" />
-                </View>
-
-                <View style={{ flex: 1 }}>
-                  <Txt t="bodyStrong" numberOfLines={2}>{f.name}</Txt>
-                  <Txt t="caption" c={P.muted} style={{ marginTop: 2 }}>
-                    {`${KIND_LABEL[f.kind]} · ${f.km < 1 ? `${Math.round(f.km * 1000)} m` : `${f.km.toFixed(1)} km`}`}
-                  </Txt>
-
-                  {f.urgent || f.open24h ? (
-                    <View style={st.flags}>
-                      {f.urgent ? (
-                        <View style={[st.flag, { backgroundColor: P.dangerSoft }]}>
-                          <Txt t="micro" c={P.danger}>URGENT CARE</Txt>
-                        </View>
-                      ) : null}
-                      {f.open24h ? (
-                        // No okSoft token exists, and inventing one would put a
-                        // colour outside the audited palette on screen.
-                        <View style={[st.flag, { backgroundColor: P.sunken }]}>
-                          <Txt t="micro" c={P.ok}>OPEN 24 HOURS</Txt>
-                        </View>
-                      ) : null}
-                    </View>
-                  ) : null}
-                </View>
-
-                <Icon name="arrowRight" size={17} color={P.faint} />
-              </View>
-            </Card>
-          </Enter>
-        ))}
-
-        {shown.length > 60 ? (
-          <Txt t="caption" c={P.faint} style={{ marginTop: S.sm }}>
-            {`Showing the 60 nearest of ${shown.length}. Filter to narrow it down.`}
-          </Txt>
-        ) : null}
-
-        <View style={{ height: S.xl }} />
-        <View style={[st.meta, { borderColor: P.line }]}>
-          <Icon name="alert" size={16} color={P.muted} />
-          <Txt t="caption" style={{ flex: 1 }}>
-            Places and opening hours come from OpenStreetMap and can be out of
-            date. Distances are straight-line, not travel distance. Ring ahead
-            before setting out.
-          </Txt>
-        </View>
+          </Centred>
+        )}
       </View>
-    </ScrollView>
+
+      {/* Back to me. Sits clear of the sheet at its peek height. */}
+      <Springy onPress={recentre} scaleTo={0.9} accessibilityLabel="Centre on my location">
+        <View
+          style={[
+            st.recentre,
+            { top: insets.top + S.lg, backgroundColor: P.surface, borderColor: P.line },
+          ]}
+        >
+          <Icon name="pin" size={19} color={P.accent} />
+        </View>
+      </Springy>
+
+      <Animated.View
+        style={[
+          st.sheet,
+          {
+            height: sheetH,
+            top: sheetTop,
+            backgroundColor: P.surface,
+            borderColor: P.line,
+            transform: [{ translateY: y }],
+          },
+        ]}
+      >
+        {/*
+          The drag handle is the only thing that captures the pan. Putting the
+          responder on the whole sheet would mean every attempt to scroll the
+          list dragged the sheet instead.
+        */}
+        <View {...pan.panHandlers} style={st.grip}>
+          <View style={[st.grabber, { backgroundColor: P.line }]} />
+        </View>
+
+        <View style={st.head}>
+          <View style={[st.search, { borderColor: P.line, backgroundColor: P.sunken }]}>
+            <Icon name="search" size={18} color={P.faint} />
+            <TextInput
+              style={[st.searchInput, { color: P.ink, ...TYPE.body }]}
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Filter by name or type"
+              placeholderTextColor={P.faint}
+              autoCorrect={false}
+              accessibilityLabel="Filter facilities"
+            />
+          </View>
+
+          <View style={st.countRow}>
+            <Txt t="micro" c={P.faint}>
+              {fix?.place ? `NEAR ${fix.place.toUpperCase()}` : 'NEAREST FIRST'}
+            </Txt>
+            <Txt t="micro" c={P.faint}>
+              {busy ? 'Searching' : `${shown.length} ${shown.length === 1 ? 'place' : 'places'}`}
+            </Txt>
+          </View>
+        </View>
+
+        <FlatList
+          data={shown}
+          keyExtractor={(f) => f.id}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: TAB_CLEARANCE + S.xxl, paddingHorizontal: S.xl }}
+          initialNumToRender={12}
+          windowSize={7}
+          removeClippedSubviews={false}
+          ListEmptyComponent={
+            <Empty busy={busy} notice={notice} query={query} onRetry={load} />
+          }
+          ListFooterComponent={
+            shown.length > 0 ? (
+              <View style={[st.meta, { borderColor: P.line }]}>
+                <Icon name="alert" size={16} color={P.muted} />
+                <Txt t="caption" style={{ flex: 1 }}>
+                  Places and opening hours come from OpenStreetMap and can be out
+                  of date. Distances are straight-line, not travel distance. Ring
+                  ahead before setting out.
+                </Txt>
+              </View>
+            ) : null
+          }
+          renderItem={({ item }) => (
+            <Row
+              f={item}
+              selected={item.id === selected}
+              onPress={() => locate(item)}
+              onDirections={() => { tap('light'); openDirections(item); }}
+            />
+          )}
+        />
+      </Animated.View>
+    </View>
   );
 }
 
-const st = StyleSheet.create({
-  search: {
-    flexDirection: 'row', alignItems: 'center', gap: S.md,
-    minHeight: TOUCH + 4, borderRadius: R.pill, borderWidth: 1.5,
-    paddingHorizontal: S.xl,
-  },
-  searchInput: { flex: 1, paddingVertical: S.sm },
+/* ─────────────────────────────── pieces ─────────────────────────────────── */
 
-  mapFrame: {
-    height: 260, borderRadius: R.lg, borderWidth: StyleSheet.hairlineWidth * 2,
+function Centred({ children }: { children: React.ReactNode }) {
+  return <View style={st.centred}>{children}</View>;
+}
+
+function Row({ f, selected, onPress, onDirections }: {
+  f: Facility;
+  selected: boolean;
+  onPress: () => void;
+  onDirections: () => void;
+}) {
+  const { c: P } = useTheme();
+  const colour = kindColour(P, f.kind);
+
+  return (
+    <Springy onPress={onPress} scaleTo={0.98}>
+      <View
+        style={[
+          st.row,
+          {
+            borderColor: selected ? colour : P.line,
+            backgroundColor: selected ? P.sunken : 'transparent',
+          },
+        ]}
+      >
+        <View style={[st.dot, { backgroundColor: colour }]}>
+          <Icon name={KIND_ICON[f.kind]} size={15} color="#FFFFFF" weight="bold" />
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Txt t="bodyStrong" numberOfLines={2} c={f.named ? P.ink : P.muted}>
+            {f.name}
+          </Txt>
+          <Txt t="caption" c={P.muted} style={{ marginTop: 2 }}>
+            {`${KIND_LABEL[f.kind]} · ${distance(f.km)}`}
+          </Txt>
+
+          {f.urgent || f.open24h ? (
+            <View style={st.flags}>
+              {f.urgent ? (
+                <View style={[st.flag, { backgroundColor: P.dangerSoft }]}>
+                  <Txt t="micro" c={P.danger}>URGENT CARE</Txt>
+                </View>
+              ) : null}
+              {f.open24h ? (
+                // No okSoft token exists, and inventing one would put a colour
+                // outside the audited palette on screen.
+                <View style={[st.flag, { backgroundColor: P.sunken }]}>
+                  <Txt t="micro" c={P.ok}>OPEN 24 HOURS</Txt>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
+        </View>
+
+        {/* Separate from the row: tapping the row asks where, this asks how. */}
+        <Springy onPress={onDirections} scaleTo={0.88} accessibilityLabel={`Directions to ${f.name}`}>
+          <View style={[st.go, { borderColor: P.line, backgroundColor: P.surface }]}>
+            <Icon name="arrowRight" size={17} color={P.accent} />
+          </View>
+        </Springy>
+      </View>
+    </Springy>
+  );
+}
+
+function Empty({ busy, notice, query, onRetry }: {
+  busy: boolean;
+  notice: string | null;
+  query: string;
+  onRetry: () => void;
+}) {
+  const { c: P } = useTheme();
+
+  if (busy) {
+    return (
+      <View style={st.empty}>
+        <ActivityIndicator color={P.accent} />
+        <Txt t="caption" c={P.muted} style={{ marginTop: S.md }}>
+          Looking for health facilities nearby.
+        </Txt>
+      </View>
+    );
+  }
+
+  if (notice) {
+    return (
+      <View style={st.empty}>
+        <Txt t="caption" c={P.muted} style={{ textAlign: 'center' }}>{notice}</Txt>
+        <View style={{ height: S.md }} />
+        <Springy onPress={() => { tap('light'); onRetry(); }} scaleTo={0.96}>
+          <Txt t="bodyStrong" c={P.accent}>Try again</Txt>
+        </Springy>
+      </View>
+    );
+  }
+
+  return (
+    <View style={st.empty}>
+      <Txt t="caption" c={P.muted} style={{ textAlign: 'center' }}>
+        {query.trim()
+          ? `Nothing matches "${query.trim()}". Clear the filter to see everything nearby.`
+          : 'No health facilities are mapped around here.'}
+      </Txt>
+    </View>
+  );
+}
+
+/* ─────────────────────────────── styles ─────────────────────────────────── */
+
+const st = StyleSheet.create({
+  centred: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xl },
+  centredText: { marginTop: S.sm, textAlign: 'center' },
+
+  recentre: {
+    position: 'absolute', right: S.xl,
+    width: TOUCH, height: TOUCH, borderRadius: TOUCH / 2, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  sheet: {
+    position: 'absolute', left: 0, right: 0,
+    borderTopLeftRadius: R.xl, borderTopRightRadius: R.xl,
+    borderTopWidth: StyleSheet.hairlineWidth * 2,
     overflow: 'hidden',
   },
-  map: { flex: 1 },
-  mapPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  grip: { paddingTop: S.md, paddingBottom: S.sm, alignItems: 'center' },
+  grabber: { width: 44, height: 5, borderRadius: 3 },
 
-  listHead: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', marginBottom: S.sm,
+  head: { paddingHorizontal: S.xl, paddingBottom: S.md },
+  search: {
+    flexDirection: 'row', alignItems: 'center', gap: S.md,
+    minHeight: TOUCH, borderRadius: R.pill, borderWidth: 1.5,
+    paddingHorizontal: S.lg,
   },
-  row: { flexDirection: 'row', gap: S.lg, alignItems: 'center' },
+  searchInput: { flex: 1, paddingVertical: S.sm },
+  countRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginTop: S.md,
+  },
+
+  row: {
+    flexDirection: 'row', gap: S.lg, alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth * 2, borderRadius: R.md,
+    padding: S.md, marginBottom: S.sm,
+  },
   dot: {
     width: 34, height: 34, borderRadius: 17,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  go: {
+    width: 36, height: 36, borderRadius: 18, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
   flags: { flexDirection: 'row', gap: S.xs, marginTop: 6, flexWrap: 'wrap' },
   flag: { paddingHorizontal: S.sm, paddingVertical: 3, borderRadius: R.pill },
 
+  empty: { paddingVertical: S.xxl, alignItems: 'center' },
+
   meta: {
     flexDirection: 'row', gap: S.sm, alignItems: 'flex-start',
-    borderWidth: StyleSheet.hairlineWidth * 2, borderRadius: R.md, padding: S.md,
+    borderWidth: StyleSheet.hairlineWidth * 2, borderRadius: R.md,
+    padding: S.md, marginTop: S.lg,
   },
 });

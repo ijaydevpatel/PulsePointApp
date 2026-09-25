@@ -17,7 +17,7 @@
  */
 import {
   Facility, FacilityService, FacilitySearch, byDistance, classify, haversineKm,
-  isOpen24h, isUrgent,
+  isOpen24h, isUrgent, KIND_LABEL,
 } from '../domain/facilities';
 
 const ENDPOINTS = [
@@ -37,27 +37,49 @@ const BBOX_DEGREES = 0.06;
 /**
  * Generous, because this is one request that replaces a whole screen.
  *
- * Overpass is a shared public service and a busy instance can take twenty
- * seconds to answer a query this size. Cutting it off early only sends the
- * caller to the second endpoint, which is slower than waiting.
+ * These are the website's figures, and the app's earlier ones - 20s on the
+ * server, 25s on the client - are why the Map tab reported "did not respond in
+ * time" on a query the website answers fine. A dense city centre takes Overpass
+ * well over twenty seconds, and the server-side limit is the one that bites
+ * first: it aborts the query and returns nothing, so the client timeout never
+ * even gets a chance to be the problem.
+ *
+ * The client's is kept below the server's so a query that is genuinely going to
+ * fail fails here rather than hanging.
  */
-const TIMEOUT_MS = 25000;
+const TIMEOUT_MS = 38000;
 
-/** Overpass' own server-side limit, kept below the client's. */
-const QUERY_TIMEOUT_S = 20;
+/** Overpass' own server-side limit, kept above the time a city centre needs. */
+const QUERY_TIMEOUT_S = 45;
 
 /**
  * The query.
  *
- * Copied in substance from the website's, which is why it is this long: OSM
- * tags health places under `amenity`, `healthcare` and `shop` inconsistently,
- * and asking for only one of them silently loses whole categories. Pharmacies
- * are `amenity=pharmacy` in most of the world and `shop=chemist` in parts of
- * it; opticians are a shop; laboratories are `healthcare`.
+ * ── Five statements, not seventy ─────────────────────────────────────────────
  *
- * `out center` so ways and relations - a hospital is usually a building
- * outline rather than a point - come back with coordinates instead of a list
- * of nodes.
+ * The website spells out every tag as its own node/way/relation line, which
+ * runs to about seventy statements. This asks the same questions with `nwr`
+ * (node, way and relation at once) and a regex over the values, which is both
+ * shorter and strictly more complete: the website lists `healthcare` values
+ * one by one and so silently misses any it did not think of, while
+ * `nwr["healthcare"]` catches every one of them including values added to OSM
+ * since.
+ *
+ * ── Why three tag keys ───────────────────────────────────────────────────────
+ *
+ * OSM files health places under `amenity`, `healthcare`, `shop` and `office`
+ * inconsistently, and asking for one of them loses whole categories without
+ * any sign that it has. Pharmacies are `amenity=pharmacy` in most of the world
+ * and `shop=chemist` in parts of it; opticians and hearing-aid shops are a
+ * `shop`; a GP practice is often `office=physician` and nothing else.
+ *
+ * ── What is deliberately absent ──────────────────────────────────────────────
+ *
+ * `amenity=veterinary`. The website includes vets; this screen is what someone
+ * opens when they are unwell, and a vet is not somewhere to send them.
+ *
+ * `out center` so ways and relations - a hospital is usually a building outline
+ * rather than a point - come back with coordinates instead of a list of nodes.
  */
 function buildQuery(lat: number, lon: number): string {
   const s = (lat - BBOX_DEGREES).toFixed(5);
@@ -66,32 +88,26 @@ function buildQuery(lat: number, lon: number): string {
   const e = (lon + BBOX_DEGREES).toFixed(5);
   const bbox = `${s},${w},${n},${e}`;
 
-  const amenities = [
-    'hospital', 'clinic', 'doctors', 'dentist', 'pharmacy',
-    'health_post', 'nursing_home', 'laboratory',
-  ];
-  const healthcare = [
-    'hospital', 'clinic', 'doctor', 'centre', 'dentist', 'pharmacy',
-    'laboratory', 'blood_bank', 'blood_donation', 'diagnostic',
-    'sample_collection', 'radiology', 'optometrist', 'alternative',
-    'urgent_care', 'emergency',
-  ];
-  const shops = ['chemist', 'optician', 'herbalist', 'nutrition_supplements'];
+  const amenity = [
+    'hospital', 'clinic', 'doctors', 'dentist', 'pharmacy', 'healthcare',
+    'health_post', 'nursing_home', 'social_facility', 'laboratory',
+  ].join('|');
 
-  const lines: string[] = [];
-  for (const a of amenities) {
-    lines.push(`node["amenity"="${a}"](${bbox});`);
-    lines.push(`way["amenity"="${a}"](${bbox});`);
-  }
-  for (const h of healthcare) {
-    lines.push(`node["healthcare"="${h}"](${bbox});`);
-    lines.push(`way["healthcare"="${h}"](${bbox});`);
-  }
-  for (const sh of shops) {
-    lines.push(`node["shop"="${sh}"](${bbox});`);
-    lines.push(`way["shop"="${sh}"](${bbox});`);
-  }
-  lines.push(`relation["amenity"="hospital"](${bbox});`);
+  const shop = [
+    'chemist', 'pharmacy', 'optician', 'hearing_aids', 'medical_supply',
+    'herbalist', 'nutrition_supplements',
+  ].join('|');
+
+  const office = ['physician', 'healthcare', 'therapist'].join('|');
+
+  const lines = [
+    `nwr["amenity"~"^(${amenity})$"](${bbox});`,
+    // Unfiltered on purpose - every healthcare=* value is a health facility.
+    `nwr["healthcare"](${bbox});`,
+    `nwr["healthcare:speciality"](${bbox});`,
+    `nwr["shop"~"^(${shop})$"](${bbox});`,
+    `nwr["office"~"^(${office})$"](${bbox});`,
+  ];
 
   return `[out:json][timeout:${QUERY_TIMEOUT_S}];(\n${lines.join('\n')}\n);out center;`;
 }
@@ -107,28 +123,41 @@ function address(tags: Record<string, string | undefined>): string | null {
 }
 
 /**
- * One Overpass element to a Facility, or null if it cannot be placed or named.
+ * One Overpass element to a Facility, or null if it cannot be placed.
  *
- * Unnamed elements are dropped rather than shown as "Unnamed clinic". OSM is
- * full of half-entered places, and a row that says nothing is a row that
- * wastes a tap on a screen someone may be using in a hurry.
+ * ── Unnamed places are kept ──────────────────────────────────────────────────
+ *
+ * They used to be dropped, on the reasoning that a row saying nothing wastes a
+ * tap. That reasoning was wrong for this screen: the question being asked is
+ * "what health facilities are around me", and a pharmacy that nobody has
+ * typed a name for is still a pharmacy, still open, and still where it is.
+ * Dropping it removed a real place from a map of real places.
+ *
+ * So an unnamed element is labelled by its category - "Pharmacy", "Clinic" -
+ * which is both true and the most useful thing that can be said about it. A
+ * position, though, is not optional: an element that cannot be placed cannot
+ * be shown on a map or measured a distance to.
  */
 export function toFacility(
   element: any, fromLat: number, fromLon: number,
 ): Facility | null {
   const tags = (element?.tags ?? {}) as Record<string, string | undefined>;
 
-  const name = (tags.name ?? '').trim();
-  if (!name) return null;
-
   const lat = typeof element?.lat === 'number' ? element.lat : element?.center?.lat;
   const lon = typeof element?.lon === 'number' ? element.lon : element?.center?.lon;
   if (typeof lat !== 'number' || typeof lon !== 'number') return null;
 
+  const kind = classify(tags);
+
+  // name:en after name, because an English-language UI showing a local-script
+  // name it cannot render is worse than showing the English one OSM carries.
+  const given = (tags.name ?? tags['name:en'] ?? '').trim();
+
   return {
     id: `${element?.type ?? 'node'}/${element?.id ?? `${lat},${lon}`}`,
-    name,
-    kind: classify(tags),
+    name: given || KIND_LABEL[kind],
+    named: given !== '',
+    kind,
     lat,
     lon,
     km: haversineKm(fromLat, fromLon, lat, lon),
@@ -157,7 +186,16 @@ export function readFacilities(
     const f = toFacility(element, fromLat, fromLon);
     if (!f) continue;
 
-    const key = `${f.name.toLowerCase()}@${f.lat.toFixed(3)},${f.lon.toFixed(3)}`;
+    /*
+     * Unnamed places are keyed by id instead. Their "name" is a category
+     * label shared by every other unnamed place of that kind, so the
+     * name-and-position key would collapse two different unnamed pharmacies
+     * a hundred metres apart into one - inventing a duplicate rather than
+     * finding one.
+     */
+    const key = f.named
+      ? `${f.name.toLowerCase()}@${f.lat.toFixed(3)},${f.lon.toFixed(3)}`
+      : f.id;
     const existing = seen.get(key);
 
     // Keep whichever reading says more: a named kind beats OTHER.
@@ -184,10 +222,15 @@ export class OverpassFacilities implements FacilityService {
       const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
       try {
+        /*
+         * Form-encoded, as the website sends it. Overpass accepts a raw body
+         * too, but `data=` is the documented form and is what every mirror is
+         * certain to handle identically.
+         */
         const response = await this.fetchImpl(endpoint, {
           method: 'POST',
-          headers: { 'Content-Type': 'text/plain' },
-          body: query,
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `data=${encodeURIComponent(query)}`,
           signal: controller.signal,
         });
 
