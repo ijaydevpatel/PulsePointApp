@@ -60,12 +60,26 @@ import { Fix } from '../../data/locationFix';
  */
 const MAPLIBRE_MODULE = '@maplibre/maplibre-react-native';
 
+/*
+ * The guard checks for the component, not just the module.
+ *
+ * Checking `MapLibreGL != null` was not enough. v11 renamed most of the API -
+ * MapView became Map, ShapeSource became GeoJSONSource, and the per-type layer
+ * components collapsed into one Layer with a `type` prop. The module loaded
+ * perfectly and every component came back undefined, which React reports as
+ * "Element type is invalid ... got: undefined" from somewhere deep in the
+ * tree rather than as a missing module.
+ *
+ * So the condition is whether the piece actually being rendered exists.
+ */
 let MapLibreGL: any = null;
 try {
   // eslint-disable-next-line @typescript-eslint/no-var-requires, global-require
-  MapLibreGL = require(MAPLIBRE_MODULE);
-  MapLibreGL = MapLibreGL?.default ?? MapLibreGL;
-  MapLibreGL?.setAccessToken?.(null);
+  const mod = require(MAPLIBRE_MODULE);
+  MapLibreGL = mod?.default ?? mod;
+  if (!MapLibreGL?.Map || !MapLibreGL?.Camera || !MapLibreGL?.GeoJSONSource || !MapLibreGL?.Layer) {
+    MapLibreGL = null;
+  }
 } catch {
   MapLibreGL = null;
 }
@@ -197,24 +211,25 @@ export function CareScreen({ service, fix }: {
               </Txt>
             </View>
           ) : fix ? (
-            <MapLibreGL.MapView style={st.map} mapStyle={STYLE_URL} logoEnabled={false}>
+            <MapLibreGL.Map style={st.map} mapStyle={STYLE_URL} logo={false} compass={false}>
               <MapLibreGL.Camera
-                defaultSettings={{ centerCoordinate: [fix.lon, fix.lat], zoomLevel: 13 }}
+                initialViewState={{ center: [fix.lon, fix.lat], zoom: 13 }}
               />
-              <MapLibreGL.UserLocation visible />
+              <MapLibreGL.UserLocation />
 
-              <MapLibreGL.ShapeSource id="facilities" shape={pins}>
-                <MapLibreGL.CircleLayer
+              <MapLibreGL.GeoJSONSource id="facilities" data={pins}>
+                <MapLibreGL.Layer
                   id="facility-pins"
-                  style={{
-                    circleRadius: 6,
-                    circleColor: ['get', 'colour'],
-                    circleStrokeWidth: 2,
-                    circleStrokeColor: '#FFFFFF',
+                  type="circle"
+                  paint={{
+                    'circle-radius': 6,
+                    'circle-color': ['get', 'colour'],
+                    'circle-stroke-width': 2,
+                    'circle-stroke-color': '#FFFFFF',
                   }}
                 />
-              </MapLibreGL.ShapeSource>
-            </MapLibreGL.MapView>
+              </MapLibreGL.GeoJSONSource>
+            </MapLibreGL.Map>
           ) : (
             <View style={st.mapPlaceholder}>
               <ActivityIndicator color={P.accent} />
