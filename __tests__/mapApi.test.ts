@@ -85,6 +85,40 @@ describe('the MapLibre API the Map tab is written against', () => {
     expect(source).toMatch(/MapLibreGL\?\.Map\b/);
   });
 
+  it('labels the pins with a font the style actually serves', () => {
+    /*
+     * MapLibre renders no text at all - no warning, no fallback - when a
+     * symbol layer asks for a fontstack the style's glyph endpoint does not
+     * have. The default is "Open Sans Regular", which this style does not
+     * serve, so a symbol layer that omits text-font draws nothing and looks
+     * like a layer that failed.
+     *
+     * https://tiles.openfreemap.org/styles/positron declares a glyphs
+     * endpoint and uses exactly these three stacks.
+     */
+    const SERVED = ['Noto Sans Regular', 'Noto Sans Bold', 'Noto Sans Italic'];
+
+    expect(source).toContain("type=\"symbol\"");
+
+    const fonts = [...source.matchAll(/'text-font':\s*\[([^\]]*)\]/g)]
+      .map((m) => m[1]!.replace(/['"]/g, '').trim());
+
+    expect(fonts.length).toBeGreaterThan(0);
+    for (const font of fonts) {
+      expect(SERVED).toContain(font);
+    }
+  });
+
+  it('draws the person\'s own position rather than relying on UserLocation', () => {
+    /*
+     * MapLibre's UserLocation runs its own location provider - a second
+     * permission prompt and a second thing to fail - and it rendered nothing
+     * here. The screen already has a fix, so the dot is drawn from that.
+     */
+    expect(source).toContain('me-dot');
+    expect(source).not.toContain('MapLibreGL.UserLocation');
+  });
+
   it('does not reference the v10 names that were renamed', () => {
     for (const gone of ['MapView', 'ShapeSource', 'CircleLayer', 'setAccessToken']) {
       expect(source).not.toContain(`MapLibreGL.${gone}`);

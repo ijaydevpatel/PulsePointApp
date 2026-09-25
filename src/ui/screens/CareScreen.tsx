@@ -212,11 +212,34 @@ export function CareScreen({ service, fix }: {
       id: f.id,
       geometry: { type: 'Point' as const, coordinates: [f.lon, f.lat] },
       properties: {
+        name: f.name,
+        named: f.named,
         colour: kindColour(P, f.kind),
         selected: f.id === selected,
       },
     })),
   }), [shown, P, selected]);
+
+  /**
+   * Where the person is, drawn by us.
+   *
+   * MapLibre's own UserLocation component was here and rendered nothing: it
+   * runs its own location provider, which is a second permission prompt and a
+   * second thing to fail. The screen already has a fix - it is what the search
+   * was centred on - so the dot is drawn from that. One source of truth, and
+   * it cannot disagree with the list.
+   */
+  const me = useMemo(() => ({
+    type: 'FeatureCollection' as const,
+    features: fix
+      ? [{
+        type: 'Feature' as const,
+        id: 'me',
+        geometry: { type: 'Point' as const, coordinates: [fix.lon, fix.lat] },
+        properties: {},
+      }]
+      : [],
+  }), [fix]);
 
   /* ─────────────────────────── the sheet ────────────────────────────── */
 
@@ -273,20 +296,38 @@ export function CareScreen({ service, fix }: {
     },
   }), [down, y, settle]);
 
+  /**
+   * Move the camera, whichever way this version of MapLibre offers.
+   *
+   * flyTo is the one worth having - it arcs out and back in, which shows the
+   * person the relationship between where they were and where they now are.
+   * The fallbacks exist because a camera that does not move is a button that
+   * does nothing, and an instant jump is a far better failure than that.
+   */
+  const moveTo = useCallback((lon: number, lat: number, zoom: number, duration: number) => {
+    const c = camera.current;
+    if (!c) return;
+    const to = { center: [lon, lat] as [number, number], zoom };
+
+    if (typeof c.flyTo === 'function') c.flyTo({ ...to, duration });
+    else if (typeof c.easeTo === 'function') c.easeTo({ ...to, duration });
+    else c.jumpTo?.(to);
+  }, []);
+
   /** Tapping a row is a question about where it is, so the map answers it. */
   const locate = useCallback((f: Facility) => {
     tap('light');
     setSelected(f.id);
-    camera.current?.flyTo({ center: [f.lon, f.lat], zoom: 16, duration: 900 });
+    moveTo(f.lon, f.lat, 16, 900);
     collapse();
-  }, [collapse]);
+  }, [collapse, moveTo]);
 
   const recentre = useCallback(() => {
     if (!fix) return;
     tap('light');
     setSelected(null);
-    camera.current?.flyTo({ center: [fix.lon, fix.lat], zoom: 13, duration: 700 });
-  }, [fix]);
+    moveTo(fix.lon, fix.lat, 14, 700);
+  }, [fix, moveTo]);
 
   /* ─────────────────────────────── render ───────────────────────────────── */
 
@@ -310,8 +351,6 @@ export function CareScreen({ service, fix }: {
               ref={camera}
               initialViewState={{ center: [fix.lon, fix.lat], zoom: 13 }}
             />
-            <MapLibreGL.UserLocation />
-
             <MapLibreGL.GeoJSONSource id="facilities" data={pins}>
               <MapLibreGL.Layer
                 id="facility-pins"
@@ -322,6 +361,61 @@ export function CareScreen({ service, fix }: {
                   'circle-radius': ['case', ['get', 'selected'], 11, 6],
                   'circle-color': ['get', 'colour'],
                   'circle-stroke-width': ['case', ['get', 'selected'], 3, 2],
+                  'circle-stroke-color': '#FFFFFF',
+                }}
+              />
+
+              {/*
+                Names on the map, as the website has them.
+
+                `Noto Sans Regular` is not a guess - it is one of the three
+                fontstacks this style's glyph endpoint serves, and MapLibre
+                renders no text at all when asked for a font the style cannot
+                supply. That silent nothing is the usual reason labels do not
+                appear.
+
+                Unnamed places are given an empty label rather than their
+                category, because five hundred pins each captioned "Pharmacy"
+                is noise. Labels are left to collide and drop out naturally,
+                so a dense street thins itself instead of turning solid.
+              */}
+              <MapLibreGL.Layer
+                id="facility-labels"
+                type="symbol"
+                minzoom={13}
+                layout={{
+                  'text-field': ['case', ['get', 'named'], ['get', 'name'], ''],
+                  'text-font': ['Noto Sans Regular'],
+                  'text-size': ['case', ['get', 'selected'], 13, 11],
+                  'text-anchor': 'top',
+                  'text-offset': [0, 0.9],
+                  'text-max-width': 9,
+                  'text-padding': 4,
+                  // The selected one wins any collision it takes part in.
+                  'symbol-sort-key': ['case', ['get', 'selected'], 0, 1],
+                }}
+                paint={{
+                  'text-color': '#1A1A1A',
+                  'text-halo-color': '#FFFFFF',
+                  'text-halo-width': 1.4,
+                  'text-halo-blur': 0.4,
+                }}
+              />
+            </MapLibreGL.GeoJSONSource>
+
+            <MapLibreGL.GeoJSONSource id="me" data={me}>
+              <MapLibreGL.Layer
+                id="me-halo"
+                type="circle"
+                paint={{ 'circle-radius': 18, 'circle-color': '#2E7DF7', 'circle-opacity': 0.15 }}
+              />
+              <MapLibreGL.Layer
+                id="me-dot"
+                type="circle"
+                paint={{
+                  'circle-radius': 7,
+                  'circle-color': '#2E7DF7',
+                  'circle-stroke-width': 3,
                   'circle-stroke-color': '#FFFFFF',
                 }}
               />
@@ -336,18 +430,6 @@ export function CareScreen({ service, fix }: {
           </Centred>
         )}
       </View>
-
-      {/* Back to me. Sits clear of the sheet at its peek height. */}
-      <Springy onPress={recentre} scaleTo={0.9} accessibilityLabel="Centre on my location">
-        <View
-          style={[
-            st.recentre,
-            { top: insets.top + S.lg, backgroundColor: P.surface, borderColor: P.line },
-          ]}
-        >
-          <Icon name="pin" size={19} color={P.accent} />
-        </View>
-      </Springy>
 
       <Animated.View
         style={[
@@ -371,17 +453,42 @@ export function CareScreen({ service, fix }: {
         </View>
 
         <View style={st.head}>
-          <View style={[st.search, { borderColor: P.line, backgroundColor: P.sunken }]}>
-            <Icon name="search" size={18} color={P.faint} />
-            <TextInput
-              style={[st.searchInput, { color: P.ink, ...TYPE.body }]}
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Filter by name or type"
-              placeholderTextColor={P.faint}
-              autoCorrect={false}
-              accessibilityLabel="Filter facilities"
-            />
+          {/*
+            The locate button lives here rather than floating over the map.
+            Over the map it sat in the one corner the person is most likely to
+            be looking at, and it moved whenever the sheet did; beside the
+            filter it is always in the same place and always reachable with the
+            thumb that is already on the sheet.
+          */}
+          <View style={st.headRow}>
+            <View style={[st.search, { borderColor: P.line, backgroundColor: P.sunken }]}>
+              <Icon name="search" size={18} color={P.faint} />
+              <TextInput
+                style={[st.searchInput, { color: P.ink, ...TYPE.body }]}
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Filter by name or type"
+                placeholderTextColor={P.faint}
+                autoCorrect={false}
+                accessibilityLabel="Filter facilities"
+              />
+            </View>
+
+            <Springy
+              onPress={recentre}
+              disabled={!fix}
+              scaleTo={0.9}
+              accessibilityLabel="Centre the map on my location"
+            >
+              <View
+                style={[
+                  st.locate,
+                  { backgroundColor: fix ? P.accent : P.sunken, borderColor: P.line },
+                ]}
+              >
+                <Icon name="pin" size={19} color={fix ? P.onAccent : P.faint} />
+              </View>
+            </Springy>
           </View>
 
           <View style={st.countRow}>
@@ -546,12 +653,6 @@ const st = StyleSheet.create({
   centred: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xl },
   centredText: { marginTop: S.sm, textAlign: 'center' },
 
-  recentre: {
-    position: 'absolute', right: S.xl,
-    width: TOUCH, height: TOUCH, borderRadius: TOUCH / 2, borderWidth: 1,
-    alignItems: 'center', justifyContent: 'center',
-  },
-
   sheet: {
     position: 'absolute', left: 0, right: 0,
     borderTopLeftRadius: R.xl, borderTopRightRadius: R.xl,
@@ -562,10 +663,18 @@ const st = StyleSheet.create({
   grabber: { width: 44, height: 5, borderRadius: 3 },
 
   head: { paddingHorizontal: S.xl, paddingBottom: S.md },
+  headRow: { flexDirection: 'row', alignItems: 'center', gap: S.md },
+  // flex so the field gives up exactly the width the button needs, rather
+  // than a fixed inset that would be wrong on a different screen.
   search: {
+    flex: 1,
     flexDirection: 'row', alignItems: 'center', gap: S.md,
     minHeight: TOUCH, borderRadius: R.pill, borderWidth: 1.5,
     paddingHorizontal: S.lg,
+  },
+  locate: {
+    width: TOUCH, height: TOUCH, borderRadius: TOUCH / 2, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
   },
   searchInput: { flex: 1, paddingVertical: S.sm },
   countRow: {
