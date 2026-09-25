@@ -33,7 +33,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable, Keyboard, BackHandler,
-  useWindowDimensions, Platform, KeyboardAvoidingView,
+  useWindowDimensions, Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as WebBrowser from 'expo-web-browser';
@@ -42,6 +42,7 @@ import * as AuthSession from 'expo-auth-session';
 import { useAuth, useUser, useSignIn, useSignUp, useSSO } from '@clerk/clerk-expo';
 
 import { Icon } from '../components/Icon';
+import { KeyboardSafe } from '../components/KeyboardSafe';
 import { Session } from '../../domain/auth';
 import { ClerkAuthGateway } from '../../data/clerkAuth';
 import { AuthBackground } from '../auth/AuthBackground';
@@ -341,10 +342,12 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
     <View style={{ flex: 1, backgroundColor: C.canvas }}>
       <AuthBackground variant={mode === 'welcome' ? 'welcome' : 'auth'} width={width} height={height} />
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      {/*
+        Was a KeyboardAvoidingView with behavior undefined on Android, which
+        left every field below the fold typed into blind once edge-to-edge
+        stopped the window resizing. See KeyboardSafe.
+      */}
+      <KeyboardSafe>
         <ScrollView
           contentContainerStyle={[st.scroll, scrollPad]}
           keyboardShouldPersistTaps="handled"
@@ -398,7 +401,7 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
               />
             )}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardSafe>
     </View>
   );
 }

@@ -53,15 +53,26 @@ const BBOX_DEGREES = 0.06;
  * The client's is kept below the server's so a query that is genuinely going to
  * fail fails here rather than hanging.
  */
-const TIMEOUT_MS = 38000;
+const TIMEOUT_MS = 40000;
+
+/**
+ * How long one mirror gets to itself before the next is started alongside it.
+ *
+ * Not "before it is given up on" - it keeps running, and whichever answers
+ * first wins. Six seconds is long enough that a healthy mirror on a decent
+ * connection is never hedged at all, and short enough that an unreachable one
+ * does not decide how long the person waits.
+ */
+const HEDGE_MS = 6000;
 
 /**
  * How long the whole attempt may take, across every mirror.
  *
- * Without this, four endpoints at 38 seconds apiece is over two and a half
- * minutes before the screen admits defeat.
+ * With the mirrors hedged rather than queued they are all in flight within
+ * twenty seconds, so this is a cap on the slowest useful answer rather than
+ * the sum of four timeouts.
  */
-const TOTAL_BUDGET_MS = 75000;
+const TOTAL_BUDGET_MS = 50000;
 
 /** Overpass' own server-side limit, kept above the time a city centre needs. */
 const QUERY_TIMEOUT_S = 45;
@@ -123,7 +134,9 @@ function buildQuery(lat: number, lon: number): string {
     `nwr["office"~"^(${office})$"](${bbox});`,
   ];
 
-  return `[out:json][timeout:${QUERY_TIMEOUT_S}];(\n${lines.join('\n')}\n);out center;`;
+  // `qt` orders by quadtile, which is the cheapest order for Overpass to
+  // produce - it is the one the data is already in.
+  return `[out:json][timeout:${QUERY_TIMEOUT_S}];(\n${lines.join('\n')}\n);out center qt;`;
 }
 
 /** Street address from whichever of the addr:* tags are present. */
@@ -226,25 +239,11 @@ export class OverpassFacilities implements FacilityService {
 
   async near(at: FacilitySearch): Promise<FacilityResult> {
     const query = buildQuery(at.lat, at.lon);
+    const body = `data=${encodeURIComponent(query)}`;
     let lastNotice = 'Nothing could be loaded for this area.';
 
-    /*
-     * A deadline across all the mirrors, not just each one.
-     *
-     * Four endpoints at 38 seconds each is over two and a half minutes of
-     * someone watching a spinner to be told it did not work. Past this point
-     * the answer is not going to be useful even if it arrives, so say so and
-     * let them retry deliberately.
-     */
-    const giveUpAt = Date.now() + TOTAL_BUDGET_MS;
-
-    for (const endpoint of ENDPOINTS) {
-      const left = giveUpAt - Date.now();
-      if (left <= 1000) break;
-
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), Math.min(TIMEOUT_MS, left));
-
+    /** One mirror. Resolves to a result, or null having recorded why not. */
+    const ask = async (endpoint: string, signal: AbortSignal): Promise<FacilityResult | null> => {
       try {
         /*
          * Form-encoded, as the website sends it. Overpass accepts a raw body
@@ -254,15 +253,14 @@ export class OverpassFacilities implements FacilityService {
         const response = await this.fetchImpl(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: `data=${encodeURIComponent(query)}`,
-          signal: controller.signal,
+          body,
+          signal,
         });
 
         if (!response.ok) {
-          // 429 and 504 are what a busy public instance answers with, and the
-          // other mirror is usually fine. Worth the second request.
+          // 429 and 504 are what a busy public instance answers with.
           lastNotice = `The map service is busy (HTTP ${response.status}).`;
-          continue;
+          return null;
         }
 
         /*
@@ -272,7 +270,7 @@ export class OverpassFacilities implements FacilityService {
         const type = response.headers?.get?.('content-type') ?? '';
         if (!type.includes('json')) {
           lastNotice = 'The map service is busy right now.';
-          continue;
+          return null;
         }
 
         const facilities = readFacilities(await response.json(), at.lat, at.lon);
@@ -287,11 +285,76 @@ export class OverpassFacilities implements FacilityService {
         lastNotice = (error instanceof Error && error.name === 'AbortError')
           ? 'The map service did not respond in time.'
           : 'The map service could not be reached.';
-      } finally {
-        clearTimeout(timer);
+        return null;
       }
-    }
+    };
 
-    return { ok: false, facilities: [], notice: lastNotice };
+    /*
+     * ── Hedged, not sequential ─────────────────────────────────────────────
+     *
+     * Asking one mirror and waiting the full timeout before trying the next
+     * is fine on a fast connection and useless on a phone: the Map tab worked
+     * on the emulator over laptop wifi and timed out on the handset, because
+     * an endpoint the device cannot reach costs the *entire* per-attempt
+     * budget before anything else is tried, and two of those exhausted the
+     * whole deadline. Whether a mirror is slow or simply unreachable is not
+     * knowable in advance, and waiting is the most expensive way to find out.
+     *
+     * So the next mirror is started if the previous has not answered within a
+     * few seconds, rather than only once it has failed. The first good answer
+     * wins and cancels the rest. A mirror that answers in two seconds still
+     * costs exactly one request; the extra requests only happen when the
+     * first one is already letting the person down.
+     */
+    return await new Promise<FacilityResult>((resolve) => {
+      const controllers: AbortController[] = [];
+      let started = 0;
+      let outstanding = 0;
+      let done = false;
+
+      const finish = (r: FacilityResult) => {
+        if (done) return;
+        done = true;
+        clearInterval(hedge);
+        clearTimeout(deadline);
+        // Losing requests are cancelled so they cannot hold the radio awake.
+        for (const c of controllers) c.abort();
+        resolve(r);
+      };
+
+      const giveUp = () => finish({ ok: false, facilities: [], notice: lastNotice });
+
+      const startNext = () => {
+        if (done || started >= ENDPOINTS.length) return;
+
+        const endpoint = ENDPOINTS[started]!;
+        started += 1;
+        outstanding += 1;
+
+        const controller = new AbortController();
+        controllers.push(controller);
+        const perAttempt = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+        void ask(endpoint, controller.signal).then((r) => {
+          clearTimeout(perAttempt);
+          outstanding -= 1;
+
+          if (r) return finish(r);
+          // A failure is a reason to start the next one immediately rather
+          // than waiting out the hedge interval.
+          if (started < ENDPOINTS.length) return startNext();
+          if (outstanding === 0) giveUp();
+        });
+      };
+
+      const hedge = setInterval(() => {
+        if (done || started >= ENDPOINTS.length) return clearInterval(hedge);
+        startNext();
+      }, HEDGE_MS);
+
+      const deadline = setTimeout(giveUp, TOTAL_BUDGET_MS);
+
+      startNext();
+    });
   }
 }

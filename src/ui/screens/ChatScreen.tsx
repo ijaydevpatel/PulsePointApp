@@ -17,10 +17,10 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  View, StyleSheet, ScrollView, TextInput, KeyboardAvoidingView, Platform,
-  ActivityIndicator,
+  View, StyleSheet, ScrollView, TextInput, ActivityIndicator,
 } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
+import { KeyboardSafe } from '../components/KeyboardSafe';
 import { Txt, Springy, tap, EmptyState } from '../components/Primitives';
 import { Icon } from '../components/Icon';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -159,11 +159,13 @@ export function ChatScreen({ service, onBack, conversation, onConversation }: {
     <View style={{ flex: 1, backgroundColor: P.bg }}>
       <ScreenHeader title="AI Doctor" subtitle="Ask a health question" onBack={onBack} />
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={8}
-      >
+      {/*
+        Was a KeyboardAvoidingView doing nothing on Android, which stopped
+        being harmless once edge-to-edge meant the window no longer resized -
+        the keyboard then sat over the composer. `extra` is the tab bar the
+        composer already clears. See KeyboardSafe.
+      */}
+      <KeyboardSafe extra={barHeight}>
         <ScrollView
           ref={scroller}
           contentContainerStyle={st.thread}
@@ -222,7 +224,7 @@ export function ChatScreen({ service, onBack, conversation, onConversation }: {
             </View>
           </Springy>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardSafe>
     </View>
   );
 }

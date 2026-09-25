@@ -19,6 +19,7 @@ import { CATALOGUE } from '../../data/symptomCatalogue';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Card, SectionLabel, Chip, Txt, Springy, tap } from '../components/Primitives';
 import { Icon } from '../components/Icon';
+import { KeyboardSafe } from '../components/KeyboardSafe';
 import { useTheme, S, R, TOUCH, TAB_CLEARANCE, MOTION, TYPE, circle } from '../theme';
 import { useReveal } from '../useReveal';
 import { EpisodeStore, Classifier } from '../../domain/ports';
@@ -186,7 +187,10 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
   }
 
   return (
-    <View style={{ flex: 1 }}>
+    // `extra` is the floating tab bar: the page already reserves that much at
+    // the bottom, so reserving the full keyboard height again would leave a
+    // band of dead screen above it.
+    <KeyboardSafe extra={TAB_CLEARANCE}>
       <ScrollView
         contentContainerStyle={{ paddingBottom: TAB_CLEARANCE + S.xxl }}
         keyboardShouldPersistTaps="handled"
@@ -325,7 +329,7 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
           </Springy>
         )}
       </Animated.View>
-    </View>
+    </KeyboardSafe>
   );
 }
 

@@ -24,6 +24,7 @@ import {
   Button, Card, SectionLabel, Txt, Springy, Enter, tap,
 } from '../components/Primitives';
 import { Icon } from '../components/Icon';
+import { KeyboardSafe } from '../components/KeyboardSafe';
 import { useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE } from '../theme';
 import { BundledInteractionTable } from '../../data/interactionTable';
 import {
@@ -125,6 +126,10 @@ export function MedicinesScreen({ onRun, check, onCheck }: {
   };
 
   return (
+    // Two text fields, both below the fold on a short phone. See KeyboardSafe:
+    // Android stopped resizing the window under edge-to-edge, so without this
+    // the second field is typed into blind.
+    <KeyboardSafe extra={TAB_CLEARANCE}>
     <ScrollView
       contentContainerStyle={{ paddingBottom: TAB_CLEARANCE + S.xxl }}
       keyboardShouldPersistTaps="handled"
@@ -192,6 +197,7 @@ export function MedicinesScreen({ onRun, check, onCheck }: {
         </Enter>
       </View>
     </ScrollView>
+    </KeyboardSafe>
   );
 }
 

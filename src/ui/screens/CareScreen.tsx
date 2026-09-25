@@ -651,6 +651,19 @@ export function CareScreen({ service, fix: given }: {
                 placeholderTextColor={P.faint}
                 autoCorrect={false}
                 accessibilityLabel="Filter facilities"
+                /*
+                 * The sheet goes up when this is tapped, rather than the
+                 * screen padding down.
+                 *
+                 * At its peek height this field sits just above where the
+                 * keyboard opens, so the usual answer - reserve the keyboard's
+                 * height at the bottom - would push the sheet, the map and the
+                 * tab bar around to rescue one input. Raising the sheet puts
+                 * the field near the top of the screen, which is both simpler
+                 * and what the person wanted anyway: they are about to filter
+                 * a list they cannot currently see.
+                 */
+                onFocus={() => settle(0)}
               />
             </View>
 

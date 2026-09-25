@@ -269,6 +269,45 @@ describe('when Overpass will not answer', () => {
     json: async () => body,
   });
 
+  it('does not let one unreachable mirror decide how long the wait is', async () => {
+    /*
+     * This is why the Map tab worked on the emulator over laptop wifi and
+     * timed out on the handset. Asked one at a time, a mirror the device
+     * cannot reach costs the entire per-attempt budget before anything else
+     * is tried - and two of those used up the whole deadline.
+     *
+     * Hedged, the second mirror is started because the first is *slow*, not
+     * because it has failed, and the first good answer wins.
+     */
+    jest.useFakeTimers();
+
+    const calls: string[] = [];
+    const fetchImpl = (async (url: string) => {
+      calls.push(url);
+      // The first mirror never answers and never errors - the worst case,
+      // and the one a sequential walk handles worst.
+      if (calls.length === 1) return new Promise(() => {});
+      return ok({ elements: [node(1, { amenity: 'pharmacy', name: 'Unichem' })] });
+    }) as any;
+
+    const pending = new OverpassFacilities(fetchImpl).near(AT);
+
+    for (let i = 0; i < 20; i += 1) await Promise.resolve();
+    expect(calls).toHaveLength(1);
+
+    // Past the hedge interval, a second mirror joins in rather than waiting
+    // out the first one's timeout.
+    jest.advanceTimersByTime(7000);
+    for (let i = 0; i < 20; i += 1) await Promise.resolve();
+
+    const r = await pending;
+    jest.useRealTimers();
+
+    expect(calls.length).toBeGreaterThanOrEqual(2);
+    expect(r.ok).toBe(true);
+    expect(r.facilities).toHaveLength(1);
+  });
+
   it('says whether it actually got an answer', async () => {
     /*
      * The distinction the screen cannot recover from the other two fields.
@@ -371,7 +410,7 @@ describe('when Overpass will not answer', () => {
     // node, way and relation at once - a hospital is usually a building
     // outline, not a point.
     expect(sent).toContain('nwr[');
-    expect(sent).toContain('out center;');
+    expect(sent).toContain('out center');
   });
 
   it('reports a failure rather than an empty neighbourhood', async () => {

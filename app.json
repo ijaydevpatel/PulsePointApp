@@ -9,6 +9,7 @@
     "android": {
       "package": "nz.ac.aut.comp826.pulsepoint",
       "versionCode": 1,
+      "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "backgroundColor": "#12263A"
       },
