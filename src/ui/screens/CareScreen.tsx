@@ -45,7 +45,7 @@ import { useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE, Palette } from '../theme';
 import {
   Facility, FacilityKind, FacilityService, KIND_LABEL, matches,
 } from '../../domain/facilities';
-import { Fix } from '../../data/locationFix';
+import { Fix, preciseFix } from '../../data/locationFix';
 
 /*
  * MapLibre, loaded only if it is actually installed.
@@ -160,6 +160,31 @@ const KIND_ICON: Record<FacilityKind, IconName> = {
   OTHER: 'pin',
 };
 
+/**
+ * Where the position came from, and how good it is.
+ *
+ * The three tiers are not equivalent and the screen should not pretend they
+ * are. A GPS fix is a point; an IP lookup is the internet provider's idea of
+ * the city; the time zone is a city outright. Someone deciding whether to walk
+ * somewhere deserves to know which of those they are reading.
+ */
+function whereFrom(fix: Fix | null): string {
+  if (!fix) return 'FINDING YOU';
+
+  if (fix.source === 'device') {
+    const m = fix.accuracyM;
+    if (typeof m !== 'number') return 'YOUR LOCATION';
+    return m < 1000
+      ? `YOUR LOCATION · ±${Math.round(m)} M`
+      : `YOUR LOCATION · ±${(m / 1000).toFixed(1)} KM`;
+  }
+
+  const place = fix.place ? fix.place.toUpperCase() : 'YOUR AREA';
+  return fix.source === 'network'
+    ? `APPROXIMATE · ${place}`
+    : `${place} · TIME ZONE ONLY`;
+}
+
 const distance = (km: number) =>
   (km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`);
 
@@ -177,12 +202,39 @@ function openDirections(f: Facility) {
 
 /* ──────────────────────────────── screen ────────────────────────────────── */
 
-export function CareScreen({ service, fix }: {
+export function CareScreen({ service, fix: given }: {
   service?: FacilityService;
   /** Where to search from. Null while the location is still being resolved. */
   fix?: Fix | null;
 }) {
   const { c: P } = useTheme();
+
+  /*
+   * This screen resolves its own position, precisely.
+   *
+   * The fix handed down is the app-wide one, which is deliberately quick and
+   * rough - it will settle for the time zone, and at worst for the internet
+   * provider's idea of the city centre. That is the right answer for the air
+   * quality card, and the wrong one for a map: it is how the screen came to
+   * say Albert Street for someone standing on Mayoral Drive.
+   *
+   * So the given fix is only a starting point, replaced as soon as the device
+   * reports something better. It is held here rather than lifted into App so
+   * that no other tab's behaviour changes.
+   */
+  const [precise, setPrecise] = useState<Fix | null>(null);
+  const [locating, setLocating] = useState(false);
+  const fix = precise ?? given ?? null;
+
+  const sharpen = useCallback(async () => {
+    setLocating(true);
+    const better = await preciseFix();
+    if (better) setPrecise(better);
+    setLocating(false);
+    return better;
+  }, []);
+
+  useEffect(() => { void sharpen(); }, [sharpen]);
   const insets = useSafeAreaInsets();
   const { height: screenH } = useWindowDimensions();
 
@@ -366,12 +418,34 @@ export function CareScreen({ service, fix }: {
     collapse();
   }, [collapse, moveTo]);
 
-  const recentre = useCallback(() => {
-    if (!fix) return;
+  /*
+   * The locate button re-reads the device rather than reusing the old fix.
+   *
+   * Someone who presses it is asking "where am I *now*", usually because they
+   * have moved or because the dot looks wrong. Flying back to a position taken
+   * minutes ago answers a question they did not ask.
+   */
+  const recentre = useCallback(async () => {
     tap('light');
     setSelected(null);
-    moveTo(fix.lon, fix.lat, 14, 700);
-  }, [fix, moveTo]);
+
+    const here = (await sharpen()) ?? fix;
+    if (here) moveTo(here.lon, here.lat, 15, 700);
+  }, [sharpen, fix, moveTo]);
+
+  /*
+   * When a better fix lands, take the camera with it - but not if the person
+   * is already looking at a facility they chose. Yanking the map away from
+   * something they tapped would be the screen talking over them.
+   */
+  const flownTo = useRef<string | null>(null);
+  useEffect(() => {
+    if (!precise || selected) return;
+    const key = `${precise.lat},${precise.lon}`;
+    if (flownTo.current === key) return;
+    flownTo.current = key;
+    moveTo(precise.lon, precise.lat, 15, 700);
+  }, [precise, selected, moveTo]);
 
   /* ─────────────────────────────── render ───────────────────────────────── */
 
@@ -561,25 +635,32 @@ export function CareScreen({ service, fix }: {
             </View>
 
             <Springy
-              onPress={recentre}
-              disabled={!fix}
+              onPress={() => { void recentre(); }}
+              disabled={locating}
               scaleTo={0.9}
-              accessibilityLabel="Centre the map on my location"
+              accessibilityLabel="Find my location again and centre the map on it"
             >
               <View
                 style={[
                   st.locate,
-                  { backgroundColor: fix ? P.accent : P.sunken, borderColor: P.line },
+                  { backgroundColor: locating ? P.sunken : P.accent, borderColor: P.line },
                 ]}
               >
-                <Icon name="pin" size={19} color={fix ? P.onAccent : P.faint} />
+                {locating
+                  ? <ActivityIndicator size="small" color={P.muted} />
+                  : <Icon name="pin" size={19} color={P.onAccent} />}
               </View>
             </Springy>
           </View>
 
           <View style={st.countRow}>
+            {/*
+              Says how sure it is, rather than implying a precision it does
+              not have. A screen that sends people to hospitals should not
+              quietly round "somewhere in this suburb" to a point on a street.
+            */}
             <Txt t="micro" c={P.faint}>
-              {fix?.place ? `NEAR ${fix.place.toUpperCase()}` : 'NEAREST FIRST'}
+              {locating ? 'FINDING YOU' : whereFrom(fix)}
             </Txt>
             <Txt t="micro" c={P.faint}>
               {busy ? 'Searching' : `${shown.length} ${shown.length === 1 ? 'place' : 'places'}`}

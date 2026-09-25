@@ -44,6 +44,15 @@ export interface Fix {
    * a reading without a name beats no reading.
    */
   readonly place?: string;
+  /**
+   * Radius of uncertainty in metres, when the source reports one.
+   *
+   * Only a device fix has this. It exists so the UI can say how sure it is
+   * rather than implying a precision it does not have - a screen that sends
+   * people to hospitals should not quietly round "somewhere in this suburb"
+   * to a point on a street.
+   */
+  readonly accuracyM?: number;
 }
 
 /**
@@ -151,6 +160,77 @@ export function zoneFix(): Fix | null {
  * know roughly where to centre and what to search around, and all three tiers
  * are accurate enough for that.
  */
+/** A position plus, best-effort, the name of the place it is in. */
+async function describe(Location: any, pos: any): Promise<Fix> {
+  const { latitude, longitude, accuracy } = pos.coords;
+
+  let place: string | undefined;
+  try {
+    const found = await Promise.race([
+      Location.reverseGeocodeAsync({ latitude, longitude }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+    ]);
+    const first = Array.isArray(found) ? found[0] : null;
+    place = (first?.city || first?.subregion || first?.district || first?.region) ?? undefined;
+  } catch { /* a reading without a name is still a reading */ }
+
+  return {
+    lat: latitude,
+    lon: longitude,
+    source: 'device',
+    place,
+    accuracyM: typeof accuracy === 'number' ? accuracy : undefined,
+  };
+}
+
+/**
+ * The most precise position the device can actually give, taking its time.
+ *
+ * ── Why this is separate from resolveFix ─────────────────────────────────────
+ *
+ * They answer different questions. resolveFix answers "roughly where is this
+ * person, right now, without making them wait" - which is what a screen needs
+ * in order to render at all, and it will settle for the time zone. This one
+ * answers "where is this person, precisely", and is allowed to take fifteen
+ * seconds and to come back with nothing.
+ *
+ * ── Why accuracy: High ───────────────────────────────────────────────────────
+ *
+ * The map asked for `Accuracy.Low`, which on Android is roughly a kilometre -
+ * comfortably wider than a city block, and wide enough to name the wrong
+ * street. It is the right setting for the air-quality card, which reports at
+ * city resolution anyway, and the wrong one for a map someone navigates by.
+ * High is around ten metres and turns on GPS to get there.
+ *
+ * Highest and BestForNavigation are deliberately not used: they are for
+ * turn-by-turn, cost a great deal more battery, and take longer to first fix
+ * for a precision nobody reads off this screen.
+ */
+export async function preciseFix(): Promise<Fix | null> {
+  try {
+    const Location = await import('expo-location');
+
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== Location.PermissionStatus.GRANTED) return null;
+    if (!await Location.hasServicesEnabledAsync()) return null;
+
+    /*
+     * Fifteen seconds, because a cold GPS fix indoors routinely takes ten and
+     * the old four-second cut-off is part of why this was falling through to
+     * the IP tier - which returns the internet provider's idea of the city
+     * centre, not where the person is standing.
+     */
+    const pos = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 15000)),
+    ]);
+
+    return pos ? await describe(Location, pos) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function resolveFix(): Promise<Fix | null> {
   try {
     const Location = await import('expo-location');
@@ -158,26 +238,23 @@ export async function resolveFix(): Promise<Fix | null> {
     const { status } = await Location.requestForegroundPermissionsAsync();
     if (status === Location.PermissionStatus.GRANTED
         && await Location.hasServicesEnabledAsync()) {
-      const cached = await Location.getLastKnownPositionAsync({ maxAge: 60 * 60 * 1000 });
-      const pos = cached ?? await Promise.race([
-        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+      /*
+       * A cached position is a stopgap, not an answer.
+       *
+       * This used to accept one up to an *hour* old, in preference to asking
+       * for a live fix - so the map could place someone on the street they
+       * were on when they last opened an app, which is exactly the "it says
+       * Albert St, I am on Mayoral Dr" failure. Two minutes is short enough
+       * that walking out of range of it is unlikely, and it is only taken
+       * when a live reading does not arrive in time.
+       */
+      const fresh = await Promise.race([
+        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000)),
       ]);
+      const pos = fresh ?? await Location.getLastKnownPositionAsync({ maxAge: 2 * 60 * 1000 });
 
-      if (pos) {
-        const { latitude, longitude } = pos.coords;
-        let place: string | undefined;
-        try {
-          const found = await Promise.race([
-            Location.reverseGeocodeAsync({ latitude, longitude }),
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
-          ]);
-          const first = Array.isArray(found) ? found[0] : null;
-          place = (first?.city || first?.subregion || first?.district || first?.region) ?? undefined;
-        } catch { /* a reading without a name is still a reading */ }
-
-        return { lat: latitude, lon: longitude, source: 'device', place };
-      }
+      if (pos) return await describe(Location, pos);
     }
   } catch { /* module missing, permission thrown, services off - all fine */ }
 
