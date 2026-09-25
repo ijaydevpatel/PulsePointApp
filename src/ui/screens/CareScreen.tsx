@@ -45,7 +45,7 @@ import { useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE, Palette } from '../theme';
 import {
   Facility, FacilityKind, FacilityService, KIND_LABEL, matches,
 } from '../../domain/facilities';
-import { Fix, preciseFix } from '../../data/locationFix';
+import { Fix, preciseFix, recentPreciseFix } from '../../data/locationFix';
 
 /*
  * MapLibre, loaded only if it is actually installed.
@@ -222,19 +222,41 @@ export function CareScreen({ service, fix: given }: {
    * reports something better. It is held here rather than lifted into App so
    * that no other tab's behaviour changes.
    */
-  const [precise, setPrecise] = useState<Fix | null>(null);
+  const [precise, setPrecise] = useState<Fix | null>(() => recentPreciseFix());
+  const [tried, setTried] = useState(() => recentPreciseFix() !== null);
   const [locating, setLocating] = useState(false);
-  const fix = precise ?? given ?? null;
+
+  /*
+   * Nothing is shown until something has actually been measured.
+   *
+   * The screen used to open on the app-wide fix - which can be the time zone,
+   * i.e. the middle of the nearest city - and then jump when the real reading
+   * landed a few seconds later. That jump is the thing to remove, and the way
+   * to remove it is not to make the guess faster but to stop showing a guess
+   * at all: a map that says "finding you" is honest, and a map centred on a
+   * place the person is not is not.
+   *
+   * The rough fix is still the fallback, but only once the device has been
+   * asked and failed to answer - never before.
+   */
+  const fix = precise ?? (tried ? given ?? null : null);
 
   const sharpen = useCallback(async () => {
     setLocating(true);
     const better = await preciseFix();
     if (better) setPrecise(better);
+    setTried(true);
     setLocating(false);
     return better;
   }, []);
 
-  useEffect(() => { void sharpen(); }, [sharpen]);
+  useEffect(() => {
+    // A reading from the last minute is still true, so a return to this tab
+    // does not re-acquire GPS and does not flash "finding you" at someone who
+    // has not moved.
+    if (recentPreciseFix()) return;
+    void sharpen();
+  }, [sharpen]);
   const insets = useSafeAreaInsets();
   const { height: screenH } = useWindowDimensions();
 
@@ -434,18 +456,14 @@ export function CareScreen({ service, fix: given }: {
   }, [sharpen, fix, moveTo]);
 
   /*
-   * When a better fix lands, take the camera with it - but not if the person
-   * is already looking at a facility they chose. Yanking the map away from
-   * something they tapped would be the screen talking over them.
+   * There is deliberately no "fly to the fix when it arrives" effect.
+   *
+   * There used to be, and it was the visible half of the jump: the map opened
+   * on a guess and then animated to the truth. Now the map is not mounted
+   * until there is a real position, so it opens centred correctly and has
+   * nowhere to fly to. The only camera moves left are ones the person asked
+   * for - tapping a row, or the locate button.
    */
-  const flownTo = useRef<string | null>(null);
-  useEffect(() => {
-    if (!precise || selected) return;
-    const key = `${precise.lat},${precise.lon}`;
-    if (flownTo.current === key) return;
-    flownTo.current = key;
-    moveTo(precise.lon, precise.lat, 15, 700);
-  }, [precise, selected, moveTo]);
 
   /* ─────────────────────────────── render ───────────────────────────────── */
 
@@ -467,7 +485,7 @@ export function CareScreen({ service, fix: given }: {
           <MapLibreGL.Map style={{ flex: 1 }} mapStyle={STYLE_URL} logo={false} compass={false}>
             <MapLibreGL.Camera
               ref={camera}
-              initialViewState={{ center: [fix.lon, fix.lat], zoom: 13 }}
+              initialViewState={{ center: [fix.lon, fix.lat], zoom: 15 }}
             />
             <MapLibreGL.GeoJSONSource id="facilities" data={pins}>
               <MapLibreGL.Layer
@@ -584,8 +602,10 @@ export function CareScreen({ service, fix: given }: {
         ) : (
           <Centred>
             <ActivityIndicator color={P.accent} />
+            <Txt t="bodyStrong" style={{ marginTop: S.md }}>Finding where you are</Txt>
             <Txt t="caption" c={P.muted} style={st.centredText}>
-              Finding where you are
+              Waiting for a GPS reading rather than showing you an approximate
+              one. This takes longer indoors.
             </Txt>
           </Centred>
         )}

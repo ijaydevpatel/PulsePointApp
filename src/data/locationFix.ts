@@ -147,19 +147,29 @@ export function zoneFix(): Fix | null {
 }
 
 /**
- * The same three tiers, for callers that only need a position.
+ * Whether this reading is a fake one.
  *
- * conditionsService has its own copy of this chain wired into its weather
- * fetch. This is deliberately a second, smaller entry point rather than a
- * refactor of that one: the environment card on Home works, and rewiring a
- * working screen to give the map a function it could have on its own is a
- * poor trade.
+ * ── Why this check has to exist ──────────────────────────────────────────────
  *
- * Device position if one is readily available, otherwise the city from the
- * network, otherwise the time zone - which cannot fail. The map only needs to
- * know roughly where to centre and what to search around, and all three tiers
- * are accurate enough for that.
+ * The Android emulator reports a fixed position at Google's headquarters in
+ * Mountain View, California, complete with a plausible-looking ±5m accuracy.
+ * Nothing about the reading says "invented" except this one flag, so without
+ * it the app confidently places a person in Auckland on Amphitheatre Parkway
+ * and has every reason to believe itself.
+ *
+ * Android sets `mocked` for anything coming from a mock location provider -
+ * the emulator, a developer setting a position by hand, a location-spoofing
+ * app. A mocked fix is worth less than the IP lookup it would otherwise
+ * override, because the IP lookup at least reflects a real network the device
+ * is really attached to. So it is refused, and the chain falls through.
+ *
+ * iOS does not report this, and its simulator sets no position at all rather
+ * than a wrong one, so the flag being absent is not treated as suspicious.
  */
+function isMocked(pos: any): boolean {
+  return pos?.mocked === true;
+}
+
 /** A position plus, best-effort, the name of the place it is in. */
 async function describe(Location: any, pos: any): Promise<Fix> {
   const { latitude, longitude, accuracy } = pos.coords;
@@ -206,6 +216,31 @@ async function describe(Location: any, pos: any): Promise<Fix> {
  * turn-by-turn, cost a great deal more battery, and take longer to first fix
  * for a precision nobody reads off this screen.
  */
+/**
+ * The last precise reading, kept for as long as it is plausibly still true.
+ *
+ * Tabs in this app unmount when you leave them, so without this the Map tab
+ * would start from nothing and re-acquire GPS on every single visit - several
+ * seconds of "finding you" each time, for a position that has not changed.
+ *
+ * Module scope rather than a store: it is a cache of a hardware reading, not
+ * application state, and nothing should be able to write to it but the reader
+ * below.
+ */
+let lastPrecise: { fix: Fix; at: number } | null = null;
+
+/**
+ * A precise reading taken recently enough to still be worth showing.
+ *
+ * A minute, because that is roughly how far someone gets on foot before the
+ * position is misleading, and this screen is read by people deciding where to
+ * walk.
+ */
+export function recentPreciseFix(maxAgeMs = 60_000): Fix | null {
+  if (!lastPrecise) return null;
+  return Date.now() - lastPrecise.at <= maxAgeMs ? lastPrecise.fix : null;
+}
+
 export async function preciseFix(): Promise<Fix | null> {
   try {
     const Location = await import('expo-location');
@@ -225,12 +260,28 @@ export async function preciseFix(): Promise<Fix | null> {
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 15000)),
     ]);
 
-    return pos ? await describe(Location, pos) : null;
+    if (!pos || isMocked(pos)) return null;
+
+    const fix = await describe(Location, pos);
+    lastPrecise = { fix, at: Date.now() };
+    return fix;
   } catch {
     return null;
   }
 }
 
+/**
+ * The same three tiers, for callers that only need a position.
+ *
+ * conditionsService has its own copy of this chain wired into its weather
+ * fetch. This is deliberately a second, smaller entry point rather than a
+ * refactor of that one: the environment card on Home works, and rewiring a
+ * working screen to give the map a function it could have on its own is a
+ * poor trade.
+ *
+ * A real device position first, otherwise the city from the network,
+ * otherwise the time zone - which cannot fail.
+ */
 export async function resolveFix(): Promise<Fix | null> {
   try {
     const Location = await import('expo-location');
@@ -254,7 +305,9 @@ export async function resolveFix(): Promise<Fix | null> {
       ]);
       const pos = fresh ?? await Location.getLastKnownPositionAsync({ maxAge: 2 * 60 * 1000 });
 
-      if (pos) return await describe(Location, pos);
+      // A mocked position is worth less than the IP lookup below, which at
+      // least reflects a network the device is really attached to.
+      if (pos && !isMocked(pos)) return await describe(Location, pos);
     }
   } catch { /* module missing, permission thrown, services off - all fine */ }
 

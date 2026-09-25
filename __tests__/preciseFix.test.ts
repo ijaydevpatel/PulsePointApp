@@ -108,6 +108,47 @@ describe('the precise fix the map runs on', () => {
     expect(fix).toBeNull();
   });
 
+  it('refuses a mocked reading, however precise it claims to be', async () => {
+    /*
+     * The Android emulator reports a fixed position at Google's headquarters
+     * in Mountain View, complete with a plausible ±5m accuracy. Nothing about
+     * that reading says "invented" except the `mocked` flag, so without this
+     * check the app confidently places someone in Auckland CBD on
+     * Amphitheatre Parkway - and has every reason to believe itself.
+     *
+     * A mocked fix is worth less than the IP lookup it would otherwise beat,
+     * because the IP lookup at least reflects a network the device is really
+     * attached to.
+     */
+    current = mockLocation({
+      getCurrentPositionAsync: jest.fn(async () => ({
+        ...position(37.4220, -122.0840, 5),
+        mocked: true,
+      })),
+    });
+    jest.resetModules();
+
+    const { preciseFix } = load();
+    expect(await preciseFix()).toBeNull();
+  });
+
+  it('accepts a real reading that happens to be precise', async () => {
+    // The guard must key on the flag, not on the accuracy looking too good.
+    current = mockLocation({
+      getCurrentPositionAsync: jest.fn(async () => ({
+        ...position(-36.8568, 174.7645, 5),
+        mocked: false,
+      })),
+    });
+    jest.resetModules();
+
+    const { preciseFix } = load();
+    const fix = await preciseFix();
+
+    expect(fix).not.toBeNull();
+    expect(fix.accuracyM).toBe(5);
+  });
+
   it('returns nothing without permission, rather than a worse answer', async () => {
     current = mockLocation({
       requestForegroundPermissionsAsync: jest.fn(async () => ({ status: 'denied' })),
@@ -133,6 +174,36 @@ describe('the quick fix the app starts with', () => {
 
     expect(current.getCurrentPositionAsync).toHaveBeenCalled();
     expect(fix.lat).toBeCloseTo(-36.8568, 4);
+  });
+
+  it('falls through to the network tier when the device reading is mocked', async () => {
+    /*
+     * The whole point of rejecting a mocked fix: something real has to take
+     * its place. On an emulator that is the IP lookup, which puts the person
+     * in the right city even though it cannot put them on the right street.
+     */
+    current = mockLocation({
+      getCurrentPositionAsync: jest.fn(async () => ({
+        ...position(37.4220, -122.0840, 5),
+        mocked: true,
+      })),
+    });
+    jest.resetModules();
+
+    const fetchSpy = jest.fn(async () => ({
+      ok: true,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ latitude: -36.8485, longitude: 174.7633, city: 'Auckland' }),
+    }));
+    (global as any).fetch = fetchSpy;
+
+    const { resolveFix } = load();
+    const fix = await resolveFix();
+
+    expect(fetchSpy).toHaveBeenCalled();
+    expect(fix.source).toBe('network');
+    expect(fix.place).toBe('Auckland');
+    expect(fix.lat).toBeCloseTo(-36.8485, 3);
   });
 
   it('will not accept a cached position older than a couple of minutes', async () => {
