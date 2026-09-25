@@ -198,7 +198,20 @@ export function CareScreen({ service, fix }: {
     if (!service || !fix) return;
     setBusy(true);
     const r = await service.near({ lat: fix.lat, lon: fix.lon });
-    setFacilities(r.facilities);
+
+    /*
+     * A failed refresh does not throw away a good list.
+     *
+     * Overpass is a free public service that rate-limits and goes down, so a
+     * failure here is ordinary rather than exceptional - and replacing five
+     * hundred real places with "0 places" loses information the person
+     * already had, over a problem that is usually gone in a minute. The
+     * notice appears above the list instead, and the list stays.
+     *
+     * `ok` is what distinguishes this from a genuine empty area, which is a
+     * real answer and should replace whatever was there.
+     */
+    setFacilities((prev) => (r.ok || prev.length === 0 ? r.facilities : prev));
     setNotice(r.notice);
     setBusy(false);
   }, [service, fix]);
@@ -585,6 +598,20 @@ export function CareScreen({ service, fix }: {
           ListEmptyComponent={
             <Empty busy={busy} notice={notice} query={query} onRetry={load} />
           }
+          ListHeaderComponent={
+            // Only when there is a list to sit above; otherwise Empty says it.
+            notice && shown.length > 0 ? (
+              <View style={[st.banner, { borderColor: P.line, backgroundColor: P.sunken }]}>
+                <Icon name="alert" size={16} color={P.warn} />
+                <Txt t="caption" c={P.muted} style={{ flex: 1 }}>
+                  {`${notice} Showing what was found last time.`}
+                </Txt>
+                <Springy onPress={() => { tap('light'); void load(); }} scaleTo={0.94}>
+                  <Txt t="bodyStrong" c={P.accent}>Retry</Txt>
+                </Springy>
+              </View>
+            ) : null
+          }
           ListFooterComponent={
             shown.length > 0 ? (
               <View style={[st.meta, { borderColor: P.line }]}>
@@ -772,6 +799,12 @@ const st = StyleSheet.create({
   flag: { paddingHorizontal: S.sm, paddingVertical: 3, borderRadius: R.pill },
 
   empty: { paddingVertical: S.xxl, alignItems: 'center' },
+
+  banner: {
+    flexDirection: 'row', gap: S.sm, alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth * 2, borderRadius: R.md,
+    padding: S.md, marginBottom: S.md,
+  },
 
   meta: {
     flexDirection: 'row', gap: S.sm, alignItems: 'flex-start',

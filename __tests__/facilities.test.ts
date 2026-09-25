@@ -269,6 +269,38 @@ describe('when Overpass will not answer', () => {
     json: async () => body,
   });
 
+  it('says whether it actually got an answer', async () => {
+    /*
+     * The distinction the screen cannot recover from the other two fields.
+     * "Nowhere near here is mapped" and "nothing could be reached" are both
+     * an empty list with a notice, and only the first is a reason to throw
+     * away a list already on screen.
+     */
+    const empty = await new OverpassFacilities((async () => ok({ elements: [] })) as any).near(AT);
+    expect(empty.ok).toBe(true);
+
+    const dead = await new OverpassFacilities((async () => { throw new Error('nope'); }) as any).near(AT);
+    expect(dead.ok).toBe(false);
+  });
+
+  it('keeps trying past the second mirror', async () => {
+    // Two mirrors is not much redundancy when both rate-limit per IP and go
+    // down for maintenance independently.
+    const calls: string[] = [];
+    const fetchImpl = (async (url: string) => {
+      calls.push(url);
+      if (calls.length < 3) throw new Error('Network request failed');
+      return ok({ elements: [node(1, { amenity: 'pharmacy', name: 'Unichem' })] });
+    }) as any;
+
+    const r = await new OverpassFacilities(fetchImpl).near(AT);
+
+    expect(calls.length).toBe(3);
+    expect(new Set(calls).size).toBe(3);
+    expect(r.ok).toBe(true);
+    expect(r.facilities).toHaveLength(1);
+  });
+
   it('tries the second mirror before giving up', async () => {
     /*
      * One mirror is not redundancy. The public instances rate-limit and go

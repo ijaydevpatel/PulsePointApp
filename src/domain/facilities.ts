@@ -240,10 +240,21 @@ export interface FacilitySearch {
   readonly lon: number;
 }
 
+export interface FacilityResult {
+  /**
+   * Whether an answer was actually received.
+   *
+   * The distinction the UI needs and cannot recover from the other two fields:
+   * "nowhere near here has been mapped" and "nothing could be reached" are
+   * both an empty list with a notice, and only one of them is a reason to
+   * throw away a list already on screen.
+   */
+  readonly ok: boolean;
+  readonly facilities: readonly Facility[];
+  readonly notice: string | null;
+}
+
 export interface FacilityService {
-  /** Never throws: an unreachable Overpass resolves to an empty list plus a notice. */
-  near(at: FacilitySearch): Promise<{
-    facilities: readonly Facility[];
-    notice: string | null;
-  }>;
+  /** Never throws: an unreachable Overpass resolves to ok: false plus a notice. */
+  near(at: FacilitySearch): Promise<FacilityResult>;
 }

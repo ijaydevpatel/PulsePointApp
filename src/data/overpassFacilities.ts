@@ -7,22 +7,28 @@
  * backend: there is no secret to protect and no reason to add a hop that can
  * fail.
  *
- * ── Two endpoints ────────────────────────────────────────────────────────────
+ * ── Four endpoints ───────────────────────────────────────────────────────────
  *
- * overpass-api.de first, overpass.kumi.systems second - the website's order.
- * The public instances rate-limit and go down for maintenance independently,
- * and a map with nothing on it is indistinguishable from a neighbourhood with
- * no doctors in it. One mirror is not redundancy; it is a single point of
- * failure with extra steps.
+ * overpass-api.de and overpass.kumi.systems are the website's pair, in the
+ * website's order, and two more follow them. The public instances rate-limit
+ * per IP and go down for maintenance independently, so a run of failures is
+ * normal rather than exceptional - and a map with nothing on it is
+ * indistinguishable from a neighbourhood with no doctors in it. One mirror is
+ * not redundancy; it is a single point of failure with extra steps.
+ *
+ * The cost of a longer list is only paid when the earlier ones fail, because
+ * the first answer wins and the rest are never called.
  */
 import {
-  Facility, FacilityService, FacilitySearch, byDistance, classify, haversineKm,
-  isOpen24h, isUrgent, KIND_LABEL,
+  Facility, FacilityResult, FacilityService, FacilitySearch, byDistance, classify,
+  haversineKm, isOpen24h, isUrgent, KIND_LABEL,
 } from '../domain/facilities';
 
 const ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+  'https://overpass.osm.jp/api/interpreter',
 ] as const;
 
 /**
@@ -48,6 +54,14 @@ const BBOX_DEGREES = 0.06;
  * fail fails here rather than hanging.
  */
 const TIMEOUT_MS = 38000;
+
+/**
+ * How long the whole attempt may take, across every mirror.
+ *
+ * Without this, four endpoints at 38 seconds apiece is over two and a half
+ * minutes before the screen admits defeat.
+ */
+const TOTAL_BUDGET_MS = 75000;
 
 /** Overpass' own server-side limit, kept above the time a city centre needs. */
 const QUERY_TIMEOUT_S = 45;
@@ -210,16 +224,26 @@ export function readFacilities(
 export class OverpassFacilities implements FacilityService {
   constructor(private readonly fetchImpl: typeof fetch = fetch) {}
 
-  async near(at: FacilitySearch): Promise<{
-    facilities: readonly Facility[];
-    notice: string | null;
-  }> {
+  async near(at: FacilitySearch): Promise<FacilityResult> {
     const query = buildQuery(at.lat, at.lon);
     let lastNotice = 'Nothing could be loaded for this area.';
 
+    /*
+     * A deadline across all the mirrors, not just each one.
+     *
+     * Four endpoints at 38 seconds each is over two and a half minutes of
+     * someone watching a spinner to be told it did not work. Past this point
+     * the answer is not going to be useful even if it arrives, so say so and
+     * let them retry deliberately.
+     */
+    const giveUpAt = Date.now() + TOTAL_BUDGET_MS;
+
     for (const endpoint of ENDPOINTS) {
+      const left = giveUpAt - Date.now();
+      if (left <= 1000) break;
+
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      const timer = setTimeout(() => controller.abort(), Math.min(TIMEOUT_MS, left));
 
       try {
         /*
@@ -253,6 +277,7 @@ export class OverpassFacilities implements FacilityService {
 
         const facilities = readFacilities(await response.json(), at.lat, at.lon);
         return {
+          ok: true,
           facilities,
           notice: facilities.length === 0
             ? 'No health facilities are mapped within about 6 km.'
@@ -267,6 +292,6 @@ export class OverpassFacilities implements FacilityService {
       }
     }
 
-    return { facilities: [], notice: lastNotice };
+    return { ok: false, facilities: [], notice: lastNotice };
   }
 }
