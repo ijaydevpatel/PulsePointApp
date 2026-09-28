@@ -81,14 +81,16 @@ export function SettingsScreen({
         showsVerticalScrollIndicator={false}
       >
         <SectionLabel>Account</SectionLabel>
-        <NavCard
-          title={session.displayName ?? 'Your profile'}
-          subtitle={session.state === 'SIGNED_IN'
-            ? 'Name, age, blood group, allergies'
-            : 'Signed out - history stays on this device'}
-          icon="user"
-          onPress={() => { tap('light'); onOpen('profile'); }}
-        />
+        <View style={{ marginBottom: S.sm }}>
+          <NavCard
+            title={session.displayName ?? 'Your profile'}
+            subtitle={session.state === 'SIGNED_IN'
+              ? 'Name, age, blood group, allergies'
+              : 'Signed out - history stays on this device'}
+            icon="user"
+            onPress={() => { tap('light'); onOpen('profile'); }}
+          />
+        </View>
 
         <View style={{ height: S.xl }} />
 
@@ -127,14 +129,16 @@ export function SettingsScreen({
         <View style={{ height: S.xl }} />
 
         <SectionLabel>Your data</SectionLabel>
-        <NavCard
-          title="Records"
-          subtitle={records === null
-            ? 'Past assessments held on this device'
-            : `${records} assessment${records === 1 ? '' : 's'} held on this device`}
-          icon="records"
-          onPress={() => { tap('light'); onOpen('records'); }}
-        />
+        <View style={{ marginBottom: S.sm }}>
+          <NavCard
+            title="Records"
+            subtitle={records === null
+              ? 'Past assessments held on this device'
+              : `${records} assessment${records === 1 ? '' : 's'} held on this device`}
+            icon="records"
+            onPress={() => { tap('light'); onOpen('records'); }}
+          />
+        </View>
         <Card>
           {/*
             This said assessments sync to your account when signed in. They do
@@ -197,7 +201,7 @@ export function SettingsScreen({
           thing on this screen a person should not have to tap to find, and
           the one a medical app is most often criticised for burying.
         */}
-        <Card>
+        <Card style={{ marginBottom: S.sm }}>
           <View style={st.row}>
             <Icon name="alert" size={18} color={P.warn} />
             <Txt t="bodyStrong" style={{ flex: 1 }}>Medical disclaimer</Txt>
@@ -211,18 +215,22 @@ export function SettingsScreen({
           </Txt>
         </Card>
 
-        <NavCard
-          title="Privacy policy"
-          subtitle="What is collected, and how it is stored"
-          icon="shield"
-          onPress={() => { tap('light'); void Linking.openURL(PRIVACY_URL).catch(() => {}); }}
-        />
-        <NavCard
-          title="Terms of service"
-          subtitle="The agreement covering your use of PulsePoint"
-          icon="file"
-          onPress={() => { tap('light'); void Linking.openURL(TERMS_URL).catch(() => {}); }}
-        />
+        <View style={{ marginBottom: S.sm }}>
+          <NavCard
+            title="Privacy policy"
+            subtitle="What is collected, and how it is stored"
+            icon="shield"
+            onPress={() => { tap('light'); void Linking.openURL(PRIVACY_URL).catch(() => {}); }}
+          />
+        </View>
+        <View style={{ marginBottom: S.sm }}>
+          <NavCard
+            title="Terms of service"
+            subtitle="The agreement covering your use of PulsePoint"
+            icon="file"
+            onPress={() => { tap('light'); void Linking.openURL(TERMS_URL).catch(() => {}); }}
+          />
+        </View>
 
         <View style={{ height: S.xxl }} />
 

@@ -175,7 +175,7 @@ export function ProfileScreen({ session, service, onBack, onOpen, onSignOut }: {
               The four facts someone else needs when the person holding the
               phone cannot answer. Together, and first.
             */}
-            <Card>
+            <Card style={{ marginBottom: S.sm }}>
               <View style={st.grid}>
                 <Vital label="Blood group" value={profile.bloodGroup} emphasis />
                 <Vital label="Age" value={profile.age ? `${profile.age}` : null} />
@@ -186,8 +186,6 @@ export function ProfileScreen({ session, service, onBack, onOpen, onSignOut }: {
               </View>
             </Card>
 
-            <View style={{ height: S.sm }} />
-
             <Listing label="Allergies" items={profile.allergies} tone="danger" />
             <Listing label="Conditions" items={profile.conditions} />
             <Listing label="Current medications" items={profile.medications} />
@@ -197,18 +195,22 @@ export function ProfileScreen({ session, service, onBack, onOpen, onSignOut }: {
         <View style={{ height: S.xl }} />
 
         <SectionLabel>Activity</SectionLabel>
-        <NavCard
-          title="Records"
-          subtitle="Every assessment you have run, newest first"
-          icon="records"
-          onPress={() => { tap('light'); onOpen('records'); }}
-        />
-        <NavCard
-          title="Settings"
-          subtitle="Appearance, data and legal"
-          icon="shield"
-          onPress={() => { tap('light'); onOpen('settings'); }}
-        />
+        <View style={{ marginBottom: S.sm }}>
+          <NavCard
+            title="Records"
+            subtitle="Every assessment you have run, newest first"
+            icon="records"
+            onPress={() => { tap('light'); onOpen('records'); }}
+          />
+        </View>
+        <View style={{ marginBottom: S.sm }}>
+          <NavCard
+            title="Settings"
+            subtitle="Appearance, data and legal"
+            icon="shield"
+            onPress={() => { tap('light'); onOpen('settings'); }}
+          />
+        </View>
 
         <View style={{ height: S.xxl }} />
 
