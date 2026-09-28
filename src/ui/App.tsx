@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, StyleSheet, BackHandler, StatusBar, useColorScheme, Text } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
+import * as SplashScreen from 'expo-splash-screen';
 import {
   Inter_400Regular, Inter_500Medium, Inter_600SemiBold,
   Inter_700Bold, Inter_800ExtraBold, Inter_900Black,
@@ -47,6 +48,15 @@ import { ChatScreen, Conversation, EMPTY_CONVERSATION } from './screens/ChatScre
 import { NewsScreen } from './screens/NewsScreen';
 import { CheckInScreen } from './screens/SimpleScreens';
 import { ThemeContext, buildTheme, Scheme } from './theme';
+
+/*
+ * Keep the native splash up past the first React render.
+ *
+ * At module scope on purpose: by the time a component body runs, Expo has
+ * already had the chance to hide it automatically, and the blank frame this
+ * exists to prevent has already been shown.
+ */
+void SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function AppContent() {
   const { isLoaded: authLoaded, isSignedIn, signOut, getToken } = useAuth();
@@ -159,13 +169,26 @@ function AppContent() {
     };
   }, [authLoaded, userLoaded, isSignedIn, user]);
 
-  if (!ready || !authLoaded || !userLoaded) {
-    return (
-      <View style={[s.root, { backgroundColor: theme.c.bg }]}>
-        <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
-      </View>
-    );
-  }
+  /*
+   * Hold the splash until there is something worth showing.
+   *
+   * This used to render an empty coloured View while the fonts loaded and
+   * Clerk restored the session - which is the blank white screen the app
+   * opened on. The native splash is already up at that point; covering it
+   * with a blank View of our own is what made it disappear early.
+   *
+   * So nothing is rendered until the app is ready, and the splash is
+   * dismissed only once there is a first frame to dismiss it onto. Hiding it
+   * is best-effort: a failure here is a splash that lingers a moment, which
+   * is not worth crashing over.
+   */
+  const booted = ready && authLoaded && userLoaded;
+
+  useEffect(() => {
+    if (booted) void SplashScreen.hideAsync().catch(() => {});
+  }, [booted]);
+
+  if (!booted) return null;
 
   /*
    * No session means the onboarding flow, which opens on its welcome screen

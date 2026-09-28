@@ -27,6 +27,19 @@
           }
         }
       ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash/splash-light.png",
+          "imageWidth": 160,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFFFFF",
+          "dark": {
+            "image": "./assets/splash/splash-dark.png",
+            "backgroundColor": "#12263A"
+          }
+        }
+      ],
       "expo-sqlite",
       "expo-secure-store",
       "expo-font",
