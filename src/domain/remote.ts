@@ -384,10 +384,39 @@ export interface ConditionsService {
  * red-flag rules (a fever at 70 is not a fever at 30).
  */
 export interface UserProfile {
+  readonly fullName: string | null;
   /** Years. Null when the profile has never recorded one. */
   readonly age: number | null;
+  readonly gender: string | null;
+  readonly heightCm: number | null;
+  readonly weightKg: number | null;
+  /** 'O+', 'AB-' and so on. Free text from the backend, not an enum. */
+  readonly bloodGroup: string | null;
+  /**
+   * The three lists that matter in an emergency.
+   *
+   * Empty array means "recorded as none"; there is no separate "not asked"
+   * state, because the backend does not keep one. The screen says "Not
+   * recorded" for an empty list rather than "None", which would be a claim
+   * nobody made.
+   */
+  readonly allergies: readonly string[];
+  readonly conditions: readonly string[];
+  readonly medications: readonly string[];
+  /** Computed by the backend from height and weight. Never sent up. */
+  readonly bmi: number | null;
 }
+
+/**
+ * What the edit form may change.
+ *
+ * bmi is absent on purpose: it is derived, and a client that could set it
+ * could make it disagree with the height and weight it is supposed to come
+ * from.
+ */
+export type ProfileEdits = Omit<UserProfile, 'bmi'>;
 
 export interface ProfileService {
   me(): Promise<RemoteOutcome<UserProfile>>;
+  save(edits: ProfileEdits): Promise<RemoteOutcome<UserProfile>>;
 }

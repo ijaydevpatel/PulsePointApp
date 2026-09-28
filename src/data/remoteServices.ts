@@ -11,7 +11,7 @@ import {
   SymptomAnalysis, SymptomAnalysisRequest, SymptomAnalysisService,
   ProbableCondition, MatrixSeverity,
   DailyStatus, DashboardService, Intelligence, RiskTrend,
-  ProfileService, UserProfile,
+  ProfileService, UserProfile, ProfileEdits,
 } from '../domain/remote';
 import { limitSentences } from '../domain/sentences';
 import { ApiClient, ApiError } from './apiClient';
@@ -453,19 +453,87 @@ export class RemoteDashboard implements DashboardService {
  * zero is read as "unknown" rather than as a newborn - which would otherwise
  * put every account with an empty profile into the child red-flag rules.
  */
+/** A positive, finite number, or null. Blank fields arrive as 0 or ''. */
+function figure(v: unknown, max: number): number | null {
+  const n = typeof v === 'string' ? Number(v) : v;
+  return typeof n === 'number' && Number.isFinite(n) && n > 0 && n < max ? n : null;
+}
+
+/** Trimmed text, or null for the empty string the backend sends for "unset". */
+function words(v: unknown): string | null {
+  const s = typeof v === 'string' ? v.trim() : '';
+  return s === '' ? null : s;
+}
+
+/**
+ * The backend keeps these as arrays, but older rows hold a comma-joined
+ * string, and an empty one of either is "nothing recorded".
+ */
+function list(v: unknown): string[] {
+  const raw = Array.isArray(v) ? v : String(v ?? '').split(',');
+  return raw.map((s) => String(s).trim()).filter((s) => s !== '');
+}
+
+function readProfile(raw: any): UserProfile {
+  return {
+    fullName: words(raw?.fullName),
+    // Guarded rather than passed through: see the note above about age 0.
+    age: (() => { const a = figure(raw?.age, 120); return a === null ? null : Math.round(a); })(),
+    gender: words(raw?.gender),
+    heightCm: figure(raw?.height, 300),
+    weightKg: figure(raw?.weight, 700),
+    bloodGroup: words(raw?.bloodGroup),
+    allergies: list(raw?.allergies),
+    conditions: list(raw?.conditions),
+    medications: list(raw?.medications),
+    bmi: figure(raw?.bmi, 200),
+  };
+}
+
 export class RemoteProfile implements ProfileService {
   constructor(private readonly api: ApiClient) {}
 
   async me(): Promise<RemoteOutcome<UserProfile>> {
     const started = Date.now();
     try {
-      const raw = await this.api.get<any>('/api/profile');
-      const age = raw?.age;
-      const usable = typeof age === 'number' && Number.isFinite(age) && age > 0 && age < 120;
+      return {
+        status: 'OK',
+        data: readProfile(await this.api.get<any>('/api/profile')),
+        notice: null,
+        elapsedMs: Date.now() - started,
+      };
+    } catch (error) {
+      return fail(classify(error, this.api.configured), started);
+    }
+  }
+
+  /**
+   * POST /api/profile, which upserts.
+   *
+   * The field names are the backend's, not ours: `height` and `weight` rather
+   * than the units-carrying names the domain uses. Sending `heightCm` would
+   * be silently dropped by a route that reads `height` - a save that reports
+   * success and changes nothing, which is the worst shape a bug can take on a
+   * form.
+   */
+  async save(edits: ProfileEdits): Promise<RemoteOutcome<UserProfile>> {
+    const started = Date.now();
+    try {
+      const raw = await this.api.post<any>('/api/profile', {
+        fullName: edits.fullName ?? '',
+        age: edits.age ?? 0,
+        gender: edits.gender ?? '',
+        height: edits.heightCm ?? 0,
+        weight: edits.weightKg ?? 0,
+        bloodGroup: edits.bloodGroup ?? '',
+        allergies: edits.allergies,
+        conditions: edits.conditions,
+        medications: edits.medications,
+      });
 
       return {
         status: 'OK',
-        data: { age: usable ? Math.round(age) : null },
+        data: readProfile(raw),
         notice: null,
         elapsedMs: Date.now() - started,
       };

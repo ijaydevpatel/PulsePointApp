@@ -43,7 +43,8 @@ import { RecordsScreen } from './screens/RecordsScreen';
 import { MoreScreen } from './screens/MoreScreen';
 import { AuthScreen } from './screens/AuthScreen';
 import { HomeScreen } from './screens/HomeScreen';
-import { ProfileSheet } from './screens/ProfileSheet';
+import { ProfileScreen } from './screens/ProfileScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
 import { ChatScreen, Conversation, EMPTY_CONVERSATION } from './screens/ChatScreen';
 import { NewsScreen } from './screens/NewsScreen';
 import { CheckInScreen } from './screens/SimpleScreens';
@@ -228,12 +229,13 @@ function AppContent() {
         return <CollisionScreen pair={pair} check={check} onBack={pop} onEdit={pop} />;
       case 'profile':
         return (
-          <ProfileSheet
+          <ProfileScreen
             session={session}
+            service={services.profile}
             onBack={pop}
-            // Replaces the current sheet rather than stacking on it, so
-            // backing out of Records returns to the screen behind the sheet
-            // instead of to the sheet itself.
+            // Replaces the current screen rather than stacking on it, so
+            // backing out of Records returns to what was behind the profile
+            // instead of to the profile itself.
             onOpen={(r) => setStack((st) => [...st.slice(0, -1), r])}
             onSignOut={async () => {
               await signOut();
@@ -251,13 +253,28 @@ function AppContent() {
             onDone={() => { setStack([]); }}
           />
         );
+      /*
+       * Settings used to render MoreScreen, which is the More *tab*. So the
+       * profile sheet's "Settings" row opened the More tab as a pushed
+       * screen, and the app had two pages doing one job with a loop between
+       * them. Settings is its own screen now, and More stays a tab.
+       */
       case 'settings':
         return (
-          <MoreScreen
+          <SettingsScreen
             session={session}
-            onOpen={push}
+            store={store}
             scheme={scheme}
+            historyKey={historyKey}
+            onDataCleared={() => setHistoryKey((k) => k + 1)}
             onToggleScheme={() => setOverride(scheme === 'dark' ? 'light' : 'dark')}
+            onBack={pop}
+            onOpen={(r) => setStack((st) => [...st.slice(0, -1), r])}
+            onSignOut={async () => {
+              await signOut();
+              setStack([]);
+              setConversation(EMPTY_CONVERSATION);
+            }}
           />
         );
       case 'records':   return <RecordsScreen store={store} refreshKey={historyKey} onBack={pop} />;

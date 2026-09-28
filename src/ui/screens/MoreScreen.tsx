@@ -81,40 +81,22 @@ export function MoreScreen({ session, onOpen, scheme, onToggleScheme }: {
         ))}
 
           <View style={{ height: S.xxl }} />
-          <SectionLabel>Appearance</SectionLabel>
+          {/*
+            One Settings screen, not a theme toggle here and another one
+            there. This tab used to carry its own Appearance section while the
+            profile sheet's "Settings" row opened this very tab - two pages
+            doing one job, with a loop between them.
+          */}
+          <SectionLabel>App</SectionLabel>
           <Enter index={6}>
-            <Card glass={true}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
-                <View style={{ flex: 1 }}>
-                  <Txt t="bodyStrong">Theme</Txt>
-                  <Txt t="caption" style={{ marginTop: 2 }}>
-                    Follows your device unless you pick one
-                  </Txt>
-                </View>
-                <View style={[seg.wrap, { backgroundColor: P.sunken }]}>
-                  {(['light', 'dark'] as Scheme[]).map((k) => {
-                    const on = scheme === k;
-                    return (
-                      <Springy
-                        key={k}
-                        onPress={() => { if (!on) onToggleScheme(); }}
-                        weight="select"
-                        scaleTo={0.92}
-                        accessibilityLabel={`${k} theme`}
-                        accessibilityState={{ selected: on }}
-                        style={[seg.item, on && { backgroundColor: P.surface }]}
-                      >
-                        <Icon
-                          name={k === 'light' ? 'sun' : 'moon'}
-                          size={18}
-                          color={on ? P.accent : P.faint}
-                        />
-                      </Springy>
-                    );
-                  })}
-                </View>
-              </View>
-            </Card>
+            <View style={{ marginBottom: S.sm }}>
+              <NavCard
+                title="Settings"
+                subtitle="Appearance, your data, disclaimer and legal"
+                icon="shield"
+                onPress={() => onOpen('settings')}
+              />
+            </View>
           </Enter>
         </View>
       </ScrollView>
