@@ -110,9 +110,15 @@ export function ProfileScreen({ session, service, onBack, onOpen, onSignOut }: {
             <View style={{ flex: 1 }}>
               <Txt t="heading" numberOfLines={2}>{name}</Txt>
               <Txt t="caption" c={P.muted} style={{ marginTop: 2 }}>
+                {/*
+                  Not "history syncs across devices". Nothing syncs episodes -
+                  there is no backend route for them. What signing in actually
+                  buys is the health profile below, which is stored on the
+                  account rather than the handset.
+                */}
                 {session.state === 'SIGNED_IN'
-                  ? 'Signed in - your history syncs across devices'
-                  : 'Signed out - history stays on this device'}
+                  ? 'Signed in - your health profile is saved to your account'
+                  : 'Signed out - nothing is saved to an account'}
               </Txt>
             </View>
           </View>

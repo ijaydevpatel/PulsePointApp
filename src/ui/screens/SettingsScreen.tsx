@@ -136,10 +136,17 @@ export function SettingsScreen({
           onPress={() => { tap('light'); onOpen('records'); }}
         />
         <Card>
+          {/*
+            This said assessments sync to your account when signed in. They do
+            not: EpisodeStore has pendingSync and markSynced, nothing calls
+            them, and the backend has no episode route at all. Writing the
+            claim into the UI would have been the exact failure this project
+            keeps finding - a screen asserting something nobody implemented.
+          */}
           <Txt t="caption" c={P.muted}>
-            Assessments are stored on this phone. Signing in syncs them to your
-            account so they survive a reinstall; signing out leaves the copy on
-            this device untouched.
+            Assessments are held only on this phone, signed in or not. They are
+            not uploaded, and they do not survive uninstalling the app. Your
+            health profile is separate: that is stored on your account.
           </Txt>
           <View style={{ height: S.lg }} />
 

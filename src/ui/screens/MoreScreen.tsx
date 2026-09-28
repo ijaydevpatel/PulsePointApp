@@ -45,7 +45,7 @@ export function MoreScreen({ session, onOpen, scheme, onToggleScheme }: {
                   <Txt t="heading">{signedIn ? session.displayName : 'Not signed in'}</Txt>
                   <Txt t="caption" style={{ marginTop: 3 }}>
                     {signedIn
-                      ? 'History syncs across your devices'
+                      ? 'Your health profile is saved to your account'
                       : 'Everything works without an account. Sign in only to sync.'}
                   </Txt>
                 </View>
