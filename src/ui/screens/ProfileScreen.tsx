@@ -124,7 +124,28 @@ export function ProfileScreen({ session, service, onBack, onOpen, onSignOut }: {
           </View>
 
           <View style={{ height: S.lg }} />
-          <Button title="Edit profile" icon="user" onPress={() => { tap('light'); setEditing(true); }} />
+
+          {/*
+            Not editable until the current profile has actually been read.
+
+            The form is seeded from what was loaded, and a save writes every
+            field. So opening it before the fetch has succeeded - offline, or
+            while the Render instance is waking - would seed it from blanks
+            and then write those blanks over a real record: name, blood group
+            and allergies replaced with '' and 0 in one tap. The record is on
+            the account, so that loss is not local and not undoable.
+          */}
+          <Button
+            title="Edit profile"
+            icon="user"
+            disabled={loading || notice !== null}
+            onPress={() => { tap('light'); setEditing(true); }}
+          />
+          {notice !== null && !loading ? (
+            <Txt t="micro" c={P.faint} style={{ marginTop: S.sm, textAlign: 'center' }}>
+              Editing is unavailable until your profile loads.
+            </Txt>
+          ) : null}
         </Card>
 
         <View style={{ height: S.xl }} />
