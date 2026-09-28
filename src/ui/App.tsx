@@ -183,13 +183,46 @@ function AppContent() {
    * is best-effort: a failure here is a splash that lingers a moment, which
    * is not worth crashing over.
    */
-  const booted = ready && authLoaded && userLoaded;
+  /*
+   * Clerk is not allowed to hold the app shut indefinitely.
+   *
+   * authLoaded and userLoaded stay false until Clerk answers, and with no
+   * network - or an unreachable Clerk - they can stay false for good. The app
+   * has a guest path that works offline, so waiting forever for permission to
+   * show it is the wrong trade. After this, carry on and treat the person as
+   * signed out; if Clerk answers later, the session updates underneath them.
+   */
+  const [waitedForAuth, setWaitedForAuth] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setWaitedForAuth(true), 8000);
+    return () => clearTimeout(t);
+  }, []);
+
+  const booted = ready && (waitedForAuth || (authLoaded && userLoaded));
 
   useEffect(() => {
     if (booted) void SplashScreen.hideAsync().catch(() => {});
   }, [booted]);
 
-  if (!booted) return null;
+  /*
+   * Never render nothing.
+   *
+   * This returned null, on the reasoning that the native splash was still up
+   * and anything of ours would cover it. That was wrong: the system takes the
+   * splash down once the root view draws its first frame, so an empty tree is
+   * not "the splash, still showing" - it is a black screen, and it is
+   * permanent if booting ever stalls.
+   *
+   * The colours match the splash's own backgroundColor exactly, so the
+   * handover is invisible when boot is quick and honest when it is not.
+   */
+  if (!booted) {
+    return (
+      <View style={[s.root, { backgroundColor: scheme === 'dark' ? '#12263A' : '#FFFFFF' }]}>
+        <StatusBar barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'} />
+      </View>
+    );
+  }
 
   /*
    * No session means the onboarding flow, which opens on its welcome screen
