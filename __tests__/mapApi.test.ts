@@ -142,15 +142,6 @@ describe('the MapLibre API the Map tab is written against', () => {
     }
 
     expect(labels).toContain("'text-field': ['get', 'label']");
-    expect(labels).toContain("'icon-text-fit': 'both'");
-  });
-
-  it('registers the pill image the label layer asks for', () => {
-    const images = /const PILL_IMAGES = \{[\s\S]*?\};/.exec(source)?.[0] ?? '';
-
-    expect(images).toContain("'label-pill'");
-    expect(images).toContain("'label-pill-dark'");
-    expect(source).toContain('<MapLibreGL.Images images={PILL_IMAGES} />');
   });
 
   it('gives every pin the properties those layers read', () => {

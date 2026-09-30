@@ -34,11 +34,6 @@ const STYLE_URL = {
 
 const ME_BLUE = '#1B6EF3';
 
-const PILL_IMAGES = {
-  'label-pill': require('../../../assets/map/label-pill.png'),
-  'label-pill-dark': require('../../../assets/map/label-pill-dark.png'),
-};
-
 const PEEK = 132 + TAB_CLEARANCE;
 
 const SHEET_TOP_GAP = 76;
@@ -145,7 +140,6 @@ export function CareScreen({ service, fix: given, onSearched }: {
   onSearched?: (count: number, place: string | null) => void;
 }) {
   const { c: P, scheme } = useTheme();
-  const PILL = scheme === 'dark' ? 'label-pill-dark' : 'label-pill';
 
   const [precise, setPrecise] = useState<Fix | null>(() => recentPreciseFix());
   const [tried, setTried] = useState(() => recentPreciseFix() !== null);
@@ -448,8 +442,6 @@ export function CareScreen({ service, fix: given, onSearched }: {
               ref={camera}
               initialViewState={{ center: [fix.lon, fix.lat], zoom: 15 }}
             />
-            <MapLibreGL.Images images={PILL_IMAGES} />
-
             <MapLibreGL.GeoJSONSource id="facilities" data={pins}>
               <MapLibreGL.Layer
                 id="facility-pins"
@@ -471,18 +463,17 @@ export function CareScreen({ service, fix: given, onSearched }: {
                   'text-font': ['Noto Sans Regular'],
                   'text-size': ['get', 'size'],
                   'text-anchor': 'top',
-                  'text-offset': [0, 1.1],
+                  'text-offset': [0, 0.9],
                   'text-max-width': 9,
-                  'text-padding': 2,
-                  'symbol-sort-key': ['get', 'sort'],
+                  'text-padding': 4,
 
-                  'icon-image': PILL,
-                  'icon-text-fit': 'both',
-                  'icon-text-fit-padding': [5, 9, 5, 9],
-                  'icon-optional': true,
+                  'symbol-sort-key': ['get', 'sort'],
                 }}
                 paint={{
-                  'text-color': scheme === 'dark' ? '#14161A' : '#FFFFFF',
+                  'text-color': scheme === 'dark' ? '#F2F3F5' : '#1A1A1A',
+                  'text-halo-color': scheme === 'dark' ? '#0B0B0D' : '#FFFFFF',
+                  'text-halo-width': 1.4,
+                  'text-halo-blur': 0.4,
                 }}
               />
             </MapLibreGL.GeoJSONSource>
