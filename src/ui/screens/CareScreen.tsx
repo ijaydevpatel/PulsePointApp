@@ -327,7 +327,36 @@ export function CareScreen({ service, fix: given }: {
   const load = useCallback(async () => {
     if (!service || !fix) return;
     setBusy(true);
-    const r = await service.near({ lat: fix.lat, lon: fix.lon });
+
+    let r = await service.near({ lat: fix.lat, lon: fix.lon });
+
+    /*
+     * A narrower second try rather than nothing.
+     *
+     * The query asks Overpass for every healthcare-tagged thing in a box
+     * about thirteen kilometres across. That is cheap over a quiet suburb and
+     * expensive over a dense city centre, and when it is expensive the server
+     * hits its own time limit and returns nothing at all - the screen then
+     * says "did not respond in time" and shows zero places, in a
+     * neighbourhood that may have fifty.
+     *
+     * Area goes up with the square of the radius, so a third of the radius is
+     * roughly a tenth of the work. Somewhere close is what this screen is for
+     * anyway; a hospital eight kilometres away is not the answer to "I need
+     * help now".
+     */
+    if (!r.ok) {
+      const near = await service.near({ lat: fix.lat, lon: fix.lon, radiusDeg: 0.02 });
+      if (near.ok) {
+        r = {
+          ...near,
+          notice: near.facilities.length > 0
+            ? 'Showing places within about 2 km - the wider search timed out.'
+            : near.notice,
+        };
+      }
+    }
+
 
     /*
      * A failed refresh does not throw away a good list.

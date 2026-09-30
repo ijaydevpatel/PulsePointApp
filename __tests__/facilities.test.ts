@@ -459,4 +459,42 @@ describe('the filter', () => {
     expect(matches(f, '')).toBe(true);
     expect(matches(f, '   ')).toBe(true);
   });
+
+  it('searches the box the caller asks for', async () => {
+    /*
+     * The wide default asks Overpass for every healthcare-tagged thing in a
+     * box thirteen kilometres across. Cheap over a quiet suburb, expensive
+     * over a dense city centre - and when it is expensive the server hits its
+     * own limit and returns nothing, so the screen shows zero places in a
+     * neighbourhood that may have fifty.
+     *
+     * Area goes with the square of the radius, so a third of the radius is
+     * about a tenth of the work. The screen retries narrow rather than giving
+     * up, and this is what lets it.
+     */
+    const answer = (body: unknown) => ({
+      ok: true, status: 200,
+      headers: { get: () => 'application/json' },
+      json: async () => body,
+    });
+
+    const boxes: string[] = [];
+    const fetchImpl = (async (_url: string, init: any) => {
+      const q = decodeURIComponent(String(init.body).replace(/^data=/, ''));
+      boxes.push(/\(([-0-9.,]+)\);/.exec(q)?.[1] ?? '');
+      return answer({ elements: [] });
+    }) as any;
+
+    const service = new OverpassFacilities(fetchImpl);
+    await service.near(AT);
+    await service.near({ ...AT, radiusDeg: 0.02 });
+
+    const span = (b: string) => {
+      const [s1, , n1] = b.split(',').map(Number);
+      return Math.abs((n1 ?? 0) - (s1 ?? 0));
+    };
+
+    expect(span(boxes[0]!)).toBeCloseTo(0.12, 3);
+    expect(span(boxes[1]!)).toBeCloseTo(0.04, 3);
+  });
 });

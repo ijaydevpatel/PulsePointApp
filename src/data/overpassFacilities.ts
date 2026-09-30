@@ -106,11 +106,11 @@ const QUERY_TIMEOUT_S = 45;
  * `out center` so ways and relations - a hospital is usually a building outline
  * rather than a point - come back with coordinates instead of a list of nodes.
  */
-function buildQuery(lat: number, lon: number): string {
-  const s = (lat - BBOX_DEGREES).toFixed(5);
-  const w = (lon - BBOX_DEGREES).toFixed(5);
-  const n = (lat + BBOX_DEGREES).toFixed(5);
-  const e = (lon + BBOX_DEGREES).toFixed(5);
+function buildQuery(lat: number, lon: number, deg: number = BBOX_DEGREES): string {
+  const s = (lat - deg).toFixed(5);
+  const w = (lon - deg).toFixed(5);
+  const n = (lat + deg).toFixed(5);
+  const e = (lon + deg).toFixed(5);
   const bbox = `${s},${w},${n},${e}`;
 
   const amenity = [
@@ -238,7 +238,7 @@ export class OverpassFacilities implements FacilityService {
   constructor(private readonly fetchImpl: typeof fetch = fetch) {}
 
   async near(at: FacilitySearch): Promise<FacilityResult> {
-    const query = buildQuery(at.lat, at.lon);
+    const query = buildQuery(at.lat, at.lon, at.radiusDeg);
     const body = `data=${encodeURIComponent(query)}`;
     let lastNotice = 'Nothing could be loaded for this area.';
 

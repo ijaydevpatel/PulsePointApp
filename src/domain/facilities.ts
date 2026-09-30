@@ -238,6 +238,15 @@ export function matches(f: Facility, query: string): boolean {
 export interface FacilitySearch {
   readonly lat: number;
   readonly lon: number;
+  /**
+   * Half-width of the search box in degrees, when the caller wants a smaller
+   * one than the default.
+   *
+   * This exists so a screen can narrow the search rather than give up. The
+   * query is cheap over a quiet suburb and expensive over a dense city, and
+   * the difference is the difference between an answer and a timeout.
+   */
+  readonly radiusDeg?: number;
 }
 
 export interface FacilityResult {
