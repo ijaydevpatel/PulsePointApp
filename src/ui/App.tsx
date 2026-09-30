@@ -21,7 +21,7 @@ import { InteractionReport } from '../domain/medicines';
 import { Session, GUEST } from '../domain/auth';
 import { SymptomAnalysis, MedicineCheck, RemoteOutcome } from '../domain/remote';
 import { RuleClassifier } from '../data/ruleClassifier';
-import { InMemoryEpisodeStore } from '../data/memoryStore';
+import { DurableEpisodeStore } from '../data/episodeStore';
 import { tokenCache } from '../data/clerkAuth';
 import { createServices } from '../data/services';
 import { Fix, resolveFix } from '../data/locationFix';
@@ -74,7 +74,16 @@ function AppContent() {
   const theme = useMemo(() => buildTheme(scheme), [scheme]);
 
   const classifier = useMemo(() => new RuleClassifier(), []);
-  const store = useMemo(() => new InMemoryEpisodeStore(), []);
+  /*
+   * Encrypted SQLite, not the in-memory test double this used to build.
+   *
+   * With the double, every assessment vanished when the app closed and
+   * Records was permanently empty - the screen was reading a real store that
+   * happened to hold nothing. DurableEpisodeStore falls back to memory if
+   * storage will not open, so a device problem costs history rather than the
+   * whole app.
+   */
+  const store = useMemo(() => new DurableEpisodeStore(), []);
 
   /**
    * Every hosted feature, built once, for the life of the app.

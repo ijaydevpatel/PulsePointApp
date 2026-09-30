@@ -138,18 +138,18 @@ const light: Palette = {
 const dark: Palette = {
   scheme: 'dark',
 
-  bg: '#0A0D14',
-  surface: '#141922',
-  sunken: '#1C222D',
-  raised: '#1A2029',
+  bg: '#0B0B0C',
+  surface: '#17171A',
+  sunken: '#202024',
+  raised: '#1D1D21',
 
-  line: '#252C38',
-  lineStrong: '#5D6673',
+  line: '#2B2B30',
+  lineStrong: '#65656B',
 
-  ink: '#F2F5F9',
-  inkSoft: '#C3CCDA',
-  muted: '#8E9AAC',
-  faint: '#65707F',
+  ink: '#F4F4F6',
+  inkSoft: '#CACAD0',
+  muted: '#9A9AA2',
+  faint: '#6E6E76',
 
   /*
    * The same crimson, lifted for a dark ground. #D92544 measures 3.4:1 on the
@@ -168,7 +168,7 @@ const dark: Palette = {
   onDanger: '#2A0009',
 
   scrim: 'rgba(0,0,0,0.62)',
-  barTint: 'rgba(20,25,34,0.72)',
+  barTint: 'rgba(20,20,22,0.72)',
 };
 
 export const PALETTES: Record<Scheme, Palette> = { light, dark };

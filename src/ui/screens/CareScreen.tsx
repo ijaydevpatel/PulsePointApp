@@ -93,7 +93,19 @@ try {
   MapLibreGL = null;
 }
 
-const STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
+/**
+ * One style per scheme.
+ *
+ * The map used Positron in both, so dark mode put a white map under a dark
+ * sheet and a black tab bar - the brightest thing on the screen, at night, on
+ * the screen people open at night. `dark` is the same tile source and the
+ * same Noto fontstack, so the pin labels keep working; only the paint
+ * changes.
+ */
+const STYLE_URL = {
+  light: 'https://tiles.openfreemap.org/styles/positron',
+  dark: 'https://tiles.openfreemap.org/styles/dark',
+} as const;
 
 /**
  * The one colour on this map that never means a facility.
@@ -254,7 +266,7 @@ export function CareScreen({ service, fix: given }: {
   /** Where to search from. Null while the location is still being resolved. */
   fix?: Fix | null;
 }) {
-  const { c: P } = useTheme();
+  const { c: P, scheme } = useTheme();
 
   /*
    * This screen resolves its own position, precisely.
@@ -662,7 +674,7 @@ export function CareScreen({ service, fix: given }: {
           <MapLibreGL.Map
             ref={map}
             style={{ flex: 1 }}
-            mapStyle={STYLE_URL}
+            mapStyle={STYLE_URL[scheme]}
             logo={false}
             compass={false}
             onPress={(e: any) => { void tapMap(e); }}
@@ -715,8 +727,11 @@ export function CareScreen({ service, fix: given }: {
                   'symbol-sort-key': ['case', ['get', 'selected'], 0, 1],
                 }}
                 paint={{
-                  'text-color': '#1A1A1A',
-                  'text-halo-color': '#FFFFFF',
+                  // Inverted with the scheme: black text on the dark style
+                  // would be invisible, and the halo is what makes either
+                  // readable over a busy street.
+                  'text-color': scheme === 'dark' ? '#F2F3F5' : '#1A1A1A',
+                  'text-halo-color': scheme === 'dark' ? '#0B0B0D' : '#FFFFFF',
                   'text-halo-width': 1.4,
                   'text-halo-blur': 0.4,
                 }}
@@ -776,8 +791,8 @@ export function CareScreen({ service, fix: given }: {
                   'text-ignore-placement': true,
                 }}
                 paint={{
-                  'text-color': ME_BLUE,
-                  'text-halo-color': '#FFFFFF',
+                  'text-color': scheme === 'dark' ? '#7FB0FF' : ME_BLUE,
+                  'text-halo-color': scheme === 'dark' ? '#0B0B0D' : '#FFFFFF',
                   'text-halo-width': 2,
                 }}
               />
