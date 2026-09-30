@@ -33,7 +33,7 @@ export function MoreScreen({ session, onOpen, scheme, onToggleScheme }: {
         <View style={{ paddingHorizontal: S.xl }}>
           <Enter index={1}>
             <SectionLabel>Account</SectionLabel>
-            <Card onPress={() => onOpen('profile')} elevated={2} glass={true}>
+            <Card onPress={() => onOpen('profile')} elevated={2}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
                 <View style={[circle(48), {
                   backgroundColor: signedIn ? P.accent : P.sunken,

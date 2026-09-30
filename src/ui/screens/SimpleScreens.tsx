@@ -66,7 +66,7 @@ export function ProfileScreen({ session, onBack, onSignIn, onSignOut }: {
         <ScreenHeader title="Account" onBack={onBack} />
         <View style={{ paddingHorizontal: S.xl }}>
           <Enter index={1}>
-            <Card elevated={2} glass={true}>
+            <Card elevated={2}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
                 <View style={[circle(54), {
                   backgroundColor: signedIn ? P.accent : P.sunken,
@@ -92,8 +92,8 @@ export function ProfileScreen({ session, onBack, onSignIn, onSignOut }: {
           <Enter index={2}>
             <View style={{ height: S.xl }} />
             {signedIn
-              ? <Button title="Sign out" tone="glass" onPress={onSignOut} />
-              : <Button title="Sign in or create an account" tone="glass" icon="user" onPress={onSignIn} />}
+              ? <Button title="Sign out" tone="outline" onPress={onSignOut} />
+              : <Button title="Sign in or create an account" tone="outline" icon="user" onPress={onSignIn} />}
 
             <View style={{ height: S.xxl }} />
             <View style={{ flexDirection: 'row', gap: S.sm, alignItems: 'flex-start' }}>

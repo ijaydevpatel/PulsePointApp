@@ -183,7 +183,7 @@ export function MedicinesScreen({ onRun, check, onCheck }: {
 
         <Enter index={1}>
           <View style={{ height: S.xxl }} />
-          <Card glass={true}>
+          <Card>
             <View style={st.noteRow}>
               <Icon name="alert" size={16} color={P.muted} />
               <Txt t="caption" style={{ flex: 1 }}>

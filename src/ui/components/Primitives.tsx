@@ -19,7 +19,6 @@ import * as Haptics from 'expo-haptics';
 import { useReveal } from '../useReveal';
 import { useTheme, TYPE, TypeToken, S, R, TOUCH, MOTION, circle } from '../theme';
 import { Icon, IconName } from './Icon';
-import { LiquidGlass } from './LiquidGlass';
 
 /* ────────────────────────────────  haptics  ─────────────────────────────── */
 
@@ -186,34 +185,24 @@ export function Enter({
 /* ─────────────────────────────────  card  ───────────────────────────────── */
 
 export function Card({
-  children, style, onPress, elevated = 1, padded = true, glass = false,
+  children, style, onPress, elevated = 1, padded = true,
 }: {
   children: ReactNode; style?: StyleProp<ViewStyle>; onPress?: () => void;
-  elevated?: 0 | 1 | 2 | 3; padded?: boolean; glass?: boolean;
+  elevated?: 0 | 1 | 2 | 3; padded?: boolean;
 }) {
   const { c: P, elev } = useTheme();
   const base: ViewStyle = {
-    backgroundColor: glass ? 'transparent' : P.surface,
+    backgroundColor: P.surface,
     borderRadius: R.lg,
     padding: padded ? S.lg : 0,
-    borderWidth: glass ? 0 : StyleSheet.hairlineWidth * 2,
+    borderWidth: StyleSheet.hairlineWidth * 2,
     borderColor: P.line,
-    ...(glass ? {} : elev(elevated)),
+    ...elev(elevated),
   };
 
   const content = (
     <View style={[base, style]}>{children}</View>
   );
-
-  if (glass) {
-    const wrapped = (
-      <LiquidGlass radius={R.lg} style={style} contentStyle={{ padding: padded ? S.lg : 0 }}>
-        {children}
-      </LiquidGlass>
-    );
-    if (!onPress) return wrapped;
-    return <Springy onPress={onPress} style={style}>{wrapped}</Springy>;
-  }
 
   if (!onPress) return content;
   return <Springy onPress={onPress} style={[base, style]}>{children}</Springy>;
@@ -249,7 +238,7 @@ export function Button({
   title, onPress, tone = 'primary', disabled, busy, icon, full = true,
 }: {
   title: string; onPress: () => void;
-  tone?: 'primary' | 'quiet' | 'ghost' | 'danger' | 'glass';
+  tone?: 'primary' | 'quiet' | 'ghost' | 'danger' | 'outline';
   disabled?: boolean; busy?: boolean; icon?: IconName; full?: boolean;
 }) {
   const { c: P, elev, scheme } = useTheme();
@@ -261,14 +250,14 @@ export function Button({
     : tone === 'primary' ? P.accent
     : tone === 'danger' ? P.danger
     : tone === 'quiet' ? P.sunken
-    : tone === 'glass' ? 'transparent'
+    : tone === 'outline' ? 'transparent'
     : 'transparent';
 
   const fg =
     inactive ? P.faint
     : tone === 'primary' ? P.onAccent
     : tone === 'danger' ? P.onDanger
-    : tone === 'glass' ? (scheme === 'dark' ? '#FFFFFF' : P.accent)
+    : tone === 'outline' ? P.accent
     : P.ink;
 
   const btnContent = (
@@ -288,20 +277,6 @@ export function Button({
     overflow: 'hidden',
   };
 
-  if (tone === 'glass' && !inactive) {
-    return (
-      <Springy onPress={onPress} style={baseStyle}>
-        <LiquidGlass
-          radius={R.pill}
-          style={{ flex: 1 }}
-          contentStyle={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: S.xl }}
-        >
-          {btnContent}
-        </LiquidGlass>
-      </Springy>
-    );
-  }
-
   return (
     <Springy
       disabled={inactive}
@@ -312,7 +287,9 @@ export function Button({
         st.btn,
         { backgroundColor: bg, alignSelf: full ? 'stretch' : 'flex-start' },
         (tone === 'primary' || inactive) ? elev(2) : null,
-        tone === 'ghost' ? { borderWidth: 1.5, borderColor: inactive ? P.line : P.lineStrong } : null,
+        (tone === 'ghost' || tone === 'outline')
+          ? { borderWidth: 1.5, borderColor: inactive ? P.line : (tone === 'outline' ? P.accent : P.lineStrong) }
+          : null,
       ]}
     >
       {/* 3D Highlight for primary buttons */}

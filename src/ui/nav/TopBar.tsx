@@ -1,18 +1,23 @@
 /**
- * The floating header: brand mark at top left, avatar at top right.
+ * The floating header: the account avatar, and nothing else.
  *
- * Two separate chips rather than one bar. A full-width header reserves its
- * whole height whether or not anything is in it, and on these screens there is
- * nothing in the middle - so the band was costing about 90dp of content for a
- * logo and a circle. Floating them means the list underneath starts at the top
- * of the screen and scrolls past them.
+ * ── Why the brand lockup went ────────────────────────────────────────────────
  *
- * ── Why the chips still have a surface ───────────────────────────────────────
+ * It sat at the top left of every tab - mark plus wordmark - telling the
+ * person the name of the app they had just opened and were already looking
+ * at. That is a splash screen's job, and there is one now. On a phone the top
+ * strip is the most expensive space there is, and a logo is the weakest thing
+ * to spend it on.
  *
- * Content scrolls under them, so neither can rely on the background behind it
- * staying light. Each sits on its own opaque circle: the mark keeps its own
- * colours legible, the avatar reads as a control, and neither dissolves into a
- * card or a photo passing beneath.
+ * The chip was also the way back to Home. That is not lost: the tab bar has a
+ * Home tab, which is where people reach for it, and Android's back gesture
+ * still unwinds the stack.
+ *
+ * ── Why the avatar still has a surface ───────────────────────────────────────
+ *
+ * Content scrolls under it, so it cannot rely on the background behind it
+ * staying light. It sits on its own opaque circle, so it reads as a control
+ * rather than dissolving into a card passing beneath.
  *
  * ── Colour ───────────────────────────────────────────────────────────────────
  *
@@ -23,21 +28,15 @@
  * style choice, so the chrome stays neutral in both schemes.
  */
 import React from 'react';
-import {
-  View, Text, StyleSheet, Pressable, useWindowDimensions,
-} from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { BrandMark } from '../auth/BrandMark';
 import { Icon } from '../components/Icon';
 import { Session } from '../../domain/auth';
 import { S, TOUCH, TYPE } from '../theme';
 
-/** Chip surface. Near-white so the mark's own colours stay true on it. */
-const CHIP = '#FFFFFF';
 /** The hexagon in the brand mark - the avatar circle matches the tab bar. */
 const AVATAR = '#1A1A1A';
 const ON_AVATAR = '#FFFFFF';
-const INK = '#0A0A0A';
 
 /**
  * Height the chips occupy, for screens that need to start their content below
@@ -53,43 +52,18 @@ function initial(session: Session): string | null {
   return ch ? ch.toUpperCase() : null;
 }
 
-export function TopBar({
-  session, onOpenProfile, onOpenHome,
-}: {
+export function TopBar({ session, onOpenProfile }: {
   session: Session;
   onOpenProfile: () => void;
-  /** Tapping the mark returns to Home, the way a logo usually behaves. */
-  onOpenHome?: () => void;
 }) {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-
   const letter = initial(session);
-
-  /*
-   * On a narrow screen the wordmark is the first thing to go. The mark alone
-   * still identifies the app, and keeping the text would either shrink the
-   * avatar's target or push it off the edge.
-   */
-  const showWordmark = width >= 360;
 
   return (
     <View
       style={[st.wrap, { top: insets.top + S.xs }]}
       pointerEvents="box-none"
     >
-      <Pressable
-        onPress={onOpenHome}
-        disabled={!onOpenHome}
-        accessibilityRole={onOpenHome ? 'button' : 'image'}
-        accessibilityLabel="PulsePoint"
-        accessibilityHint={onOpenHome ? 'Goes to Home' : undefined}
-        style={({ pressed }) => [st.brandChip, pressed && onOpenHome ? { opacity: 0.75 } : null]}
-      >
-        <BrandMark size={22} />
-        {showWordmark ? <Text style={st.wordmark}>PulsePoint</Text> : null}
-      </Pressable>
-
       <Pressable
         onPress={onOpenProfile}
         accessibilityRole="button"
@@ -124,26 +98,8 @@ const st = StyleSheet.create({
     right: S.lg,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     zIndex: 10,
-  },
-
-  brandChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    height: TOUCH,
-    paddingLeft: 12,
-    paddingRight: 16,
-    borderRadius: TOUCH / 2,
-    backgroundColor: CHIP,
-    ...LIFT,
-  },
-  wordmark: {
-    ...TYPE.heading,
-    color: INK,
-    fontSize: 15.5,
-    letterSpacing: -0.3,
   },
 
   avatar: {

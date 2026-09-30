@@ -28,7 +28,6 @@ import { AgentProfile, MedicineCheck, RemoteOutcome } from '../../domain/remote'
 import { Card, SectionLabel, Button, Txt, Springy, Enter } from '../components/Primitives';
 import { Icon } from '../components/Icon';
 import { useTheme, S, R, TOUCH, TAB_CLEARANCE, Palette, circle } from '../theme';
-import { GlassCircle } from '../components/LiquidGlass';
 
 /**
  * Risk word to colour.
@@ -121,9 +120,9 @@ export function CollisionScreen({ pair, check, onBack, onEdit }: {
       >
         <View style={[st.hero, { backgroundColor: P.surface, borderColor: P.line }]}>
           <Springy onPress={onBack} scaleTo={0.88} accessibilityLabel="Go back">
-            <GlassCircle size={TOUCH}>
+            <View style={[st.back, { backgroundColor: P.surface, borderColor: P.line }]}>
               <Icon name="chevronLeft" size={20} color={P.ink} />
-            </GlassCircle>
+            </View>
           </Springy>
 
           <Enter index={1}>
@@ -198,7 +197,7 @@ export function CollisionScreen({ pair, check, onBack, onEdit }: {
               <Enter index={3}>
                 <View style={{ height: S.xxl }} />
                 <SectionLabel>Why</SectionLabel>
-                <Card glass={true}>
+                <Card>
                   {/*
                     One explanation, not two.
                     Mechanism and clinical rationale are the same answer told
@@ -228,7 +227,7 @@ export function CollisionScreen({ pair, check, onBack, onEdit }: {
                 <Enter index={5}>
                   <View style={{ height: S.xxl }} />
                   <SectionLabel>Alternatives to ask about</SectionLabel>
-                  <Card glass={true}>
+                  <Card>
                     {data.safeAlternatives.map((a, i) => (
                       <View key={`${a}-${i}`} style={st.bulletRow}>
                         <View style={[st.dot, { backgroundColor: P.ok }]} />
@@ -269,6 +268,11 @@ export function CollisionScreen({ pair, check, onBack, onEdit }: {
 }
 
 const st = StyleSheet.create({
+  back: {
+    width: TOUCH, height: TOUCH, borderRadius: TOUCH / 2,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    alignItems: 'center', justifyContent: 'center',
+  },
   hero: {
     borderBottomWidth: StyleSheet.hairlineWidth * 2,
     paddingHorizontal: S.xl,

@@ -33,7 +33,6 @@ import { TabTransition } from './nav/TabTransition';
 import { DEFAULT_TAB, RouteKey, TabKey } from './nav/routes';
 import { OfflineBanner } from './components/ScreenHeader';
 import { BottomScrim } from './components/BottomScrim';
-import { GlassBackground } from './components/LiquidGlass';
 import { TriageScreen } from './screens/TriageScreen';
 import { ResultScreen } from './screens/ResultScreen';
 import { MedicinesScreen } from './screens/MedicinesScreen';
@@ -387,7 +386,6 @@ function AppContent() {
       {/* SafeAreaProvider lives at the root now - see the note on App(). */}
       <>
         <View style={[s.root, { backgroundColor: theme.c.bg }]}>
-          <GlassBackground />
           <SafeAreaView style={s.root} edges={['top']}>
             <StatusBar
               barStyle={scheme === 'dark' ? 'light-content' : 'dark-content'}
@@ -411,11 +409,7 @@ function AppContent() {
                 {/* Floating chrome. Both bars sit above the content rather
                     than reserving bands of their own, so the screen underneath
                     scrolls the full height. */}
-                <TopBar
-                  session={session}
-                  onOpenProfile={() => push('profile')}
-                  onOpenHome={tab === 'home' ? undefined : () => setTab('home')}
-                />
+                <TopBar session={session} onOpenProfile={() => push('profile')} />
                 <BottomScrim />
                 <TabBar active={tab} onSelect={(k) => { setStack([]); setTab(k); }} />
               </>

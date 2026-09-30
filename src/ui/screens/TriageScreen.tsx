@@ -243,24 +243,16 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
             const on = picked[c.code] !== undefined;
             return (
               /*
-               * Not glass, and this is the whole reason the tab was slow.
+               * Plain surface cards, thirty-three of them.
                *
-               * Every glass Card is a LiquidGlass: a live Android blur that
-               * samples the view hierarchy behind it every frame, plus an SVG
-               * carrying a gradient sheen and a circle-pattern grain. That is
-               * a fair price for a header or a result card, of which a screen
-               * has two or three. This list has thirty-three, so the screen
-               * was standing up thirty-three live blurs and thirty-three SVGs
-               * on mount - and each one renders twice, because LiquidGlass
-               * measures itself before it can draw.
+               * These were glass, and that was the whole reason this tab was
+               * slow: each glass Card stood up a live Android blur plus an
+               * SVG, and rendered twice because it had to measure itself
+               * first. The visible symptom was in the navigation bar, whose
+               * sliding pill runs on the JS driver and starved.
                *
-               * The visible symptom was in the navigation bar, which is why
-               * it was not obvious where to look: the sliding pill runs on
-               * the JS driver, deliberately, and a first paint that expensive
-               * starves the thread the pill animates on. Every other tab was
-               * fine because no other tab repeats glass in a list.
-               *
-               * Glass is a material for chrome, not for list rows.
+               * Glass is gone from the project now, but the lesson survives
+               * it: repeated list rows get the cheapest surface there is.
                */
               <Card
                 key={c.code}

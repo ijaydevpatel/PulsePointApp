@@ -1,25 +1,24 @@
 import React, { ReactNode } from 'react';
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useTheme, S, TOUCH, R } from '../theme';
-import { GlassCircle, LiquidGlass } from './LiquidGlass';
 import { Icon } from './Icon';
 import { Springy, Txt, Enter } from './Primitives';
 
 export function ScreenHeader({
-  title, subtitle, onBack, right, large = true, glass = true,
+  title, subtitle, onBack, right, large = true,
 }: {
   title: string; subtitle?: string; onBack?: () => void;
-  right?: ReactNode; large?: boolean; glass?: boolean;
+  right?: ReactNode; large?: boolean;
 }) {
   const { c: P } = useTheme();
 
   const content = (
-    <View style={[s.wrap, !glass && { paddingTop: S.md }]}>
+    <View style={[s.wrap, { paddingTop: S.md }]}>
       {onBack ? (
         <Springy onPress={onBack} scaleTo={0.88} accessibilityLabel="Go back">
-          <GlassCircle size={TOUCH}>
+          <View style={[s.back, { backgroundColor: P.surface, borderColor: P.line }]}>
             <Icon name="chevronLeft" size={20} color={P.ink} />
-          </GlassCircle>
+          </View>
         </Springy>
       ) : null}
       <View style={{ flex: 1 }}>
@@ -29,21 +28,6 @@ export function ScreenHeader({
       {right}
     </View>
   );
-
-  if (glass) {
-    return (
-      <Enter>
-        <LiquidGlass
-          radius={0}
-          style={s.glassContainer}
-          weight="heavy"
-          contentStyle={{ paddingTop: Platform.OS === 'ios' ? 0 : S.md }}
-        >
-          {content}
-        </LiquidGlass>
-      </Enter>
-    );
-  }
 
   return (
     <Enter>
@@ -68,10 +52,10 @@ export function OfflineBanner({ visible }: { visible: boolean }) {
 }
 
 const s = StyleSheet.create({
-  glassContainer: {
-    borderBottomLeftRadius: R.lg,
-    borderBottomRightRadius: R.lg,
-    marginBottom: S.lg,
+  back: {
+    width: TOUCH, height: TOUCH, borderRadius: TOUCH / 2,
+    borderWidth: StyleSheet.hairlineWidth * 2,
+    alignItems: 'center', justifyContent: 'center',
   },
   wrap: {
     flexDirection: 'row', alignItems: 'center', gap: S.md,
