@@ -234,7 +234,10 @@ export function CareScreen({ service, fix: given, onSearched }: {
       lastNotice = r.notice;
       lastDiagnostics = r.diagnostics ?? null;
 
-      if (!r.ok) break;
+      if (!r.ok) {
+        if (!answered) break;
+        continue;
+      }
 
       answered = true;
       for (const f of r.facilities) found.set(f.id, f);
@@ -454,7 +457,7 @@ export function CareScreen({ service, fix: given, onSearched }: {
               <MapLibreGL.Layer
                 id="facility-labels"
                 type="symbol"
-                minzoom={13}
+                minzoom={11}
                 layout={{
                   'text-field': ['case', ['get', 'named'], ['get', 'name'], ''],
                   'text-font': ['Noto Sans Regular'],
