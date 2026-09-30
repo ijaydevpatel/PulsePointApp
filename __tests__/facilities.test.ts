@@ -279,33 +279,50 @@ describe('when Overpass will not answer', () => {
 
   it('asks for enough server time to answer a city centre', async () => {
     let sent = '';
-    const fetchImpl = (async (_url: string, init: any) => {
-      sent = String(init.body);
+    const fetchImpl = (async (url: string) => {
+      sent = url;
       return ok({ elements: [] });
     }) as any;
 
     await new OverpassFacilities(fetchImpl).near(AT);
 
-    const query = decodeURIComponent(sent.replace(/^data=/, ''));
+    const query = decodeURIComponent(sent.replace(/^[^?]*\?data=/, ''));
     const declared = Number(/\[timeout:(\d+)\]/.exec(query)?.[1]);
 
     expect(declared).toBeGreaterThanOrEqual(45);
   });
 
-  it('sends the query form-encoded, as every mirror expects', async () => {
+  it('asks over GET, with the query in the URL', async () => {
+    let url = '';
     let init: any = null;
-    const fetchImpl = (async (_url: string, i: any) => { init = i; return ok({ elements: [] }); }) as any;
+    const fetchImpl = (async (u: string, i: any) => { url = u; init = i; return ok({ elements: [] }); }) as any;
 
     await new OverpassFacilities(fetchImpl).near(AT);
 
-    expect(init.headers['Content-Type']).toBe('application/x-www-form-urlencoded');
-    expect(String(init.body).startsWith('data=')).toBe(true);
+    expect(init.method).toBe('GET');
+    expect(url).toContain('?data=');
+    expect(init.body).toBeUndefined();
+  });
+
+  it('falls back to POST when GET will not go through', async () => {
+    const verbs: string[] = [];
+    const fetchImpl = (async (_u: string, i: any) => {
+      verbs.push(i.method);
+      if (i.method === 'GET') throw new Error('Network request failed');
+      return ok({ elements: [] });
+    }) as any;
+
+    const r = await new OverpassFacilities(fetchImpl).near(AT);
+
+    expect(verbs).toContain('GET');
+    expect(verbs).toContain('POST');
+    expect(r.ok).toBe(true);
   });
 
   it('asks for the tags that carry health places', async () => {
     let sent = '';
-    const fetchImpl = (async (_url: string, init: any) => {
-      sent = decodeURIComponent(String(init.body).replace(/^data=/, ''));
+    const fetchImpl = (async (_url: string) => {
+      sent = decodeURIComponent(String(_url).replace(/^[^?]*\?data=/, ''));
       return ok({ elements: [] });
     }) as any;
 
@@ -372,8 +389,8 @@ describe('the filter', () => {
     });
 
     const boxes: string[] = [];
-    const fetchImpl = (async (_url: string, init: any) => {
-      const q = decodeURIComponent(String(init.body).replace(/^data=/, ''));
+    const fetchImpl = (async (url: string) => {
+      const q = decodeURIComponent(String(url).replace(/^[^?]*\?data=/, ''));
       boxes.push(/\(([-0-9.,]+)\);/.exec(q)?.[1] ?? '');
       return answer({ elements: [] });
     }) as any;

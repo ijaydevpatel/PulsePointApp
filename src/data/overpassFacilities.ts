@@ -19,9 +19,9 @@ function budgetFor(deg: number) {
   const mid = deg <= 0.04;
   return {
     serverSeconds: small ? 12 : mid ? 25 : 45,
-    attemptMs: small ? 9000 : mid ? 18000 : TIMEOUT_MS,
+    attemptMs: small ? 20000 : mid ? 25000 : TIMEOUT_MS,
     hedgeMs: small ? 0 : 4000,
-    totalMs: small ? 14000 : mid ? 26000 : 50000,
+    totalMs: small ? 24000 : mid ? 30000 : 50000,
   };
 }
 
@@ -126,6 +126,7 @@ export class OverpassFacilities implements FacilityService {
     const deg = at.radiusDeg ?? BBOX_DEGREES;
     const budget = budgetFor(deg);
     const query = buildQuery(at.lat, at.lon, deg);
+    const encoded = encodeURIComponent(query);
     const body = `data=${encodeURIComponent(query)}`;
     let lastNotice = 'Nothing could be loaded for this area.';
 
@@ -137,27 +138,42 @@ export class OverpassFacilities implements FacilityService {
       const started = Date.now();
       const secs = () => `${((Date.now() - started) / 1000).toFixed(1)}s`;
 
-      try {
-        const response = await this.fetchImpl(endpoint, {
+      const headers = {
+        Accept: 'application/json',
+        'User-Agent': 'PulsePoint/0.1 (health facility finder)',
+      };
+
+      const send = async (verb: 'GET' | 'POST') => (verb === 'GET'
+        ? this.fetchImpl(`${endpoint}?data=${encoded}`, { method: 'GET', headers, signal })
+        : this.fetchImpl(endpoint, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            Accept: 'application/json',
-            'User-Agent': 'PulsePoint/0.1 (health facility finder)',
-          },
+          headers: { ...headers, 'Content-Type': 'application/x-www-form-urlencoded' },
           body,
           signal,
-        });
+        }));
+
+      let verb: 'GET' | 'POST' = 'GET';
+
+      try {
+        let response: Response;
+        try {
+          response = await send('GET');
+        } catch (getError) {
+          if (getError instanceof Error && getError.name === 'AbortError') throw getError;
+          note(`${host}: GET failed at ${secs()}, trying POST`);
+          verb = 'POST';
+          response = await send('POST');
+        }
 
         if (!response.ok) {
-          note(`${host}: HTTP ${response.status} after ${secs()}`);
+          note(`${host}: ${verb} HTTP ${response.status} after ${secs()}`);
           lastNotice = `The map service is busy (HTTP ${response.status}).`;
           return null;
         }
 
         const type = response.headers?.get?.('content-type') ?? '';
         if (!type.includes('json')) {
-          note(`${host}: not JSON after ${secs()}`);
+          note(`${host}: ${verb} not JSON after ${secs()}`);
           lastNotice = 'The map service is busy right now.';
           return null;
         }
@@ -174,8 +190,8 @@ export class OverpassFacilities implements FacilityService {
       } catch (error) {
         const aborted = error instanceof Error && error.name === 'AbortError';
         const why = aborted
-          ? `timed out at ${secs()}`
-          : `${error instanceof Error ? error.message : 'failed'} at ${secs()}`;
+          ? `${verb} timed out at ${secs()}`
+          : `${verb} ${error instanceof Error ? error.message : 'failed'} at ${secs()}`;
         note(`${host}: ${why}`);
 
         lastNotice = aborted
