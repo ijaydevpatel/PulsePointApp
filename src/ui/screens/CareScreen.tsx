@@ -8,7 +8,7 @@ import { Txt, Springy, Card, Button, tap } from '../components/Primitives';
 import { Icon, IconName } from '../components/Icon';
 import { useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE, Palette } from '../theme';
 import {
-  Facility, FacilityKind, FacilityService, KIND_LABEL, matches,
+  Facility, FacilityKind, FacilityService, KIND_LABEL, matches, byDistance,
 } from '../../domain/facilities';
 import { Fix, FixOutcome, preciseFix, recentPreciseFix } from '../../data/locationFix';
 
@@ -38,6 +38,8 @@ const PEEK = 132 + TAB_CLEARANCE;
 const SHEET_TOP_GAP = 76;
 
 const TAP_SLOP = 14;
+
+const RINGS = [0.012, 0.03, 0.06] as const;
 
 const FLICK = 0.5;
 
@@ -174,6 +176,9 @@ export function CareScreen({ service, fix: given, onSearched }: {
 
   const shownCount = useRef(0);
 
+  const searchRun = useRef(0);
+  const [widening, setWidening] = useState(false);
+
   const searched = useRef(onSearched);
   searched.current = onSearched;
   const [busy, setBusy] = useState(true);
@@ -185,38 +190,48 @@ export function CareScreen({ service, fix: given, onSearched }: {
 
   const load = useCallback(async () => {
     if (!service || !fix) return;
+
+    const run = ++searchRun.current;
+    const alive = () => searchRun.current === run;
+
     setBusy(true);
+    setNotice(null);
+    setStale(false);
 
-    const RADII: (number | undefined)[] = [undefined, 0.04, 0.02];
+    const found = new Map<string, Facility>();
+    let answered = false;
+    let lastNotice: string | null = null;
 
-    let r = await service.near({ lat: fix.lat, lon: fix.lon });
-    let narrowedTo: number | null = null;
+    for (const radiusDeg of RINGS) {
+      const r = await service.near({ lat: fix.lat, lon: fix.lon, radiusDeg });
+      if (!alive()) return;
 
-    for (const radiusDeg of RADII.slice(1)) {
-      if (r.ok) break;
-      const retry = await service.near({ lat: fix.lat, lon: fix.lon, radiusDeg });
-      if (retry.ok) {
-        r = retry;
-        narrowedTo = radiusDeg ?? null;
-      }
+      lastNotice = r.notice;
+      if (!r.ok) continue;
+
+      answered = true;
+      for (const f of r.facilities) found.set(f.id, f);
+
+      const merged = [...found.values()].sort(byDistance);
+      shownCount.current = merged.length;
+      setFacilities(merged);
+      setNotice(null);
+      setBusy(false);
+      setWidening(radiusDeg !== RINGS[RINGS.length - 1]);
     }
 
-    if (narrowedTo !== null && r.facilities.length > 0) {
-      const km = Math.floor(narrowedTo * 111);
-      r = { ...r, notice: `Showing places within about ${km} km - the wider search timed out.` };
-    }
-
-    setStale(!r.ok && shownCount.current > 0);
-
-    setFacilities((prev) => {
-      const next = r.ok || prev.length === 0 ? r.facilities : prev;
-      shownCount.current = next.length;
-      return next;
-    });
-    setNotice(r.notice);
+    if (!alive()) return;
+    setWidening(false);
     setBusy(false);
 
-    if (r.ok) searched.current?.(r.facilities.length, fix.place ?? null);
+    if (answered) {
+      setNotice(found.size === 0 ? 'No health facilities are mapped around here.' : null);
+      searched.current?.(found.size, fix.place ?? null);
+      return;
+    }
+
+    setStale(shownCount.current > 0);
+    setNotice(lastNotice ?? 'Nothing could be loaded for this area.');
   }, [service, fix]);
 
   useEffect(() => { void load(); }, [load]);
@@ -568,9 +583,14 @@ export function CareScreen({ service, fix: given, onSearched }: {
             <Txt t="micro" c={P.faint}>
               {locating ? 'FINDING YOU' : whereFrom(fix)}
             </Txt>
-            <Txt t="micro" c={P.faint}>
-              {busy ? 'Searching' : `${shown.length} ${shown.length === 1 ? 'place' : 'places'}`}
-            </Txt>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+              {widening ? <ActivityIndicator size="small" color={P.faint} /> : null}
+              <Txt t="micro" c={P.faint}>
+                {busy
+                  ? 'Searching'
+                  : `${shown.length} ${shown.length === 1 ? 'place' : 'places'}${widening ? ' so far' : ''}`}
+              </Txt>
+            </View>
           </View>
         </View>
 
