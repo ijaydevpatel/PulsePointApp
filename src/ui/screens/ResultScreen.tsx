@@ -52,6 +52,7 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
 }) {
   const { c: P, band: B, elev } = useTheme();
   const band = B[result.band];
+  const [whyConfidence, setWhyConfidence] = useState(false);
   const escalate = requiresEscalation(result);
   const severity = useCountUp(result.severity);
 
@@ -110,16 +111,76 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
                 <Txt t="title" c={band.onSolid + '99'}>/100</Txt>
               </View>
               <View style={{ flex: 1 }} />
-              <View style={[st.conf, { backgroundColor: band.onSolid + '1F' }]}>
-                <Txt t="micro" c={band.onSolid}>
-                  {`${Math.round(result.confidence * 100)}% confidence`}
-                </Txt>
-              </View>
+              {/*
+                Tappable, because a percentage with no explanation invites the
+                obvious question - and the honest answer to "why is it not
+                higher" is better than a higher number.
+              */}
+              <Springy
+                onPress={() => { tap('light'); setWhyConfidence(true); }}
+                scaleTo={0.94}
+                accessibilityLabel={`${Math.round(result.confidence * 100)} percent confidence. How this is worked out.`}
+              >
+                <View style={[st.conf, { backgroundColor: band.onSolid + '1F' }]}>
+                  <Txt t="micro" c={band.onSolid}>
+                    {`${Math.round(result.confidence * 100)}% confidence  ·  ?`}
+                  </Txt>
+                </View>
+              </Springy>
             </View>
           </Enter>
         </View>
 
         <View style={{ paddingHorizontal: S.xl, marginTop: -S.xl }}>
+          {/*
+            What the percentage means, in the three things that actually move
+            it. Written as plain sentences rather than the formula: the point
+            is that someone can tell whether a low number is the app being
+            broken or the answer genuinely being uncertain.
+          */}
+          {whyConfidence ? (
+            <Card style={{ marginBottom: S.md }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
+                <Txt t="bodyStrong" style={{ flex: 1 }}>How confidence is worked out</Txt>
+                <Springy
+                  onPress={() => { tap('light'); setWhyConfidence(false); }}
+                  scaleTo={0.85}
+                  accessibilityLabel="Close"
+                >
+                  <Icon name="close" size={16} color={P.muted} />
+                </Springy>
+              </View>
+
+              <Txt t="caption" style={{ marginTop: S.sm }}>
+                Three things are multiplied together, so all of them have to
+                hold:
+              </Txt>
+
+              <View style={{ marginTop: S.sm }}>
+                <Txt t="caption">
+                  <Txt t="bodyStrong">How much you told it.</Txt>
+                  {' '}One symptom is weak evidence. The second adds a lot, the
+                  fourth adds little.
+                </Txt>
+                <Txt t="caption" style={{ marginTop: S.xs }}>
+                  <Txt t="bodyStrong">How clear-cut the score is.</Txt>
+                  {' '}A score sitting right on a boundary could fall either
+                  way. Ten points clear of one counts as settled.
+                </Txt>
+                <Txt t="caption" style={{ marginTop: S.xs }}>
+                  <Txt t="bodyStrong">How specific the symptoms are.</Txt>
+                  {' '}A rash points somewhere. Tiredness fits almost anything.
+                </Txt>
+              </View>
+
+              <Txt t="caption" c={P.muted} style={{ marginTop: S.md }}>
+                It never reads 0%, because the rules are fixed and visible, and
+                it never reaches the nineties, because a small rule engine
+                cannot know that much. Adding more symptoms is what raises it.
+              </Txt>
+            </Card>
+          ) : null}
+
           {/* Escalation first. QR5: never below the fold, never after the score. */}
           {escalate ? (
             <Enter index={3}>
