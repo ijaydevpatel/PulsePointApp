@@ -11,6 +11,7 @@ import {
   Facility, FacilityKind, FacilityService, KIND_LABEL, matches, byDistance,
 } from '../../domain/facilities';
 import { Fix, FixOutcome, preciseFix, recentPreciseFix } from '../../data/locationFix';
+import { readFacilityCache, writeFacilityCache } from '../../data/facilityCache';
 
 const MAPLIBRE_MODULE = '@maplibre/maplibre-react-native';
 
@@ -40,19 +41,6 @@ const SHEET_TOP_GAP = 76;
 const TAP_SLOP = 14;
 
 const RINGS = [0.012, 0.03, 0.06] as const;
-
-const CACHE_MS = 10 * 60 * 1000;
-const CACHE_GRID = 3;
-
-let cached: { key: string; facilities: readonly Facility[]; at: number } | null = null;
-
-const cacheKey = (lat: number, lon: number) =>
-  `${lat.toFixed(CACHE_GRID)},${lon.toFixed(CACHE_GRID)}`;
-
-function readCache(lat: number, lon: number): readonly Facility[] | null {
-  if (!cached || cached.key !== cacheKey(lat, lon)) return null;
-  return Date.now() - cached.at <= CACHE_MS ? cached.facilities : null;
-}
 
 const FLICK = 0.5;
 
@@ -208,7 +196,7 @@ export function CareScreen({ service, fix: given, onSearched }: {
     const run = ++searchRun.current;
     const alive = () => searchRun.current === run;
 
-    const warm = readCache(fix.lat, fix.lon);
+    const warm = readFacilityCache(fix.lat, fix.lon);
     if (warm && warm.length > 0) {
       shownCount.current = warm.length;
       setFacilities(warm);
@@ -226,6 +214,7 @@ export function CareScreen({ service, fix: given, onSearched }: {
     let answered = false;
     let lastNotice: string | null = null;
     let lastDiagnostics: string | null = null;
+    let widestReached = false;
 
     for (const radiusDeg of RINGS) {
       const r = await service.near({ lat: fix.lat, lon: fix.lon, radiusDeg });
@@ -236,8 +225,11 @@ export function CareScreen({ service, fix: given, onSearched }: {
 
       if (!r.ok) {
         if (!answered) break;
+        widestReached = false;
         continue;
       }
+
+      widestReached = radiusDeg === RINGS[RINGS.length - 1];
 
       answered = true;
       for (const f of r.facilities) found.set(f.id, f);
@@ -255,11 +247,17 @@ export function CareScreen({ service, fix: given, onSearched }: {
     setBusy(false);
 
     if (answered) {
-      if (found.size > 0) {
-        cached = { key: cacheKey(fix.lat, fix.lon), facilities: [...found.values()], at: Date.now() };
+      writeFacilityCache(fix.lat, fix.lon, [...found.values()]);
+      if (found.size === 0) {
+        setDiagnostics(null);
+        setNotice('No health facilities are mapped around here.');
+      } else if (!widestReached) {
+        setDiagnostics(lastDiagnostics);
+        setNotice('The wider search did not finish, so this is what is close by.');
+      } else {
+        setDiagnostics(null);
+        setNotice(null);
       }
-      setDiagnostics(null);
-      setNotice(found.size === 0 ? 'No health facilities are mapped around here.' : null);
       searched.current?.(found.size, fix.place ?? null);
       return;
     }
@@ -662,9 +660,14 @@ export function CareScreen({ service, fix: given, onSearched }: {
               {notice && shown.length > 0 ? (
               <View style={[st.banner, { borderColor: P.line, backgroundColor: P.sunken }]}>
                 <Icon name="alert" size={16} color={P.warn} />
-                <Txt t="caption" c={P.muted} style={{ flex: 1 }}>
-                  {stale ? `${notice} Showing what was found last time.` : notice}
-                </Txt>
+                <View style={{ flex: 1 }}>
+                  <Txt t="caption" c={P.muted}>
+                    {stale ? `${notice} Showing what was found last time.` : notice}
+                  </Txt>
+                  {diagnostics ? (
+                    <Txt t="micro" c={P.faint} style={{ marginTop: S.xs }}>{diagnostics}</Txt>
+                  ) : null}
+                </View>
                 <Springy onPress={() => { tap('light'); void load(); }} scaleTo={0.94}>
                   <Txt t="bodyStrong" c={P.accent}>Retry</Txt>
                 </Springy>

@@ -17,6 +17,7 @@ import { TriageResult, BAND_LABEL } from '../domain/entities';
 import { InteractionReport } from '../domain/medicines';
 import { Session, GUEST } from '../domain/auth';
 import { ActivityKind } from '../domain/activity';
+import { readFacilityCache, writeFacilityCache } from '../data/facilityCache';
 import { SymptomAnalysis, MedicineCheck, RemoteOutcome } from '../domain/remote';
 import { RuleClassifier } from '../data/ruleClassifier';
 import { DurableEpisodeStore } from '../data/episodeStore';
@@ -95,6 +96,23 @@ function AppContent() {
   const [offline] = useState(false);
 
   useEffect(() => { void store.init(); }, [store]);
+
+  useEffect(() => {
+    if (!fix) return;
+    if (readFacilityCache(fix.lat, fix.lon)) return;
+
+    let alive = true;
+    const timer = setTimeout(() => {
+      void services.facilities
+        .near({ lat: fix.lat, lon: fix.lon, radiusDeg: 0.012 })
+        .then((r) => {
+          if (alive && r.ok) writeFacilityCache(fix.lat, fix.lon, r.facilities);
+        })
+        .catch(() => {});
+    }, 2500);
+
+    return () => { alive = false; clearTimeout(timer); };
+  }, [fix, services]);
 
   const ready = fontsLoaded || !!fontError;
 

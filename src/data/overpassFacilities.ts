@@ -18,10 +18,10 @@ function budgetFor(deg: number) {
   const small = deg <= 0.02;
   const mid = deg <= 0.04;
   return {
-    serverSeconds: small ? 12 : mid ? 30 : 50,
-    attemptMs: small ? 20000 : mid ? 35000 : 55000,
+    serverSeconds: small ? 12 : mid ? 40 : 60,
+    attemptMs: small ? 20000 : mid ? 50000 : 90000,
     hedgeMs: small ? 0 : 4000,
-    totalMs: small ? 24000 : mid ? 40000 : 65000,
+    totalMs: small ? 24000 : mid ? 60000 : 100000,
   };
 }
 
