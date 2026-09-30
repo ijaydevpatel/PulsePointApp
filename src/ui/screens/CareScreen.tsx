@@ -122,6 +122,9 @@ const PEEK = 132 + TAB_CLEARANCE;
 /** How far below the top of the screen the sheet stops when fully up. */
 const SHEET_TOP_GAP = 76;
 
+/** Half the width of the tap target around a pin, in points. */
+const TAP_SLOP = 14;
+
 /** Past this much of a flick, direction wins over position. */
 const FLICK = 0.5;
 
@@ -199,16 +202,49 @@ function whereFrom(fix: Fix | null): string {
 const distance = (km: number) =>
   (km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`);
 
-/** Opens the platform's own maps app, which knows about routes and traffic. */
-function openDirections(f: Facility) {
+/**
+ * Hands the place to the phone's own maps app, as a route.
+ *
+ * ── Routing, not a dropped pin ───────────────────────────────────────────────
+ *
+ * This used to open `geo:lat,lon?q=...`, which shows the place on a map and
+ * leaves the person to press Directions themselves. On a screen whose entire
+ * job is getting someone to care, the useful handover is the route: the maps
+ * app already knows where they are, which roads are shut and how long it will
+ * take, and none of that is worth reimplementing here.
+ *
+ * The universal Google Maps URL is first because it works on both platforms
+ * and opens the installed app rather than the browser when there is one. iOS
+ * gets Apple Maps first, since that is the one that is certainly installed.
+ *
+ * Each step is tried in turn, so a phone with no maps app at all still lands
+ * on something that shows the place rather than doing nothing.
+ */
+async function openDirections(f: Facility) {
+  const dest = `${f.lat},${f.lon}`;
   const label = encodeURIComponent(f.name);
-  const url = Platform.select({
-    ios: `maps://?daddr=${f.lat},${f.lon}&q=${label}`,
-    default: `geo:${f.lat},${f.lon}?q=${f.lat},${f.lon}(${label})`,
-  });
-  if (url) void Linking.openURL(url).catch(() => {
-    void Linking.openURL(`https://www.openstreetmap.org/?mlat=${f.lat}&mlon=${f.lon}#map=18/${f.lat}/${f.lon}`);
-  });
+
+  const candidates = Platform.OS === 'ios'
+    ? [
+      `maps://?daddr=${dest}&dirflg=d`,
+      `https://www.google.com/maps/dir/?api=1&destination=${dest}`,
+    ]
+    : [
+      `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`,
+      `geo:${dest}?q=${dest}(${label})`,
+    ];
+
+  for (const url of [
+    ...candidates,
+    `https://www.openstreetmap.org/?mlat=${f.lat}&mlon=${f.lon}#map=18/${f.lat}/${f.lon}`,
+  ]) {
+    try {
+      await Linking.openURL(url);
+      return;
+    } catch {
+      // Try the next one. A phone without Google Maps is not an error.
+    }
+  }
 }
 
 /* ──────────────────────────────── screen ────────────────────────────────── */
@@ -286,6 +322,7 @@ export function CareScreen({ service, fix: given }: {
   const [selected, setSelected] = useState<string | null>(null);
 
   const camera = useRef<any>(null);
+  const map = useRef<any>(null);
 
   const load = useCallback(async () => {
     if (!service || !fix) return;
@@ -327,6 +364,10 @@ export function CareScreen({ service, fix: given }: {
       id: f.id,
       geometry: { type: 'Point' as const, coordinates: [f.lon, f.lat] },
       properties: {
+        // In properties as well as on the feature: a feature's own `id` does
+        // not reliably survive the round trip through the native layer, and
+        // the tap handler has to know which place was hit.
+        id: f.id,
         name: f.name,
         named: f.named,
         colour: kindColour(P, f.kind),
@@ -471,6 +512,57 @@ export function CareScreen({ service, fix: given }: {
     collapse();
   }, [collapse, moveTo]);
 
+  /**
+   * Tapping a pin on the map hands the place to the maps app, as a route.
+   *
+   * ── Why the hit test is a query, not a callback ──────────────────────────
+   *
+   * v11 has no onPress on a source or a layer. The map reports where it was
+   * touched, and whether anything of ours is under that point is a question
+   * only the map can answer - queryRenderedFeatures asks it, restricted to
+   * the facility layer so a tap on a road or a label is not mistaken for a
+   * tap on a place.
+   *
+   * ── Why a pin carries the facility id in properties ──────────────────────
+   *
+   * A GeoJSON feature's `id` does not reliably survive the trip through the
+   * native layer and back, and a pin that cannot say which place it is would
+   * route someone to the wrong one. The id is in `properties` as well, which
+   * does survive, and that is the one this reads.
+   */
+  const tapMap = useCallback(async (event: any) => {
+    const point = event?.nativeEvent?.point ?? event?.point;
+    if (!point || !map.current?.queryRenderedFeatures) return;
+
+    /*
+     * A box, not the exact pixel. The pins are six points across; asking
+     * whether one is under a single coordinate would mean nothing is ever
+     * hit. This is roughly a fingertip, and the nearest match wins.
+     */
+    const [x, y] = point;
+    const box: [number, number, number, number] = [x - TAP_SLOP, y - TAP_SLOP, x + TAP_SLOP, y + TAP_SLOP];
+
+    let hits: any[] = [];
+    try {
+      hits = await map.current.queryRenderedFeatures(box, { layers: ['facility-pins'] }) ?? [];
+    } catch {
+      // A query against a map that is still coming up is not worth a notice.
+      return;
+    }
+
+    const id = hits[0]?.properties?.id;
+    if (!id) return;
+
+    const facility = facilities.find((f) => f.id === id);
+    if (!facility) return;
+
+    // Select first: if the maps app takes a moment to come up, the pin has
+    // already acknowledged the tap rather than appearing to ignore it.
+    tap('light');
+    setSelected(facility.id);
+    await openDirections(facility);
+  }, [facilities]);
+
   /*
    * The locate button re-reads the device rather than reusing the old fix.
    *
@@ -513,7 +605,14 @@ export function CareScreen({ service, fix: given }: {
             </Txt>
           </Centred>
         ) : fix ? (
-          <MapLibreGL.Map style={{ flex: 1 }} mapStyle={STYLE_URL} logo={false} compass={false}>
+          <MapLibreGL.Map
+            ref={map}
+            style={{ flex: 1 }}
+            mapStyle={STYLE_URL}
+            logo={false}
+            compass={false}
+            onPress={(e: any) => { void tapMap(e); }}
+          >
             <MapLibreGL.Camera
               ref={camera}
               initialViewState={{ center: [fix.lon, fix.lat], zoom: 15 }}
@@ -792,7 +891,7 @@ export function CareScreen({ service, fix: given }: {
               f={item}
               selected={item.id === selected}
               onPress={() => locate(item)}
-              onDirections={() => { tap('light'); openDirections(item); }}
+              onDirections={() => { tap('light'); void openDirections(item); }}
             />
           )}
         />

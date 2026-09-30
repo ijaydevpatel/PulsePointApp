@@ -161,4 +161,40 @@ describe('the MapLibre API the Map tab is written against', () => {
       expect(source).not.toContain(`MapLibreGL.${gone}`);
     }
   });
+
+  it('routes in the maps app rather than dropping a pin', () => {
+    /*
+     * `geo:lat,lon?q=` shows the place and leaves the person to press
+     * Directions themselves. On a screen whose job is getting someone to
+     * care, the useful handover is the route - the maps app already knows
+     * where they are, which roads are shut, and how long it will take.
+     */
+    const block = /async function openDirections[\s\S]*?\n\}/.exec(source)?.[0] ?? '';
+
+    expect(block).toContain('maps/dir/');
+    expect(block).toMatch(/destination=/);
+    // Apple Maps first on iOS: it is the one certainly installed.
+    expect(block).toContain('daddr=');
+  });
+
+  it('hit-tests pin taps against the pin layer, with a tolerance', () => {
+    /*
+     * v11 has no onPress on a source or a layer, so the tap is resolved by
+     * querying the map. Restricted to the facility layer, or a tap on a road
+     * label counts as a place; and against a box rather than a pixel, because
+     * the pins are six points across and an exact hit test never hits.
+     */
+    const block = /const tapMap = useCallback[\s\S]*?\n  \}, \[facilities\]\);/.exec(source)?.[0] ?? '';
+
+    expect(block).toContain("layers: ['facility-pins']");
+    expect(block).toContain('TAP_SLOP');
+    expect(block).toContain('openDirections');
+  });
+
+  it('carries the facility id in feature properties', () => {
+    // A feature's own `id` does not reliably survive the round trip through
+    // the native layer, and a pin that cannot say which place it is would
+    // route someone to the wrong one.
+    expect(source).toMatch(/properties: \{[\s\S]*?id: f\.id/);
+  });
 });
