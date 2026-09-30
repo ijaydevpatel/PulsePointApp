@@ -13,7 +13,9 @@
  * eye a reason to land on the figure before the advice below it.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { View, ScrollView, StyleSheet, Linking, Animated, Easing } from 'react-native';
+import {
+  View, ScrollView, StyleSheet, Linking, Animated, Easing, ActivityIndicator,
+} from 'react-native';
 import { TriageResult, BAND_LABEL, BAND_ADVICE, requiresEscalation } from '../../domain/entities';
 import { Card, SectionLabel, Button, Txt, Springy, Enter, tap } from '../components/Primitives';
 import { Icon } from '../components/Icon';
@@ -347,15 +349,30 @@ function MatrixSection({ analysis }: { analysis?: RemoteOutcome<SymptomAnalysis>
   // Still in flight. Say so rather than rendering nothing - an absent section
   // reads as "there is no more information", which is a different claim.
   if (analysis === null || analysis === undefined) {
+    /*
+     * A working state, not a paragraph explaining one.
+     *
+     * This was a grey card of text apologising for the wait, which read as a
+     * screen that had gone wrong and is the first thing anyone sees after a
+     * check. The shape of what is coming says the same thing faster: three
+     * rows the size of the conditions that will replace them, pulsing, under
+     * a spinner.
+     */
     return (
       <Enter index={4}>
         <View style={{ height: S.xxl }} />
         <SectionLabel>Possible conditions</SectionLabel>
         <Card>
-          <Txt t="caption" c={P.muted}>
-            Checking against the clinical engine. This can take up to a minute -
-            your result above is already complete.
-          </Txt>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
+            <ActivityIndicator size="small" color={P.accent} />
+            <Txt t="bodyStrong" style={{ flex: 1 }}>Analysing your symptoms</Txt>
+          </View>
+
+          <View style={{ marginTop: S.lg }}>
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} index={i} />
+            ))}
+          </View>
         </Card>
       </Enter>
     );
@@ -448,3 +465,60 @@ const st = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth * 2, borderRadius: R.md, padding: S.md,
   },
 });
+
+/**
+ * One placeholder row, the size of the condition that will replace it.
+ *
+ * The pulse runs on the JS driver, like every other animation in this app: a
+ * natively driven value lives outside the React tree, and Android loses it
+ * when it re-attaches the view - which is what made content vanish on scroll
+ * here before.
+ *
+ * Widths descend, because the real list is ranked and its bars do too. A row
+ * of identical grey blocks reads as a broken layout; one that already has the
+ * shape of the answer reads as the answer arriving.
+ */
+function Skeleton({ index }: { index: number }) {
+  const { c: P } = useTheme();
+  const pulse = useRef(new Animated.Value(0.35)).current;
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {
+          toValue: 0.75, duration: 700, delay: index * 120,
+          easing: Easing.inOut(Easing.quad), useNativeDriver: false,
+        }),
+        Animated.timing(pulse, {
+          toValue: 0.35, duration: 700,
+          easing: Easing.inOut(Easing.quad), useNativeDriver: false,
+        }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulse, index]);
+
+  return (
+    <View style={{ marginTop: index === 0 ? 0 : S.lg }}>
+      <Animated.View
+        style={{
+          height: 13,
+          width: `${72 - index * 12}%`,
+          borderRadius: R.xs,
+          backgroundColor: P.sunken,
+          opacity: pulse,
+        }}
+      />
+      <Animated.View
+        style={{
+          height: 6,
+          marginTop: S.sm,
+          borderRadius: R.xs,
+          backgroundColor: P.sunken,
+          opacity: pulse,
+        }}
+      />
+    </View>
+  );
+}
