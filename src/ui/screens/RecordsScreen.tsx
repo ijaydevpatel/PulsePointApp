@@ -1,6 +1,6 @@
 /** FR5 - encrypted history, review and delete. Wired to the real store. */
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, FlatList, Alert } from 'react-native';
+import { View, FlatList, ScrollView, Alert } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
 import {
   Card, EmptyState, SectionLabel, Button, Txt, Springy, Enter,
@@ -10,6 +10,14 @@ import { Icon } from '../components/Icon';
 import { EpisodeStore, HistoryEntry } from '../../domain/ports';
 import { BAND_LABEL } from '../../domain/entities';
 import { useTheme, S, TOUCH, TAB_CLEARANCE } from '../theme';
+
+/** The symptoms, as a sentence. The question the check was asked. */
+function summarise(entry: HistoryEntry): string {
+  const names = entry.episode.symptoms.map((s) => s.label);
+  if (names.length === 0) return 'Symptom check';
+  if (names.length <= 2) return names.join(' and ');
+  return `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`;
+}
 
 function when(iso: string): string {
   const d = new Date(iso);
@@ -30,6 +38,7 @@ export function RecordsScreen({ store, refreshKey, onBack }: {
   const { c: P, band: B } = useTheme();
   const [rows, setRows] = useState<readonly HistoryEntry[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [open, setOpen] = useState<HistoryEntry | null>(null);
 
   const load = useCallback(async () => {
     setRows(await store.history(100));
@@ -45,6 +54,10 @@ export function RecordsScreen({ store, refreshKey, onBack }: {
         onPress: async () => { await store.remove(id); await load(); } },
     ]);
   };
+
+  if (open) {
+    return <CheckDetail entry={open} onBack={() => setOpen(null)} />;
+  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -64,16 +77,25 @@ export function RecordsScreen({ store, refreshKey, onBack }: {
         ) : undefined}
         renderItem={({ item, index }) => (
           <Enter index={Math.min(index, 8)}>
-            <Card style={{ marginBottom: S.sm }}>
+            <Card style={{ marginBottom: S.sm }} onPress={() => setOpen(item)}>
               <View style={{ flexDirection: 'row', gap: S.lg, alignItems: 'center' }}>
                 <SeveritySpine band={item.result.band} height={42} width={5} />
                 <View style={{ flex: 1 }}>
-                  <Txt t="bodyStrong" c={B[item.result.band].fg}>
+                  {/*
+                    What was reported, not what was advised.
+                    
+                    The row used to lead with the band - "See a pharmacist or
+                    GP" - which is the answer, not the question. Every check
+                    that landed in the same band read identically, so a list
+                    of them said nothing about which was which. The symptoms
+                    are what the person remembers doing.
+                  */}
+                  <Txt t="bodyStrong" numberOfLines={2}>{summarise(item)}</Txt>
+                  <Txt t="caption" c={B[item.result.band].fg} style={{ marginTop: 3 }}>
                     {BAND_LABEL[item.result.band]}
                   </Txt>
-                  <Txt t="caption" style={{ marginTop: 3 }}>
-                    {`${when(item.episode.capturedAt)} · ${item.episode.symptoms.length} symptom${
-                      item.episode.symptoms.length === 1 ? '' : 's'} · ${item.result.severity}/100`}
+                  <Txt t="caption" style={{ marginTop: 1 }}>
+                    {`${when(item.episode.capturedAt)} · ${item.result.severity}/100`}
                   </Txt>
                   {item.result.syncStatus === 'PENDING_SYNC' ? (
                     <Txt t="micro" style={{ marginTop: 3 }}>Not yet enriched</Txt>
@@ -104,6 +126,89 @@ export function RecordsScreen({ store, refreshKey, onBack }: {
           </View>
         ) : undefined}
       />
+    </View>
+  );
+}
+
+/**
+ * One past check, in full.
+ *
+ * Everything here was already stored - the symptoms and their severities, the
+ * band, the score, how sure the engine was, which red flags fired and the
+ * reasoning it gave. The list could only ever show one line of it, so the
+ * rest was being kept and never shown.
+ *
+ * Nothing is recomputed. A record is what the engine said at the time, and
+ * re-running it now against different rules would quietly rewrite history.
+ */
+function CheckDetail({ entry, onBack }: { entry: HistoryEntry; onBack: () => void }) {
+  const { c: P, band: B } = useTheme();
+  const { episode, result } = entry;
+
+  return (
+    <View style={{ flex: 1 }}>
+      <ScreenHeader title={summarise(entry)} subtitle={when(episode.capturedAt)} onBack={onBack} />
+
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: S.xl, paddingBottom: TAB_CLEARANCE + S.xxl }}
+        showsVerticalScrollIndicator={false}
+      >
+        <Card style={{ marginBottom: S.sm }}>
+          <View style={{ flexDirection: 'row', gap: S.lg, alignItems: 'center' }}>
+            <SeveritySpine band={result.band} height={48} width={6} />
+            <View style={{ flex: 1 }}>
+              <Txt t="bodyStrong" c={B[result.band].fg}>{BAND_LABEL[result.band]}</Txt>
+              <Txt t="caption" style={{ marginTop: 3 }}>
+                {`${result.severity}/100 · ${Math.round(result.confidence * 100)}% confidence`}
+              </Txt>
+            </View>
+          </View>
+        </Card>
+
+        <SectionLabel>What was reported</SectionLabel>
+        <Card style={{ marginBottom: S.sm }}>
+          {episode.symptoms.length === 0 ? (
+            <Txt t="caption">Described in free text rather than picked from the list.</Txt>
+          ) : (
+            episode.symptoms.map((sym, i) => (
+              <View key={sym.code} style={{ marginTop: i === 0 ? 0 : S.sm }}>
+                <Txt t="body">{`${sym.label} at ${sym.severity}/10`}</Txt>
+              </View>
+            ))
+          )}
+          <Txt t="caption" style={{ marginTop: S.md }}>
+            {`Going on for about ${episode.durationHours} hour${episode.durationHours === 1 ? '' : 's'}`}
+          </Txt>
+        </Card>
+
+        {result.redFlags.length > 0 ? (
+          <>
+            <SectionLabel>Red flags</SectionLabel>
+            <Card style={{ marginBottom: S.sm }}>
+              {result.redFlags.map((f) => (
+                <Txt key={f} t="body" c={P.danger} style={{ marginTop: 2 }}>{f}</Txt>
+              ))}
+            </Card>
+          </>
+        ) : null}
+
+        {result.rationale.length > 0 ? (
+          <>
+            <SectionLabel>Why</SectionLabel>
+            <Card style={{ marginBottom: S.sm }}>
+              {result.rationale.map((r, i) => (
+                <Txt key={r} t="body" style={{ marginTop: i === 0 ? 0 : S.sm }}>{r}</Txt>
+              ))}
+            </Card>
+          </>
+        ) : null}
+
+        <Txt t="micro" c={P.faint} style={{ marginTop: S.md }}>
+          {result.syncStatus === 'PENDING_SYNC'
+            ? 'Checked on this device. A fuller explanation is added when you are back online.'
+            : 'Checked against the clinical engine.'}
+        </Txt>
+      </ScrollView>
     </View>
   );
 }
