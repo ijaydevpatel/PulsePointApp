@@ -1,8 +1,3 @@
-/**
- * The time-zone tier exists because the two tiers above it are both allowed
- * to fail - GPS indoors, IP services rate-limiting. Its whole job is to
- * always produce something, so that is what these assert.
- */
 import { zoneFix } from '../src/data/locationFix';
 
 describe('time-zone location fix', () => {
@@ -25,14 +20,11 @@ describe('time-zone location fix', () => {
   });
 
   it('accepts the legacy alias for the same place', () => {
-    // Older Androids still report Asia/Calcutta.
     pretendZone('Asia/Calcutta');
     expect(zoneFix()!.place).toBe('Kolkata');
   });
 
   it('falls back to the region for an unlisted zone', () => {
-    // The table cannot list every zone, and landing on the right continent
-    // beats returning nothing.
     pretendZone('Asia/Thimphu');
     const fix = zoneFix()!;
     expect(fix.source).toBe('timezone');

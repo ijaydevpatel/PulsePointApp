@@ -1,12 +1,3 @@
-/**
- * The two models, tested against the contract the backend actually exposes.
- *
- *   POST /api/symptoms/analyze
- *   POST /api/medicine/check
- *
- * Everything here runs in plain node with an injected fetch. No device, no
- * network, and no real Groq/Gemini key is ever touched.
- */
 import { ApiClient } from '../src/data/apiClient';
 import { RemoteSymptomAnalysis, RemoteMedicineCheck } from '../src/data/remoteServices';
 import { combineWithRemote } from '../src/domain/remote';
@@ -140,8 +131,6 @@ describe('model 2 - POST /api/symptoms/analyze', () => {
   });
 
   it('turns an HTML error page into a state instead of a parser crash', async () => {
-    // A 502 or CORS failure returns HTML; calling .json() on it throws deep in
-    // the parser. This is the guard the web client already has.
     const r = await new RemoteSymptomAnalysis(client(async () => htmlRes())).analyze(
       { activeSymptoms: ['fever'], customSymptom: '' });
     expect(r.status).toBe('FAILED');
@@ -189,18 +178,6 @@ describe('model 2 - POST /api/medicine/check', () => {
   });
 
   it('sends the field names the route actually reads', async () => {
-    /*
-     * This test existed before, was called "sends med1 and med2 as the
-     * controller expects", and passed - while the feature was broken for
-     * every user.
-     *
-     * It was written from the same assumption as the code it was checking:
-     * that the route took med1 and med2. It takes primaryMedicine and
-     * secondaryMedicine, replies 400 to anything else, and the app rendered
-     * that 400 as "the analysis service could not be reached". A test that
-     * asserts the code's own guess is worth nothing; the names below are
-     * copied from backend/src/controllers/medicineController.js.
-     */
     let sent: any = null;
     const c = new ApiClient('https://api.test', 30000, (async (_u: string, init: any) => {
       sent = JSON.parse(init.body); return jsonRes(OKBODY);
@@ -246,7 +223,6 @@ describe('the two models together', () => {
       { activeSymptoms: ['chest pain'], customSymptom: '' });
     expect(combineWithRemote('SELF_CARE', up.data!)).toBe('EMERGENCY');
 
-    // A calm remote reply must not soften a local EMERGENCY.
     const calm = await new RemoteSymptomAnalysis(client(async () => jsonRes(MATRIX))).analyze(
       { activeSymptoms: ['cough'], customSymptom: '' });
     expect(combineWithRemote('EMERGENCY', calm.data!)).toBe('EMERGENCY');

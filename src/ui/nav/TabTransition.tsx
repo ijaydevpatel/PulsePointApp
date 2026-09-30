@@ -1,35 +1,8 @@
-/**
- * Cross-fade and a short directional slide when the tab changes.
- *
- * ── Why direction matters ────────────────────────────────────────────────────
- *
- * The five tabs are a row, and moving between them is lateral movement. A
- * transition that always slides the same way tells the person nothing; one
- * that slides *from the side the tab sits on* reinforces where they are. So
- * the direction is taken from the tab order - going right to Map enters from
- * the right, coming back to Home enters from the left.
- *
- * ── Why the distance is small ────────────────────────────────────────────────
- *
- * 24dp, not a full screen width. A full slide implies the two screens are
- * adjacent pages you could swipe between, which these are not - there is no
- * gesture, and a tab bar is random access rather than sequential. The short
- * offset reads as "this is new content" without promising a swipe that does
- * not exist.
- *
- * ── Reduce motion ────────────────────────────────────────────────────────────
- *
- * Honoured by skipping the translate entirely and keeping only the fade. A
- * lateral slide is exactly the kind of movement the setting exists to stop,
- * but an instant cut between screens loses the sense that anything changed, so
- * the opacity crossfade stays.
- */
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, StyleSheet } from 'react-native';
 import { TABS, TabKey } from './routes';
 import { useReveal } from '../useReveal';
 
-/** How far the incoming screen travels. Deliberately short - see above. */
 const SLIDE = 24;
 const DURATION = 220;
 
@@ -38,20 +11,9 @@ const indexOf = (k: TabKey): number => TABS.findIndex((t) => t.key === k);
 export function TabTransition({
   tabKey, children,
 }: {
-  /** Changing this is what drives the transition. */
   tabKey: TabKey;
   children: React.ReactNode;
 }) {
-  /*
-   * Through useReveal rather than Animated directly.
-   *
-   * This component wraps every tab root, and it had the native-driver bug in
-   * its most damaging form: after a tab switch the JS-side value sat at 0
-   * while the native side showed 1, so the next re-render blanked the entire
-   * screen. Closing the keyboard was enough to cause one, because that changes
-   * the window height and the bars read useWindowDimensions - which is why it
-   * looked like scrolling caused it.
-   */
   const { value: progress, play, settle, finished } = useReveal();
   const previous = useRef<TabKey>(tabKey);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -63,11 +25,6 @@ export function TabTransition({
     return () => { alive = false; sub.remove(); };
   }, []);
 
-  /*
-   * Direction is decided before the animation starts and held for its
-   * duration. Reading tab order during the animation would give the wrong
-   * answer if another change landed mid-flight.
-   */
   const direction = useRef(1);
 
   useEffect(() => {
@@ -75,7 +32,6 @@ export function TabTransition({
     const to = indexOf(tabKey);
     previous.current = tabKey;
 
-    // Unknown index on either side - nothing sensible to slide from.
     if (from === -1 || to === -1 || from === to) {
       settle();
       return;
@@ -90,11 +46,6 @@ export function TabTransition({
     outputRange: [SLIDE * direction.current, 0],
   });
 
-  /*
-   * This one wraps the whole screen, so it is the one that could blank
-   * everything at once. Once the transition settles it holds no animated
-   * opacity at all.
-   */
   return (
     <Animated.View
       style={[

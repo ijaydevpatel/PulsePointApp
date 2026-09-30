@@ -1,10 +1,3 @@
-/**
- * FR5 / QR3 / L3 - store contract.
- *
- * These run against InMemoryEpisodeStore. SqliteEpisodeStore implements the
- * same interface and delegates all row translation to db/mapping.ts, which has
- * its own tests below, so the untested surface is only the driver calls.
- */
 import { InMemoryEpisodeStore } from '../src/data/memoryStore';
 import { toRow, fromRow, RowCorruptError, EpisodeRow } from '../src/data/db/mapping';
 import { SymptomEpisode, TriageResult } from '../src/domain/entities';

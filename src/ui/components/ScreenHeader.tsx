@@ -36,7 +36,6 @@ export function ScreenHeader({
   );
 }
 
-/** QR2 made visible: offline is a state the app supports, not an error it reports. */
 export function OfflineBanner({ visible }: { visible: boolean }) {
   const { c: P } = useTheme();
   if (!visible) return null;

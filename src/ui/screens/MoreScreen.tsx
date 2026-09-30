@@ -1,4 +1,3 @@
-/** Everything that is not one of the four primary tasks. */
 import React from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -81,12 +80,6 @@ export function MoreScreen({ session, onOpen, scheme, onToggleScheme }: {
         ))}
 
           <View style={{ height: S.xxl }} />
-          {/*
-            One Settings screen, not a theme toggle here and another one
-            there. This tab used to carry its own Appearance section while the
-            profile sheet's "Settings" row opened this very tab - two pages
-            doing one job, with a loop between them.
-          */}
           <SectionLabel>App</SectionLabel>
           <Enter index={6}>
             <View style={{ marginBottom: S.sm }}>

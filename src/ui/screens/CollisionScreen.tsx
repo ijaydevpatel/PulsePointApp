@@ -1,27 +1,3 @@
-/**
- * The collision report for one pair of medicines.
- *
- * ── Order ────────────────────────────────────────────────────────────────────
- *
- * Verdict, then what to do, then why, then the detail. The web version leads
- * with the mechanism and puts the advice in a second column, which reads well
- * on a wide screen and badly on a phone, where "do not take both together"
- * ends up below several hundred words of pharmacology. On a narrow column the
- * only thing that guarantees the instruction is read is putting it first.
- *
- * ── One check, one answer ────────────────────────────────────────────────────
- *
- * The first version of this screen also ran the bundled 35-rule table and
- * showed its verdict underneath, with a footer explaining which part ran where.
- * That was wrong twice over. The check is the model - that is what the tab
- * does - so a second verdict beside it only asked the reader to decide which
- * one to believe. And when the model failed, the screen fell back to the
- * table and announced "Checked on this device", which described a check the
- * person had not asked for as though it were the one they had.
- *
- * A failed check now says it failed. Nothing on this screen claims to run
- * locally, because nothing on it does.
- */
 import React from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { AgentProfile, MedicineCheck, RemoteOutcome } from '../../domain/remote';
@@ -29,13 +5,6 @@ import { Card, SectionLabel, Button, Txt, Springy, Enter } from '../components/P
 import { Icon } from '../components/Icon';
 import { useTheme, S, R, TOUCH, TAB_CLEARANCE, Palette, circle } from '../theme';
 
-/**
- * Risk word to colour.
- *
- * Its own mapping rather than the triage bands: "High" here means the two
- * medicines interfere, not that the person should go to hospital, and the two
- * claims must not be able to leak into one another through a shared token.
- */
 function riskColour(P: Palette, risk: string, danger: boolean) {
   const r = risk.toLowerCase();
   if (danger || r === 'critical' || r === 'high') return { fg: P.danger, on: P.onDanger };
@@ -44,7 +13,6 @@ function riskColour(P: Palette, risk: string, danger: boolean) {
   return { fg: P.muted, on: '#FFFFFF' };
 }
 
-/** A prose block with a small heading, skipped entirely when empty. */
 function Block({ title, body }: { title: string; body: string }) {
   const { c: P } = useTheme();
   if (!body) return null;
@@ -97,7 +65,7 @@ function AgentCard({ label, agent }: { label: string; agent: AgentProfile }) {
 
 export function CollisionScreen({ pair, check, onBack, onEdit }: {
   pair: [string, string];
-  /** Null while in flight, undefined when no check was started. */
+
   check?: RemoteOutcome<MedicineCheck> | null;
   onBack: () => void;
   onEdit: () => void;
@@ -141,7 +109,6 @@ export function CollisionScreen({ pair, check, onBack, onEdit }: {
         </View>
 
         <View style={{ paddingHorizontal: S.xl, marginTop: S.lg }}>
-          {/* In flight. Say so - an absent section reads as "nothing found". */}
           {check === null ? (
             <Enter index={2}>
               <Card elevated={1}>
@@ -162,11 +129,6 @@ export function CollisionScreen({ pair, check, onBack, onEdit }: {
 
           {data ? (
             <>
-              {/*
-                Advice first. On a narrow column this is the only placement
-                that guarantees the instruction is read before the
-                pharmacology, rather than after several hundred words of it.
-              */}
               <Enter index={2}>
                 <Card elevated={2}>
                   <View style={st.headRow}>
@@ -180,35 +142,15 @@ export function CollisionScreen({ pair, check, onBack, onEdit }: {
                     {data.patientAdvice || 'Ask a pharmacist before taking these together.'}
                   </Txt>
                   <Bullets title="Critical markers" items={data.warnings} colour={P.danger} />
-                  {/*
-                    conflictFlags is not shown. The server sets it to exactly
-                    ["Direct Database Match"] when the pair appears in its own
-                    contraindication map, and to [] otherwise - a note about
-                    where the answer came from, rendered as though it were a
-                    finding. It told the reader nothing the risk level had not
-                    already said.
-                  */}
                 </Card>
               </Enter>
 
-              {/* Skipped entirely when the model returned no reason at all,
-                  rather than rendering an empty card under a heading. */}
               {data.interactionCause || data.explanation || data.metabolicPathway ? (
               <Enter index={3}>
                 <View style={{ height: S.xxl }} />
                 <SectionLabel>Why</SectionLabel>
                 <Card>
-                  {/*
-                    One explanation, not two.
-                    Mechanism and clinical rationale are the same answer told
-                    twice - the server asks for a mechanism in one field and an
-                    exhaustive deep-dive of the same thing in the other, so the
-                    section ran to a dozen sentences saying one idea. The
-                    mechanism is the tighter of the two and is preferred; the
-                    rationale is the fallback for when the model leaves it out.
-                  */}
                   <Txt t="body">{data.interactionCause || data.explanation}</Txt>
-                  {/* A short label rather than prose, so it stays. */}
                   <Block title="Metabolic pathway" body={data.metabolicPathway} />
                 </Card>
               </Enter>
@@ -234,12 +176,6 @@ export function CollisionScreen({ pair, check, onBack, onEdit }: {
                         <Txt t="body" style={{ flex: 1 }}>{a}</Txt>
                       </View>
                     ))}
-                    {/*
-                      "Safe alternatives" is the field name on the wire and
-                      this screen will not repeat it as a claim: nothing here
-                      has been checked against the reader's other medicines,
-                      allergies or conditions.
-                    */}
                     <Txt t="micro" c={P.faint} style={{ marginTop: S.md }}>
                       Suggestions to raise with a pharmacist, not substitutions
                       to make on your own.

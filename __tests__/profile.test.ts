@@ -1,14 +1,3 @@
-/**
- * Reading and writing the health profile.
- *
- * Two things are being pinned. The first is that "nothing recorded" survives
- * the round trip: the backend writes 0 and '' for unset numbers and text, and
- * a screen that renders those literally tells someone they are zero years old
- * with blood group "". The second is the field names, because the route reads
- * `height` and `weight` while the domain carries `heightCm` and `weightKg` -
- * send the domain's names and the save returns 200 having changed nothing,
- * which is the worst shape a bug can take on a form.
- */
 import { RemoteProfile } from '../src/data/remoteServices';
 
 const api = (over: Partial<Record<'get' | 'post', any>> = {}) => ({
@@ -20,12 +9,6 @@ const api = (over: Partial<Record<'get' | 'post', any>> = {}) => ({
 
 describe('reading a profile', () => {
   it('reads "not recorded" out of the backend\'s zeroes and blanks', async () => {
-    /*
-     * The backend defaults an untouched profile to 0 and ''. Age 0 in
-     * particular would put every empty account into the infant red-flag
-     * rules, which is why this guard existed for age before the other fields
-     * were added - they need it for the same reason.
-     */
     const r = await new RemoteProfile(api({
       get: jest.fn(async () => ({
         fullName: '', age: 0, gender: '', height: 0, weight: 0,
@@ -58,8 +41,6 @@ describe('reading a profile', () => {
   });
 
   it('accepts the comma-joined lists older rows hold', async () => {
-    // The column has held both shapes over time, and an account that predates
-    // the array form should not read as a person with no allergies.
     const r = await new RemoteProfile(api({
       get: jest.fn(async () => ({ allergies: 'Penicillin, peanuts , ' })),
     })).me();
@@ -97,19 +78,12 @@ describe('saving a profile', () => {
     const [path, body] = post.mock.calls[0]!;
     expect(path).toBe('/api/profile');
 
-    // The route destructures `height` and `weight`. Sending heightCm would be
-    // dropped silently: a save that succeeds and changes nothing.
     expect(body).toMatchObject({ height: 165, weight: 58 });
     expect(body).not.toHaveProperty('heightCm');
     expect(body).not.toHaveProperty('weightKg');
   });
 
   it('does not send a BMI it could get wrong', async () => {
-    /*
-     * BMI is derived from height and weight by the backend. A client that
-     * could set it could make it disagree with the two numbers it is supposed
-     * to come from.
-     */
     const post = jest.fn(async (_p: string, body: any) => body);
 
     await new RemoteProfile(api({ post })).save({

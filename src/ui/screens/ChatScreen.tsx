@@ -1,20 +1,3 @@
-/**
- * AI Doctor - a conversation over POST /api/chat/message.
- *
- * ── The session id is the whole feature ──────────────────────────────────────
- *
- * The backend stores each conversation in ChatSession and returns a sessionId
- * on the first reply. Send it back on every turn after and the model keeps its
- * context; drop it and every message starts a fresh conversation, which looks
- * like the assistant developing amnesia mid-sentence. It is held in state here
- * rather than passed around, so there is exactly one of it.
- *
- * ── Failures are turns, not silences ─────────────────────────────────────────
- *
- * A failed send appends a visible assistant turn carrying the notice. The
- * alternative - a spinner that stops - is the "Awaiting Synchronization" bug
- * this project exists to avoid. Every path leaves something on screen.
- */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, StyleSheet, ScrollView, TextInput, ActivityIndicator,
@@ -31,22 +14,10 @@ import { ChatService, ChatTurn } from '../../domain/remote';
 let seq = 0;
 const nextId = () => `t${++seq}`;
 
-/**
- * The conversation, which outlives this screen.
- *
- * It used to be local state. That was fine when the chat was a page you
- * pushed and popped, and wrong the moment it became a tab: switching to
- * Symptoms and back unmounts the screen, and every turn went with it. Nothing
- * had refreshed - the component had simply been thrown away and rebuilt.
- *
- * So the turns and the session id are held by the caller and handed back down.
- * `draft` and `busy` stay local on purpose: a half-typed line and a spinner
- * belong to the moment, not to the conversation.
- */
 export interface Conversation {
   readonly turns: readonly ChatTurn[];
   readonly sessionId: string | null;
-  /** Whether the opening greeting has already been fetched. */
+
   readonly greeted: boolean;
 }
 
@@ -63,18 +34,6 @@ export function ChatScreen({ service, onBack, conversation, onConversation }: {
   const { c: P } = useTheme();
   const insets = useSafeAreaInsets();
 
-  /*
-   * Enough room for the floating tab bar, and not a pixel more.
-   *
-   * This used to reserve TAB_CLEARANCE + S.md - 112dp - which is the right
-   * allowance for a scrolling page that has to end clear of the bar, and far
-   * too much for a composer pinned directly above it. The surplus rendered as
-   * a band of empty white between the input and the bar.
-   *
-   * The bar is one touch target tall plus its own padding, and sits that far
-   * up from the safe area. Computed rather than guessed, so it stays correct
-   * on a device with gesture navigation and on one without.
-   */
   const barHeight = TOUCH + BAR_PAD * 2;
   const composerGap = Math.max(insets.bottom, S.sm) + S.xs + barHeight + S.sm;
 
@@ -90,14 +49,6 @@ export function ChatScreen({ service, onBack, conversation, onConversation }: {
     requestAnimationFrame(() => scroller.current?.scrollToEnd({ animated: true }));
   }, []);
 
-  /*
-   * Opening greeting, fetched once per conversation rather than once per
-   * mount - otherwise returning to the tab would prepend a fresh hello to a
-   * chat that was already under way.
-   *
-   * A failure here is not worth a banner: the screen still works, so it
-   * degrades to an empty conversation.
-   */
   useEffect(() => {
     if (conversation.greeted) { setGreeting('done'); return; }
 
@@ -142,8 +93,6 @@ export function ChatScreen({ service, onBack, conversation, onConversation }: {
         greeted: true,
       });
     } else {
-      // The notice is always populated when status is not OK, so this cannot
-      // append an empty bubble.
       onConversation({
         turns: [...asked, { id: nextId(), role: 'assistant', text: r.notice ?? 'Something went wrong.' }],
         sessionId,
@@ -159,12 +108,6 @@ export function ChatScreen({ service, onBack, conversation, onConversation }: {
     <View style={{ flex: 1, backgroundColor: P.bg }}>
       <ScreenHeader title="AI Doctor" subtitle="Ask a health question" onBack={onBack} />
 
-      {/*
-        Was a KeyboardAvoidingView doing nothing on Android, which stopped
-        being harmless once edge-to-edge meant the window no longer resized -
-        the keyboard then sat over the composer. `extra` is the tab bar the
-        composer already clears. See KeyboardSafe.
-      */}
       <KeyboardSafe extra={barHeight}>
         <ScrollView
           ref={scroller}

@@ -1,42 +1,3 @@
-/**
- * Home - the website's dashboard composition, in the app's palette.
- *
- * Card order follows the site: today's intelligence, then the digital-twin
- * pair (pattern / risk trend), then score and streak, then environment. The
- * "Intelligence Briefing" card the site carries is deliberately absent.
- *
- * ── What is real, and what the site got wrong ────────────────────────────────
- *
- * Today's Intelligence, the pattern and the risk trend are genuine: GPT-OSS-120B
- * on Groq generates them from the signed-in profile. Home asks for a fresh one
- * on every open - the route caches for thirty minutes by default, which made
- * the tip the same sentence all afternoon - and the server keeps the last good
- * value so a failed regeneration falls back rather than showing nothing. The
- * last twenty tips are withheld from the model so it cannot circle the same
- * three suggestions.
- *
- * The model and generation time are shown rather than hidden, because it is
- * model output about someone's health and pretending otherwise is the problem.
- *
- * Two cards work differently here than on the site:
- *
- *   Score and streak - the backend declares `healthScore` (default 100) and
- *   `streak` (default 0) and never writes either, so every account on the web
- *   reads 100/100 on no data. Both are computed on the device from real
- *   episode history (src/domain/wellbeing.ts), and when there is no history
- *   they say so instead of showing a number.
- *
- *   Environment - the backend returns a fixed { aqi: 38, uv: 5, humidity: 62 }
- *   marked "static fallback". These come from Open-Meteo for the device's
- *   actual coordinates, and every field can be null, which renders as an
- *   em dash rather than as a plausible-looking default.
- *
- * ── Ordering ─────────────────────────────────────────────────────────────────
- *
- * The local triage summary sits above the AI cards. A band this app computed
- * from symptoms the person entered is better evidence than a language model's
- * impression of their profile, so it reads first.
- */
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, Pressable } from 'react-native';
 import { EpisodeStore, HistoryEntry } from '../../domain/ports';
@@ -52,8 +13,6 @@ import { Icon } from '../components/Icon';
 import { useTheme, S, R, TAB_CLEARANCE } from '../theme';
 import { TOP_BAR_HEIGHT } from '../nav/TopBar';
 
-/* ────────────────────────────── helpers ─────────────────────────────────── */
-
 function ago(iso: string, now = Date.now()): string {
   const ms = now - new Date(iso).getTime();
   if (!Number.isFinite(ms) || ms < 0) return 'just now';
@@ -68,11 +27,8 @@ function ago(iso: string, now = Date.now()): string {
 
 const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 
-/** Null renders as an em dash. Never as zero, and never as a default. */
 const show = (n: number | null, suffix = ''): string =>
   n === null ? '-' : `${Math.round(n)}${suffix}`;
-
-/* ───────────────────────────────  screen  ───────────────────────────────── */
 
 export function HomeScreen({
   store, session, refreshKey, dashboard, conditions, onStartTriage,
@@ -95,27 +51,6 @@ export function HomeScreen({
     try { setHistory(await store.history(100)); } catch { setHistory([]); }
   }, [store]);
 
-  /*
-   * The three sources load independently and none blocks another. The local
-   * summary is on the device and lands immediately; the briefing can take
-   * seconds; conditions wait on a permission prompt the person may never
-   * answer. Awaiting them together would hold the whole screen at the speed of
-   * the slowest.
-   */
-  /*
-   * Two calls for the briefing, on purpose.
-   *
-   * The cached read returns in well under a second and paints the card
-   * immediately. The forced regeneration takes as long as the model takes -
-   * seconds, and longer on a cold dyno - and replaces it when it lands. That
-   * is how the tip can be new on every open without anyone watching an empty
-   * card while it generates.
-   *
-   * Asking only for a fresh one, which is what this did, meant a slow
-   * generation showed as a failure. The guards below make that impossible:
-   * the cached result never overwrites a fresh one that has already arrived,
-   * and a failed regeneration never overwrites a good cached tip.
-   */
   const loadRemote = useCallback(async () => {
     void dashboard.intel(false).then((cached) => {
       setIntel((current) => (current?.status === 'OK' ? current : cached));
@@ -172,7 +107,6 @@ export function HomeScreen({
         ) : null}
       </Enter>
 
-      {/* ── last assessment: device evidence, so it leads ─────────────── */}
       {latest ? (
         <Enter index={2}>
           <View style={{ height: S.xxl }} />
@@ -186,19 +120,12 @@ export function HomeScreen({
         </Enter>
       ) : null}
 
-      {/* ── today's intelligence ──────────────────────────────────────── */}
       <Enter index={3}>
         <View style={{ height: S.xxl }} />
         <SectionLabel>Today's intelligence</SectionLabel>
         <IntelCard outcome={intel} />
       </Enter>
 
-      {/*
-        Health pattern, full width.
-        Risk trend was beside it and is gone: the model returns one of three
-        words, which is not enough to earn half a row, and the pattern name it
-        was crowding regularly runs to three lines in a half-width card.
-      */}
       {i && i.digitalTwin.pattern ? (
         <Enter index={4}>
           <View style={{ height: S.lg }} />
@@ -209,7 +136,6 @@ export function HomeScreen({
         </Enter>
       ) : null}
 
-      {/* ── score and streak ──────────────────────────────────────────── */}
       <Enter index={5}>
         <View style={{ height: S.lg }} />
         <View style={st.pair}>
@@ -226,17 +152,7 @@ export function HomeScreen({
                 </Txt>
               </>
             ) : (
-              /*
-                No episodes means there is genuinely nothing to score - the
-                figure is derived from recorded assessments, so inventing one
-                would be the exact failure this replaced on the website, where
-                every account reads 100/100 on no data.
 
-                A bare em dash said that badly: it read as broken rather than
-                as empty. The card now states the requirement and doubles as
-                the way to meet it, which is also why the separate "no
-                assessments yet" prompt above could go.
-              */
               <Pressable
                 onPress={onStartTriage}
                 accessibilityRole="button"
@@ -266,7 +182,6 @@ export function HomeScreen({
         </View>
       </Enter>
 
-      {/* ── how the score was reached ─────────────────────────────────── */}
       {score && score.reasons.length > 0 ? (
         <Enter index={6}>
           <View style={{ height: S.lg }} />
@@ -286,7 +201,6 @@ export function HomeScreen({
         </Enter>
       ) : null}
 
-      {/* ── environmental pulse ───────────────────────────────────────── */}
       <Enter index={7}>
         <View style={{ height: S.xxl }} />
         <SectionLabel>Environmental pulse</SectionLabel>
@@ -299,8 +213,6 @@ export function HomeScreen({
     </ScrollView>
   );
 }
-
-/* ──────────────────────────── intelligence ──────────────────────────────── */
 
 function IntelCard({ outcome }: { outcome: RemoteOutcome<Intelligence> | null }) {
   const { c: P } = useTheme();
@@ -319,11 +231,6 @@ function IntelCard({ outcome }: { outcome: RemoteOutcome<Intelligence> | null })
         <View style={st.noticeRow}>
           <Icon name="alert" size={15} color={P.muted} />
           <Txt t="caption" c={P.muted} style={{ flex: 1 }}>
-            {/*
-              Dashboard wording, not the triage screen's. The shared notice
-              ends "your on-device result above is complete", which is a
-              sentence about a symptom check and means nothing here.
-            */}
             {BRIEFING_NOTICE[outcome.status as Exclude<typeof outcome.status, 'OK'>]
               ?? 'Today’s briefing is unavailable.'}
           </Txt>
@@ -355,11 +262,6 @@ function IntelCard({ outcome }: { outcome: RemoteOutcome<Intelligence> | null })
         </Txt>
       ) : null}
 
-      {/*
-       * Attribution, not decoration. This is a language model's impression of
-       * a profile, and the person reading it is entitled to know that before
-       * they act on it.
-       */}
       <Txt t="micro" c={P.faint} style={{ marginTop: S.lg }}>
         {i.model
           ? `Generated by ${i.model}${i.generationSeconds ? ` in ${i.generationSeconds.toFixed(1)}s` : ''}. Not a diagnosis.`
@@ -368,8 +270,6 @@ function IntelCard({ outcome }: { outcome: RemoteOutcome<Intelligence> | null })
     </Card>
   );
 }
-
-/* ──────────────────────────── environment ───────────────────────────────── */
 
 function EnvCard({
   env, analysis, onRetry,
@@ -389,13 +289,6 @@ function EnvCard({
   }
 
   if (env.state !== 'OK' || !env.data) {
-    /*
-      Retry lives on the card, not only on pull-to-refresh. This card sits
-      mid-screen, so the gesture that fixes it is both invisible and easy to
-      miss - and the common causes (location toggled on, stepping near a
-      window) are resolved in seconds, which makes an explicit retry the
-      difference between a card that recovers and one that looks broken.
-    */
     return (
       <Card style={{ padding: S.lg }}>
         <View style={st.noticeRow}>
@@ -421,12 +314,6 @@ function EnvCard({
 
   return (
     <Card style={{ padding: S.lg }}>
-      {/*
-        Where the readings are for, above the readings themselves.
-        Three numbers with no place attached invite the assumption that they
-        are measured at the phone - which is only true on the device tier. The
-        pin and the name say what they actually describe.
-      */}
       {d.place ? (
         <View style={[st.placeRow, { borderBottomColor: P.line }]}>
           <Icon name="pin" size={14} color={P.muted} />
@@ -450,12 +337,6 @@ function EnvCard({
         </>
       ) : null}
 
-      {/*
-        Says which tier answered. "Conditions near you" means three different
-        things across device, network and time-zone fixes, and the reader is
-        entitled to know which one they are looking at before drawing any
-        conclusion from the numbers.
-      */}
       <Txt t="micro" c={P.faint} style={{ marginTop: S.md }}>
         {d.source === 'device'
           ? 'Live from Open-Meteo for your current location. Coordinates are used for this lookup only and are not stored.'
@@ -479,8 +360,6 @@ function Metric({ icon, label, value }: { icon: 'sun' | 'search' | 'clock'; labe
     </View>
   );
 }
-
-/* ────────────────────────────── band card ───────────────────────────────── */
 
 function BandCard({
   band, severity, takenAt, stale,

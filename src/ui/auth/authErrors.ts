@@ -1,17 +1,3 @@
-/**
- * Raw provider errors, turned into something a worried person can act on.
- *
- * Clerk returns messages written for developers - "Password is incorrect. Try
- * again, or use another method." alongside codes like `form_password_pwned`.
- * Showing those verbatim leaks the provider, leaks internal vocabulary, and in
- * the pwned case reads as an accusation. Everything is mapped by code where a
- * code exists, and falls back to one neutral sentence where it does not.
- *
- * Deliberately no default that echoes `e.message`: a fallback that passes the
- * raw string through means the mapping silently stops applying the first time
- * the provider adds a code, which is exactly when it matters.
- */
-
 interface ClerkLikeError {
   errors?: { code?: string; message?: string; longMessage?: string }[];
   message?: string;
@@ -34,7 +20,6 @@ const BY_CODE: Record<string, string> = {
   captcha_invalid: 'We could not confirm the request. Please try again.',
 };
 
-/** Network and transport failures never carry a Clerk code. */
 function looksOffline(raw: string): boolean {
   const s = raw.toLowerCase();
   return s.includes('network')
@@ -58,13 +43,6 @@ export function humanAuthError(e: unknown): string {
   return 'Something went wrong. Please try again.';
 }
 
-/* ────────────────────────────  field validation  ───────────────────────── */
-
-/**
- * Format only - never a claim about whether the address exists. RFC 5322 in
- * full is not worth implementing client-side; this rejects the typos people
- * actually make and lets the server be the authority on the rest.
- */
 export function emailError(v: string): string | null {
   if (!v.trim()) return 'Please enter your email address.';
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim())) return 'Please enter a valid email address.';

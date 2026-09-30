@@ -1,15 +1,3 @@
-/**
- * Interaction primitives.
- *
- * The single biggest difference between an app that feels cheap and one that
- * feels considered is not colour - it is whether the interface acknowledges a
- * touch before the state changes. Everything pressable here springs under the
- * finger and fires a haptic within a frame, so the app answers immediately even
- * when the work behind it takes longer.
- *
- * Haptics are wrapped in `tap()` rather than called inline, so intensity is
- * decided in one place and can be muted globally for accessibility.
- */
 import React, { ReactNode, useEffect, useRef } from 'react';
 import {
   View, Text, Pressable, StyleSheet, ViewStyle, TextStyle, StyleProp, Animated, Easing,
@@ -20,11 +8,8 @@ import { useReveal } from '../useReveal';
 import { useTheme, TYPE, TypeToken, S, R, TOUCH, MOTION, circle } from '../theme';
 import { Icon, IconName } from './Icon';
 
-/* ────────────────────────────────  haptics  ─────────────────────────────── */
-
 export type TapWeight = 'light' | 'medium' | 'select' | 'success' | 'warn' | 'error';
 
-/** Fire-and-forget. Never awaited, never allowed to reject into the UI. */
 export function tap(weight: TapWeight = 'light') {
   if (Platform.OS === 'web') return;
   const run =
@@ -36,8 +21,6 @@ export function tap(weight: TapWeight = 'light') {
     : () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   run().catch(() => {});
 }
-
-/* ─────────────────────────────────  text  ───────────────────────────────── */
 
 export function Txt({
   t = 'body', c, style, children, numberOfLines, center,
@@ -61,13 +44,6 @@ export function Txt({
   );
 }
 
-/* ────────────────────────────────  pressable  ───────────────────────────── */
-
-/**
- * Wraps children in a spring that compresses on press-in and releases on
- * press-out. Uses the native driver, so the animation survives a busy JS
- * thread - which is exactly when a laggy UI would otherwise be noticed.
- */
 export function Springy({
   children, onPress, disabled, style, weight = 'light',
   accessibilityRole = 'button', accessibilityLabel, accessibilityState, scaleTo,
@@ -77,12 +53,6 @@ export function Springy({
   accessibilityRole?: AccessibilityRole; accessibilityLabel?: string;
   accessibilityState?: object; scaleTo?: number;
 }) {
-  /*
-   * Through useReveal for the same reason as everything else here: the spring
-   * is native-driven, so releasing a press returned the scale to 1 on screen
-   * while JavaScript still held 0.97. A render landing after that left the
-   * control permanently shrunk.
-   */
   const press = useReveal(1, 1, { native: true });
   const scale = press.value;
 
@@ -93,7 +63,6 @@ export function Springy({
       mass: 1,
     });
 
-  // Split layout styles to the root Pressable so flex/margins work as expected.
   const flat = StyleSheet.flatten(style) || {};
   const rootStyle: ViewStyle = {
     flex: flat.flex,
@@ -125,7 +94,7 @@ export function Springy({
       accessibilityRole={accessibilityRole}
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: !!disabled, ...accessibilityState }}
-      // Instant response on touch-down.
+
       onPressIn={() => { if (!disabled) { to(scaleTo ?? MOTION.press.scale); tap(weight); } }}
       onPressOut={() => to(1)}
       onPress={onPress}
@@ -138,16 +107,6 @@ export function Springy({
   );
 }
 
-/* ───────────────────────────────  entrance  ─────────────────────────────── */
-
-/**
- * Entrance fade-and-rise for content as a screen appears.
- *
- * The reveal is native-driven, which is why it goes through useReveal rather
- * than Animated directly - see that file for the failure this avoids. In
- * short: a native-driven value does not write back to JavaScript, so without
- * it a re-render re-applies the initial 0 and the content disappears.
- */
 export function Enter({
   children, index = 0, style,
 }: { children: ReactNode; index?: number; style?: StyleProp<ViewStyle> }) {
@@ -160,14 +119,6 @@ export function Enter({
     play({ duration: MOTION.base, delay: index * MOTION.stagger });
   }, [play, index]);
 
-  /*
-   * Once the entrance is over the animated value is dropped entirely and the
-   * style becomes a literal. Nothing about this element's visibility depends
-   * on an animation any more, which is the point - see useReveal.
-   *
-   * Animated.View either way, so React never swaps the element type and the
-   * children are never remounted.
-   */
   return (
     <Animated.View
       style={[
@@ -181,8 +132,6 @@ export function Enter({
     </Animated.View>
   );
 }
-
-/* ─────────────────────────────────  card  ───────────────────────────────── */
 
 export function Card({
   children, style, onPress, elevated = 1, padded = true,
@@ -208,7 +157,6 @@ export function Card({
   return <Springy onPress={onPress} style={[base, style]}>{children}</Springy>;
 }
 
-/** A card that opens something. Adds the affordance so screens stop repeating it. */
 export function NavCard({
   title, subtitle, icon, tint, onPress, right,
 }: {
@@ -231,8 +179,6 @@ export function NavCard({
     </Card>
   );
 }
-
-/* ────────────────────────────────  buttons  ─────────────────────────────── */
 
 export function Button({
   title, onPress, tone = 'primary', disabled, busy, icon, full = true,
@@ -292,7 +238,6 @@ export function Button({
           : null,
       ]}
     >
-      {/* 3D Highlight for primary buttons */}
       {!inactive && tone === 'primary' && (
         <View style={[StyleSheet.absoluteFill, {
           borderRadius: R.pill,
@@ -307,13 +252,6 @@ export function Button({
   );
 }
 
-/* ──────────────────────────────  chip / toggle  ─────────────────────────── */
-
-/**
- * Selection chip. The selected state changes fill, border and weight together -
- * three redundant cues - because colour alone fails for the ~8% of men with a
- * colour vision deficiency, which QR6 has to account for.
- */
 export function Chip({
   label, selected, onPress, tone,
 }: { label: string; selected: boolean; onPress: () => void; tone?: string }) {
@@ -347,7 +285,6 @@ export function Chip({
   );
 }
 
-/** Multi-select row used for the symptom list. Full-width, 44pt, with a tick. */
 export function CheckRow({
   label, checked, onPress, danger,
 }: { label: string; checked: boolean; onPress: () => void; danger?: boolean }) {
@@ -376,8 +313,6 @@ export function CheckRow({
     </Springy>
   );
 }
-
-/* ────────────────────────────────  misc  ────────────────────────────────── */
 
 export function SectionLabel({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return (
@@ -408,7 +343,6 @@ export function EmptyState({
   );
 }
 
-/** Shown when a feature lands in a later phase. Honest rather than a dead button. */
 export function PhaseNotice({ phase, what }: { phase: number; what: string }) {
   const { c: P } = useTheme();
   return (
@@ -422,8 +356,7 @@ export function PhaseNotice({ phase, what }: { phase: number; what: string }) {
 const st = StyleSheet.create({
   btn: {
     minHeight: TOUCH + 8,
-    // Capsule, not a rounded rectangle. Glass has no corners, so neither do
-    // the controls that sit alongside it.
+
     borderRadius: R.pill,
     alignItems: 'center',
     justifyContent: 'center',

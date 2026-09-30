@@ -1,8 +1,3 @@
-/**
- * Phase 1 tests. Note these run in plain node with NO emulator and NO device -
- * that is the payoff of requirement L2 (domain layer has zero platform imports).
- * Evaluation criterion E4 requires 100% branch coverage of red-flag rules.
- */
 import { AssessSymptomsUseCase, bandForSeverity } from '../src/domain/assessSymptoms';
 import { detectRedFlags, RED_FLAG_RULES, rulesNeedingReview } from '../src/domain/redFlags';
 import { RuleClassifier } from '../src/data/ruleClassifier';
@@ -121,13 +116,6 @@ describe('performance budget (QR1)', () => {
   });
 });
 
-/**
- * Traceability of the red-flag rules (FR3 / QR5).
- *
- * The report states that red-flag rules "trace to published guidance". These
- * tests turn that sentence into something a build can check. Without them the
- * claim rests on a comment, and comments do not fail.
- */
 describe('red-flag traceability', () => {
   it('every rule carries a source with a publisher and a title', () => {
     for (const rule of RED_FLAG_RULES) {
@@ -145,8 +133,6 @@ describe('red-flag traceability', () => {
   });
 
   it('anything not fully cited explains what is outstanding', () => {
-    // The point of the flag is to force the gap to be written down. A rule may
-    // be provisional; it may not be provisional and silent about it.
     for (const rule of rulesNeedingReview()) {
       expect(rule.source.outstanding).toBeTruthy();
       expect(rule.source.outstanding!.length).toBeGreaterThan(20);
@@ -162,15 +148,12 @@ describe('red-flag traceability', () => {
     const total = RED_FLAG_RULES.length;
     const outstanding = rulesNeedingReview();
     const fullyCited = total - outstanding.length;
-    // Ratchet: this may go up, never down. If a change drops a citation the
-    // suite fails here rather than silently weakening the safety claim.
+
     expect(fullyCited).toBeGreaterThanOrEqual(2);
     expect(outstanding.every((r) => r.source.outstanding)).toBe(true);
   });
 
   it('no rule claims a threshold citation without a symptom citation', () => {
-    // thresholdCited implies symptomsCited. The reverse is allowed: guidance
-    // often names the symptom pattern without giving a numeric cut-off.
     for (const rule of RED_FLAG_RULES) {
       if (rule.source.thresholdCited) expect(rule.source.symptomsCited).toBe(true);
     }

@@ -1,17 +1,3 @@
-/**
- * iOS slider.
- *
- * Continuous drag with a shadowed round knob on a two-tone track - the filled
- * portion in the accent colour, the remainder in a light fill. Tapping anywhere
- * on the track jumps to that position, which iOS supports and most
- * reimplementations forget.
- *
- * Uses PanResponder rather than a gesture library because the app has no
- * gesture dependency and does not need one for a single control. The value is
- * held in a ref during the drag so every move event does not trigger a React
- * render - with a live glass preview attached, re-rendering per frame would
- * make the drag stutter on exactly the devices the effect is heaviest on.
- */
 import React, { useRef, useState } from 'react';
 import {
   View, StyleSheet, PanResponder, LayoutChangeEvent, ViewStyle, StyleProp,
@@ -24,9 +10,9 @@ const KNOB = 28;
 export function Slider({
   value, onChange, onSettle, minimumTrack, style, accessibilityLabel,
 }: {
-  value: number;                       // 0..1
+  value: number;
   onChange: (v: number) => void;
-  /** Fired once at the end of a drag, for anything expensive to persist. */
+
   onSettle?: (v: number) => void;
   minimumTrack?: string;
   style?: StyleProp<ViewStyle>;
@@ -50,7 +36,6 @@ export function Slider({
         onChange(fromX(e.nativeEvent.locationX));
       },
       onPanResponderMove: (_e, g) => {
-        // moveX is window-relative; subtract the track's own offset.
         onChange(fromX(g.moveX - offset.current));
       },
       onPanResponderRelease: () => {
@@ -74,7 +59,7 @@ export function Slider({
     <View
       style={[{ height: TOUCH, justifyContent: 'center' }, style]}
       onLayout={onLayout}
-      // Window offset, needed because PanResponder move events are absolute.
+
       onTouchStart={(e) => {
         offset.current = e.nativeEvent.pageX - e.nativeEvent.locationX;
       }}

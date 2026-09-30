@@ -1,11 +1,3 @@
-/**
- * The app's visual signature: four stacked segments, filled up to the band.
- *
- * It appears on the result screen, on every history row and on facility cards,
- * so the same shape always means the same thing. Reading it does not require
- * reading a number, which matters for the cognitive-load attribute (§5.3) and
- * for anyone who cannot distinguish the band colours.
- */
 import React from 'react';
 import { View } from 'react-native';
 import { TriageBand, BAND_ORDER } from '../../domain/entities';

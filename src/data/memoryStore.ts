@@ -1,9 +1,3 @@
-/**
- * In-memory EpisodeStore. Used by unit tests and by the workstation build,
- * so the domain and UI can be exercised with no device and no emulator.
- * Behaviour must match SqliteEpisodeStore - the shared contract test in
- * __tests__/store.test.ts runs against this implementation.
- */
 import { SymptomEpisode, TriageResult } from '../domain/entities';
 import { EpisodeStore, HistoryEntry } from '../domain/ports';
 import { ActivityEntry, ActivityLog } from '../domain/activity';
@@ -18,7 +12,7 @@ export class InMemoryEpisodeStore implements EpisodeStore, ActivityLog {
   async save(episode: SymptomEpisode, result: TriageResult): Promise<void> {
     const entry: HistoryEntry = { episode, result };
     const i = this.rows.findIndex((r) => r.episode.id === episode.id);
-    if (i >= 0) this.rows[i] = entry;      // INSERT OR REPLACE
+    if (i >= 0) this.rows[i] = entry;
     else this.rows.unshift(entry);
     this.rows.sort((a, b) => b.episode.capturedAt.localeCompare(a.episode.capturedAt));
   }
@@ -54,8 +48,6 @@ export class InMemoryEpisodeStore implements EpisodeStore, ActivityLog {
       this.rows[i] = { episode: row.episode, result: { ...row.result, syncStatus: 'SYNCED' } };
     }
   }
-
-  /* Activity, for the session only - this is the fallback when storage fails. */
 
   async record(entry: Omit<ActivityEntry, 'id'>): Promise<void> {
     this.trace.unshift({ ...entry, id: `${entry.at}-${this.trace.length}` });

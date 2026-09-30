@@ -1,18 +1,7 @@
-/**
- * The auth screens carry their own palette, so the project's contrast gate -
- * which walks `theme.ts` - does not see them. This is that gate, for this
- * palette, so a future colour tweak fails the build rather than quietly
- * shipping unreadable text.
- *
- * Also covers the error mapping, because the one guarantee worth asserting
- * there is negative: no raw provider string ever reaches a person.
- */
 import { C } from '../src/ui/auth/authTheme';
 import {
   confirmError, emailError, humanAuthError, nameError, passwordError,
 } from '../src/ui/auth/authErrors';
-
-/* ────────────────────────────── contrast ────────────────────────────────── */
 
 function channel(c: number): number {
   const s = c / 255;
@@ -32,7 +21,6 @@ function ratio(a: string, b: string): number {
 }
 
 describe('auth palette meets WCAG 2.2 AA', () => {
-  // Both grounds text actually lands on in this composition.
   const grounds: [string, string][] = [
     ['canvas', C.canvas],
     ['white surface', C.surface],
@@ -55,20 +43,14 @@ describe('auth palette meets WCAG 2.2 AA', () => {
   });
 
   test('input boundaries clear 3:1 against the surface they sit on', () => {
-    // WCAG 1.4.11 - a control whose edge you cannot see is a control you
-    // cannot find.
     expect(ratio(C.field, C.surface)).toBeGreaterThanOrEqual(3);
   });
 
   test('the decorative accent is never promoted to text', () => {
-    // #D88B63 is the specified accent and is deliberately kept for the glow
-    // only; it fails AA as text, which is why C.accent exists separately.
     expect(ratio(C.accentSoft, C.canvas)).toBeLessThan(4.5);
     expect(C.accent).not.toBe(C.accentSoft);
   });
 });
-
-/* ──────────────────────────── error mapping ─────────────────────────────── */
 
 describe('no raw provider error reaches the person', () => {
   const RAW = 'ClerkAPIError: form_password_pwned at /v1/client/sign_ups';
@@ -81,7 +63,6 @@ describe('no raw provider error reaches the person', () => {
   });
 
   it('does not distinguish unknown email from wrong password', () => {
-    // Otherwise the sign-in form becomes an account-enumeration oracle.
     expect(humanAuthError({ errors: [{ code: 'form_identifier_not_found' }] }))
       .toBe(humanAuthError({ errors: [{ code: 'form_password_incorrect' }] }));
   });
@@ -106,8 +87,6 @@ describe('no raw provider error reaches the person', () => {
     }
   });
 });
-
-/* ───────────────────────────── field validation ─────────────────────────── */
 
 describe('field validation', () => {
   it('accepts ordinary addresses and rejects the usual typos', () => {
@@ -138,12 +117,9 @@ describe('field validation', () => {
   });
 });
 
-/* ────────────────────────── responsive proportions ─────────────────────── */
-
 import { COLUMN, COPY, HERO_ADVANCE, HERO_LEADING, gaps, heroSize } from '../src/ui/auth/authTheme';
 
 describe('the composition scales instead of being redesigned', () => {
-  // Small, standard, large, tablet - width x height in dp.
   const devices: [string, number, number][] = [
     ['small phone', 320, 568],
     ['compact', 360, 740],
@@ -155,16 +131,12 @@ describe('the composition scales instead of being redesigned', () => {
   test.each(devices)('%s: nothing collapses or runs away', (_n, w, h) => {
     const g = gaps(h, w);
 
-    // Every gap is positive and finite - no NaN leaking from a bad fraction.
     for (const [key, value] of Object.entries(g)) {
       expect(Number.isFinite(value)).toBe(true);
       expect(value).toBeGreaterThan(0);
       expect(`${key}`).toBeTruthy();
     }
 
-    // The rhythm holds its order on every device: the breath before the
-    // buttons is always the largest gap, the gap between them always the
-    // smallest. That ordering *is* the composition.
     expect(g.heroToButtons).toBeGreaterThan(g.logoToHero);
     expect(g.logoToHero).toBeGreaterThan(g.betweenButtons);
     expect(g.promptToLink).toBeLessThan(g.betweenButtons);
@@ -172,12 +144,11 @@ describe('the composition scales instead of being redesigned', () => {
 
   it('keeps the hero proportional but bounded', () => {
     const sizes = devices.map(([, w]) => heroSize(w));
-    // Monotonic in width - a wider screen never gets smaller type.
+
     for (let i = 1; i < sizes.length; i += 1) {
       expect(sizes[i]).toBeGreaterThanOrEqual(sizes[i - 1]!);
     }
-    // Clamped at both ends so a tablet does not get a 120pt headline and a
-    // small phone still gets something that reads as display type.
+
     expect(Math.min(...sizes)).toBeGreaterThanOrEqual(18);
     expect(Math.max(...sizes)).toBeLessThanOrEqual(64);
   });
@@ -185,8 +156,7 @@ describe('the composition scales instead of being redesigned', () => {
   it('leaves the hero room to breathe at the edges', () => {
     for (const [, w, h] of devices) {
       const g = gaps(h, w);
-      // Content width after margins stays a clear majority of the screen -
-      // the heading is never squeezed into a column.
+
       expect((w - g.edge * 2) / w).toBeGreaterThan(0.8);
     }
   });
@@ -200,8 +170,6 @@ describe('the written line breaks are the only line breaks', () => {
     ['tablet', 800, 1280],
   ];
 
-  // Shared with the implementation rather than re-declared, so the test
-  // cannot silently agree with a stale constant.
   const ADVANCE = HERO_ADVANCE;
 
   test.each(devices)('%s: every hero line fits its column', (_n, w, h) => {
@@ -211,8 +179,7 @@ describe('the written line breaks are the only line breaks', () => {
     for (const lines of Object.values(COPY)) {
       const longest = lines.reduce((n: number, l: string) => Math.max(n, l.length), 0);
       const size = heroSize(w, longest, g.edge);
-      // If the widest line still overflows, the hero silently gains a row and
-      // the composition the copy was written for is gone.
+
       expect(longest * size * ADVANCE).toBeLessThanOrEqual(available + 0.5);
     }
   });
@@ -228,17 +195,12 @@ describe('the written line breaks are the only line breaks', () => {
   });
 
   it('leaves room for Playfair\'s descenders', () => {
-    // Playfair drops about 0.21em below the baseline. A line box tighter than
-    // that crops the tail of a 'y' on the last line, which is what happened
-    // at 1.06.
     expect(HERO_LEADING).toBeGreaterThanOrEqual(1.15);
-    // But still tight enough to read as set headline, not body copy.
+
     expect(HERO_LEADING).toBeLessThan(1.35);
   });
 
   it('measures every real headline as fitting on one line', () => {
-    // The regression this guards is "Welcome bac…" - a size computed as
-    // fitting that the renderer then ellipsised.
     for (const [key, lines] of Object.entries(COPY)) {
       for (const [, w, h] of [[0, 320, 568], [0, 360, 740], [0, 412, 915]] as number[][]) {
         const g = gaps(h!, w!);
@@ -254,22 +216,16 @@ describe('the written line breaks are the only line breaks', () => {
 
 describe('one column width across the whole flow', () => {
   it('matches the pill buttons', () => {
-    // Fields were 100% while the Google and Email pills were 88%, so moving
-    // from the provider choice into the email form made everything jump
-    // wider. Both now read from this.
     expect(COLUMN).toBeGreaterThan(0.8);
     expect(COLUMN).toBeLessThanOrEqual(0.92);
   });
 });
-
-/* ───────────────────── the two backdrops stay different ─────────────────── */
 
 import { AUTH_FIELDS, SHAPE, WELCOME_FIELDS, fieldsFor, tail } from '../src/ui/auth/atmosphere';
 import { GLOW } from '../src/ui/auth/authTheme';
 
 describe('welcome and the auth screens do not share a background', () => {
   it('gives welcome a multi-field atmosphere', () => {
-    // Several overlapping fields, not one gradient pretending to be one.
     expect(WELCOME_FIELDS.length).toBeGreaterThanOrEqual(8);
     expect(fieldsFor('welcome')).toBe(WELCOME_FIELDS);
   });
@@ -279,21 +235,16 @@ describe('welcome and the auth screens do not share a background', () => {
     expect(fieldsFor('auth')).toBe(AUTH_FIELDS);
 
     for (const f of AUTH_FIELDS) {
-      // Every centre below the bottom edge, so light enters from beneath and
-      // fades upward - and the bright core is never drawn.
       expect(`${f.id} cy=${f.cy}`).toBe(`${f.id} cy=${f.cy}`);
       expect(f.cy).toBeGreaterThan(1);
 
-      // Nothing reaches past the midline by much, so the upper screen stays
-      // off-white without needing a mask.
       expect(f.cy - f.ry).toBeGreaterThan(0.5);
     }
   });
 
   it('uses exactly two hues, pink left and orange right', () => {
     const hues = new Set(AUTH_FIELDS.map((f) => f.colour));
-    // Two. The apparent mauve/cream/peach range in the reference is these two
-    // thinning out and crossing, not extra fields.
+
     expect(hues.size).toBe(2);
     expect(hues.has(GLOW.authPink)).toBe(true);
     expect(hues.has(GLOW.authOrange)).toBe(true);
@@ -303,11 +254,9 @@ describe('welcome and the auth screens do not share a background', () => {
     expect(pink.length).toBeGreaterThanOrEqual(3);
     expect(orange.length).toBeGreaterThanOrEqual(3);
 
-    // Pink stays left of centre, orange right of it.
     for (const f of pink) expect(f.cx).toBeLessThan(0.5);
     for (const f of orange) expect(f.cx).toBeGreaterThan(0.5);
 
-    // Warm side begins higher up the screen than the cool side.
     const highest = (fs: typeof AUTH_FIELDS) => Math.min(...fs.map((f) => f.cy - f.ry));
     expect(highest(orange)).toBeLessThan(highest(pink));
   });
@@ -316,9 +265,6 @@ describe('welcome and the auth screens do not share a background', () => {
     const pink = AUTH_FIELDS.filter((f) => f.colour === GLOW.authPink);
     const orange = AUTH_FIELDS.filter((f) => f.colour === GLOW.authOrange);
 
-    // At least one field per side reaches past the middle, so their tails
-    // cross there. Without this the centre is a gap, and adding a third
-    // colour to fill it is what produces separate washes.
     expect(pink.some((f) => f.cx + f.rx > 0.62)).toBe(true);
     expect(orange.some((f) => f.cx - f.rx < 0.38)).toBe(true);
   });
@@ -328,8 +274,7 @@ describe('welcome and the auth screens do not share a background', () => {
       const group = AUTH_FIELDS
         .filter((f) => f.colour === hue)
         .sort((x, y) => y.rx - x.rx);
-      // Widest is palest, narrowest is strongest - that ordering is what
-      // produces the value progression out of a single colour.
+
       for (let i = 1; i < group.length; i += 1) {
         expect(group[i]!.peak).toBeGreaterThan(group[i - 1]!.peak);
       }
@@ -337,19 +282,14 @@ describe('welcome and the auth screens do not share a background', () => {
   });
 
   it('keeps the auth dome clear of the lower atmosphere it is meant to reveal', () => {
-    // The dome's apex must sit below where the fields fade out, or it paints
-    // over the colour it is supposed to sit in front of.
     const apex = SHAPE.auth.cy - SHAPE.auth.ry;
     const highestField = Math.min(...AUTH_FIELDS.map((f) => f.cy - f.ry));
     expect(apex).toBeGreaterThan(highestField);
-    // And it stays in the lower part of the screen rather than crossing the
-    // middle, so the composition above it is untouched.
+
     expect(apex).toBeGreaterThan(0.6);
   });
 
   it('centres every welcome field outside the viewport', () => {
-    // A field centred on screen shows its bright core and the ring where its
-    // midsection quantises. Only the long outer tail may be visible.
     for (const f of WELCOME_FIELDS) {
       const outside = f.cx < 0 || f.cx > 1 || f.cy < 0 || f.cy > 1;
       expect(`${f.id} outside: ${outside}`).toBe(`${f.id} outside: true`);
@@ -357,7 +297,6 @@ describe('welcome and the auth screens do not share a background', () => {
   });
 
   it('gives every field a radius large enough to reach well inside', () => {
-    // If the tail dies before it gets anywhere, the colour reads as a rim.
     for (const f of WELCOME_FIELDS) {
       expect(f.rx).toBeGreaterThan(0.8);
       expect(f.ry).toBeGreaterThan(0.3);
@@ -367,10 +306,10 @@ describe('welcome and the auth screens do not share a background', () => {
   it('covers all four outer areas', () => {
     const has = (pred: (f: { cx: number; cy: number }) => boolean) =>
       WELCOME_FIELDS.some(pred);
-    expect(has((f) => f.cy < 0)).toBe(true);              // top
-    expect(has((f) => f.cy > 1)).toBe(true);              // bottom
-    expect(has((f) => f.cx < 0)).toBe(true);              // left
-    expect(has((f) => f.cx > 1)).toBe(true);              // right
+    expect(has((f) => f.cy < 0)).toBe(true);
+    expect(has((f) => f.cy > 1)).toBe(true);
+    expect(has((f) => f.cx < 0)).toBe(true);
+    expect(has((f) => f.cx > 1)).toBe(true);
   });
 
   it('fades monotonically to nothing, with no step big enough to band', () => {
@@ -382,46 +321,36 @@ describe('welcome and the auth screens do not share a background', () => {
     for (let i = 1; i < stops.length; i += 1) {
       const prev = stops[i - 1]!;
       const cur = stops[i]!;
-      // Never brightens.
+
       expect(cur.opacity).toBeLessThan(prev.opacity);
-      // No single segment drops more than a fifth of full alpha - that is the
-      // threshold where a ramp starts showing a seam on an 8-bit panel.
+
       expect(prev.opacity - cur.opacity).toBeLessThanOrEqual(0.2);
     }
   });
 
   it('draws welcome\'s shape wider than the screen', () => {
-    // rx > 1 means the ellipse's own extremes are off-screen, so the visible
-    // arc is the shallow middle of the curve rather than a stadium's end.
     expect(SHAPE.welcome.rx).toBeGreaterThan(1);
-    // And it never fills the screen vertically - colour stays visible above
-    // and below.
+
     expect(SHAPE.welcome.ry).toBeLessThan(0.5);
   });
 
   it('leaves both bottom corners coloured on the auth dome', () => {
     const { cx, cy, rx, ry } = SHAPE.auth;
-    // Half-width of the dome where it crosses the bottom edge of the screen.
+
     const dy = (1 - cy) / ry;
     const halfWidth = rx * Math.sqrt(1 - dy * dy);
 
-    // Narrower than the screen, so colour shows beside it in both corners -
-    // as it does in the reference.
     expect(cx + halfWidth).toBeLessThan(1);
     expect(cx - halfWidth).toBeGreaterThan(0);
-    // But still a broad dome, not a small circle.
+
     expect(halfWidth).toBeGreaterThan(0.35);
   });
 });
-
-/* ──────────────────────────────── branding ─────────────────────────────── */
 
 import { T as TYPE } from '../src/ui/auth/authTheme';
 
 describe('brand hierarchy', () => {
   it('sets the app name above the supporting copy', () => {
-    // It was 17 against a 16px prompt, which read as a caption rather than as
-    // the product's name. Hero > wordmark > supporting copy is the order.
     const wordmark = TYPE.wordmark!.fontSize as number;
     const prompt = TYPE.prompt!.fontSize as number;
     const button = TYPE.button!.fontSize as number;
@@ -433,15 +362,12 @@ describe('brand hierarchy', () => {
   it('keeps the wordmark well below the hero on every screen size', () => {
     const wordmark = TYPE.wordmark!.fontSize as number;
     for (const [w, e] of [[320, 23], [360, 26], [412, 30]] as number[][]) {
-      // Shortest real headline, so this is the closest the two ever get.
       const hero = heroSize(w!, 8, e!);
       expect(`${w}: ${hero > wordmark * 1.5}`).toBe(`${w}: true`);
     }
   });
 
   it('leaves enough slack under the hero for a descender', () => {
-    // The 'y' in "ready" sits on the last line, where Android crops to the
-    // view bounds rather than to the glyph.
     const slack = 0.24;
     const descender = 0.21;
     expect(slack).toBeGreaterThan(descender);

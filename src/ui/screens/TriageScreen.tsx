@@ -1,13 +1,3 @@
-/**
- * The app opens here. No landing page - the first screen is the task (§5.3).
- * FR1, FR2, FR3.
- *
- * Severity only appears once a symptom is selected. Showing five severity
- * buttons against 24 symptoms up front would put 120 controls on screen and
- * read as a form to fill in rather than a question to answer. Progressive
- * disclosure keeps the first impression to one decision, which is what PACMAD's
- * cognitive-load attribute asks for.
- */
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, ScrollView, StyleSheet, ActivityIndicator, LayoutAnimation,
@@ -27,26 +17,10 @@ import {
   SymptomAnalysis, SymptomAnalysisService, ProfileService, RemoteOutcome,
 } from '../../domain/remote';
 
-// Only needed on the old architecture; the setter does not exist under Fabric,
-// where layout animations are enabled by default. Guarded rather than assumed.
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-/**
- * Age band from the account's recorded age.
- *
- * The screen used to ask this every time. It is a fact about the person, not
- * about this episode, so re-asking was friction and a chance to get it wrong -
- * and it drives real red-flag rules, where a fever at 70 is not a fever at 30.
- *
- * ADULT is the fallback when the profile has no age. That is a deliberate
- * choice and not a neutral one: it means the two age-specific rules cannot
- * fire, so the checker under-triages a child or an older adult whose profile
- * is blank. The alternative - guessing an age - would be worse, because a
- * wrong band fires the wrong rules rather than none. The banner below says so
- * on screen rather than leaving it silent.
- */
 function bandForAge(age: number | null): AgeBand {
   if (age === null) return 'ADULT';
   if (age < 12) return 'CHILD';
@@ -58,12 +32,6 @@ const DURATIONS = [
   { hours: 72, label: '3 days' }, { hours: 168, label: 'A week+' },
 ];
 
-/*
- * Ordered least to most severe. An earlier version ran Mild → Slight →
- * Moderate, which is backwards in ordinary English: "slight" is milder than
- * "mild". Anyone reading left to right would have mapped their symptom to the
- * wrong value, and that value feeds the severity score directly.
- */
 const LEVELS = [
   { v: 1, label: 'Slight' }, { v: 3, label: 'Mild' }, { v: 5, label: 'Moderate' },
   { v: 7, label: 'Strong' }, { v: 9, label: 'Severe' },
@@ -72,14 +40,11 @@ const LEVELS = [
 export function TriageScreen({ classifier, store, onResult, analysis, profile, onAnalysis }: {
   classifier: Classifier; store: EpisodeStore;
   onResult: (r: TriageResult, ms: number) => void;
-  /**
-   * The hosted diagnostic engine. Optional so the screen still works - and the
-   * tests still run - with nothing behind it.
-   */
+
   analysis?: SymptomAnalysisService;
-  /** Supplies the recorded age, so the screen no longer has to ask for it. */
+
   profile?: ProfileService;
-  /** Delivers the hosted matrix once it lands, so Result can render it. */
+
   onAnalysis?: (a: RemoteOutcome<SymptomAnalysis>) => void;
 }) {
   const { c: P, elev } = useTheme();
@@ -87,7 +52,6 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
   const [duration, setDuration] = useState(6);
   const [note, setNote] = useState('');
 
-  // undefined while loading, null when the profile has no age on file.
   useEffect(() => {
     let alive = true;
     if (!profile) { setProfileAge(null); return; }
@@ -105,29 +69,12 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
     () => new AssessSymptomsUseCase(classifier, store), [classifier, store],
   );
   const count = Object.keys(picked).length;
-  // Either input is enough on its own.
+
   const canSubmit = count > 0 || note.trim().length > 0;
 
-  /*
-   * The Continue button, which appears once there is something to submit.
-   *
-   * Through useReveal and on the JS driver. A previous version of this used
-   * the native driver with a comment calling it immune to re-renders and
-   * keyboard events; it was the opposite. A natively driven opacity lives
-   * only in the native animated node, so when Android re-attached this view -
-   * which it does when the keyboard opens over it - the value was gone and the
-   * button stayed invisible with a symptom already picked.
-   *
-   * This moves both ways, so it uses animateTo rather than play.
-   */
   const { value: fabIn, animateTo: fadeTo } = useReveal();
   const { value: fabScale, animateTo: popTo } = useReveal(0.6, 1);
 
-  /*
-   * The dependencies are the two animateTo functions, which are stable, not
-   * the hook objects they came from. Listing the objects re-ran this on every
-   * render and restarted the animation each time.
-   */
   useEffect(() => {
     fadeTo(canSubmit ? 1 : 0, {
       duration: MOTION.fast,
@@ -163,18 +110,11 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
       };
       const t0 = Date.now();
 
-      // Local first, always. The band is decided on the device so a slow or
-      // failed network call delays the wording, never the triage - and the
-      // person gets an answer at the speed of the phone rather than the
-      // speed of the model.
       const r = await useCase.execute(episode);
       onResult(r, Date.now() - t0);
       setPicked({});
       setNote('');
 
-      // Then the hosted matrix, which enriches the result screen. Deliberately
-      // not awaited before onResult: making the user watch a spinner for a
-      // remote call they may not need is the behaviour being designed out.
       if (analysis && onAnalysis) {
         void analysis
           .analyze({
@@ -187,9 +127,7 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
   }
 
   return (
-    // `extra` is the floating tab bar: the page already reserves that much at
-    // the bottom, so reserving the full keyboard height again would leave a
-    // band of dead screen above it.
+
     <KeyboardSafe extra={TAB_CLEARANCE}>
       <ScrollView
         contentContainerStyle={{ paddingBottom: TAB_CLEARANCE + S.xxl }}
@@ -242,18 +180,7 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
           {CATALOGUE.map((c) => {
             const on = picked[c.code] !== undefined;
             return (
-              /*
-               * Plain surface cards, thirty-three of them.
-               *
-               * These were glass, and that was the whole reason this tab was
-               * slow: each glass Card stood up a live Android blur plus an
-               * SVG, and rendered twice because it had to measure itself
-               * first. The visible symptom was in the navigation bar, whose
-               * sliding pill runs on the JS driver and starved.
-               *
-               * Glass is gone from the project now, but the lesson survives
-               * it: repeated list rows get the cheapest surface there is.
-               */
+
               <Card
                 key={c.code}
                 padded={false}
@@ -311,11 +238,6 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
         </View>
       </ScrollView>
 
-      {/*
-        Compact action, not a full-width bar. A stretched button pinned above
-        the tab bar covered a whole symptom row and left the list permanently
-        obstructed - you could not see the item you had just tapped.
-      */}
       <Animated.View
         pointerEvents={canSubmit ? 'box-none' : 'none'}
         style={[

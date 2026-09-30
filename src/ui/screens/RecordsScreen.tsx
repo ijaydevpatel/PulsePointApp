@@ -1,4 +1,3 @@
-/** FR5 - encrypted history, review and delete. Wired to the real store. */
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, FlatList, ScrollView, Alert } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -12,7 +11,6 @@ import { ActivityEntry, ActivityLog, ACTIVITY_LABEL } from '../../domain/activit
 import { BAND_LABEL } from '../../domain/entities';
 import { useTheme, S, TOUCH, TAB_CLEARANCE } from '../theme';
 
-/** The symptoms, as a sentence. The question the check was asked. */
 function summarise(entry: HistoryEntry): string {
   const names = entry.episode.symptoms.map((s) => s.label);
   if (names.length === 0) return 'Symptom check';
@@ -32,8 +30,7 @@ function when(iso: string): string {
 export function RecordsScreen({ store, refreshKey, onBack }: {
   store: EpisodeStore & ActivityLog;
   refreshKey: number;
-  /** Present now that Records is reached from the account sheet rather than
-   *  from a tab - a pushed screen needs a way back. */
+
   onBack?: () => void;
 }) {
   const { c: P, band: B } = useTheme();
@@ -50,14 +47,6 @@ export function RecordsScreen({ store, refreshKey, onBack }: {
     setLoaded(true);
   }, [store]);
 
-  /**
-   * One list, newest first.
-   *
-   * A symptom check appears once, not twice: it writes an activity row too,
-   * and that row carries the episode id, so the richer clinical record is
-   * shown wherever one exists and the trace stands in only where it does
-   * not.
-   */
   const byEpisode = new Map(rows.map((r) => [r.episode.id, r]));
   const items = trace.map((a) => ({
     activity: a,
@@ -104,12 +93,6 @@ export function RecordsScreen({ store, refreshKey, onBack }: {
                 onPress={check ? () => setOpen(check) : undefined}
               >
                 <View style={{ flexDirection: 'row', gap: S.lg, alignItems: 'center' }}>
-                  {/*
-                    A check gets its severity spine; everything else gets a
-                    plain marker, because a colour that means "how urgent" on
-                    one row must not appear on a row where nothing was
-                    assessed.
-                  */}
                   {check
                     ? <SeveritySpine band={check.result.band} height={42} width={5} />
                     : <View style={{ width: 5, height: 42, borderRadius: 3, backgroundColor: P.line }} />}
@@ -168,17 +151,6 @@ export function RecordsScreen({ store, refreshKey, onBack }: {
   );
 }
 
-/**
- * One past check, in full.
- *
- * Everything here was already stored - the symptoms and their severities, the
- * band, the score, how sure the engine was, which red flags fired and the
- * reasoning it gave. The list could only ever show one line of it, so the
- * rest was being kept and never shown.
- *
- * Nothing is recomputed. A record is what the engine said at the time, and
- * re-running it now against different rules would quietly rewrite history.
- */
 function CheckDetail({ entry, onBack }: { entry: HistoryEntry; onBack: () => void }) {
   const { c: P, band: B } = useTheme();
   const { episode, result } = entry;

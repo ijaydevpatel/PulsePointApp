@@ -1,31 +1,3 @@
-/**
- * The person's health identity, and the form that edits it.
- *
- * ── What this replaced ───────────────────────────────────────────────────────
- *
- * A sheet with a name, an avatar and three navigation rows, one of which was
- * "Settings" and opened the More tab - so the app had two screens doing the
- * same job and a loop between them. Identity and preferences are now
- * separate: this screen is who you are, Settings is how the app behaves.
- *
- * ── Why the health card is the point ─────────────────────────────────────────
- *
- * Blood group, allergies, conditions and current medications are the four
- * facts someone else needs when the person holding the phone cannot answer
- * questions. They are shown together, above the fold, before anything the app
- * wants from them.
- *
- * ── Nothing is inferred, and nothing is assumed ──────────────────────────────
- *
- * An empty allergies list reads "Not recorded", never "None". The difference
- * matters: "None" is a clinical claim, and the backend has no way to tell a
- * person who answered "no allergies" from a person who was never asked. A
- * screen that invents the distinction is worse than one that admits it.
- *
- * Height, weight and BMI are shown only when they exist. BMI in particular is
- * computed by the backend and never sent up, so it cannot drift out of step
- * with the height and weight it comes from.
- */
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -42,7 +14,6 @@ const EMPTY: UserProfile = {
   bloodGroup: null, allergies: [], conditions: [], medications: [], bmi: null,
 };
 
-/** Lists are typed as one line of comma-separated items, and read back the same. */
 const toLine = (xs: readonly string[]) => xs.join(', ');
 const fromLine = (s: string) => s.split(',').map((x) => x.trim()).filter((x) => x !== '');
 
@@ -101,7 +72,6 @@ export function ProfileScreen({ session, service, onBack, onOpen, onSignOut }: {
         contentContainerStyle={{ paddingHorizontal: S.xl, paddingBottom: TAB_CLEARANCE + S.xxl }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Identity. Avatar, name and how this account is reached. */}
         <Card>
           <View style={st.identity}>
             <View style={[st.avatar, { backgroundColor: P.accent }]}>
@@ -110,12 +80,6 @@ export function ProfileScreen({ session, service, onBack, onOpen, onSignOut }: {
             <View style={{ flex: 1 }}>
               <Txt t="heading" numberOfLines={2}>{name}</Txt>
               <Txt t="caption" c={P.muted} style={{ marginTop: 2 }}>
-                {/*
-                  Not "history syncs across devices". Nothing syncs episodes -
-                  there is no backend route for them. What signing in actually
-                  buys is the health profile below, which is stored on the
-                  account rather than the handset.
-                */}
                 {session.state === 'SIGNED_IN'
                   ? 'Signed in - your health profile is saved to your account'
                   : 'Signed out - nothing is saved to an account'}
@@ -125,16 +89,6 @@ export function ProfileScreen({ session, service, onBack, onOpen, onSignOut }: {
 
           <View style={{ height: S.lg }} />
 
-          {/*
-            Not editable until the current profile has actually been read.
-
-            The form is seeded from what was loaded, and a save writes every
-            field. So opening it before the fetch has succeeded - offline, or
-            while the Render instance is waking - would seed it from blanks
-            and then write those blanks over a real record: name, blood group
-            and allergies replaced with '' and 0 in one tap. The record is on
-            the account, so that loss is not local and not undoable.
-          */}
           <Button
             title="Edit profile"
             icon="user"
@@ -171,10 +125,6 @@ export function ProfileScreen({ session, service, onBack, onOpen, onSignOut }: {
           </Card>
         ) : (
           <>
-            {/*
-              The four facts someone else needs when the person holding the
-              phone cannot answer. Together, and first.
-            */}
             <Card style={{ marginBottom: S.sm }}>
               <View style={st.grid}>
                 <Vital label="Blood group" value={profile.bloodGroup} emphasis />
@@ -214,11 +164,6 @@ export function ProfileScreen({ session, service, onBack, onOpen, onSignOut }: {
 
         <View style={{ height: S.xxl }} />
 
-        {/*
-          Destructive action last, per the Android settings pattern, and
-          behind a confirmation - signing out clears the AI Doctor
-          conversation as well, which is not obvious from the word "Sign out".
-        */}
         {session.state === 'SIGNED_IN' ? (
           <Springy
             scaleTo={0.97}
@@ -245,8 +190,6 @@ export function ProfileScreen({ session, service, onBack, onOpen, onSignOut }: {
   );
 }
 
-/* ─────────────────────────────── pieces ─────────────────────────────────── */
-
 function Vital({ label, value, emphasis = false }: {
   label: string; value: string | null; emphasis?: boolean;
 }) {
@@ -259,7 +202,6 @@ function Vital({ label, value, emphasis = false }: {
         c={value ? P.ink : P.faint}
         style={{ marginTop: 2 }}
       >
-        {/* Never "None" - see the note at the top of this file. */}
         {value ?? 'Not recorded'}
       </Txt>
     </View>
@@ -295,16 +237,6 @@ function Listing({ label, items, tone }: {
   );
 }
 
-/* ─────────────────────────────── the form ───────────────────────────────── */
-
-/**
- * One column, one field per row, as a form on a phone should be.
- *
- * Nothing saves until Save is pressed. That is deliberate even though the
- * Settings screen saves its toggles instantly: a toggle has one obvious
- * meaning and a half-typed allergy does not, and this form writes to the
- * record another clinician might read.
- */
 function EditProfile({ initial, service, onCancel, onSaved }: {
   initial: UserProfile;
   service: ProfileService;
@@ -350,8 +282,6 @@ function EditProfile({ initial, service, onCancel, onSaved }: {
       tap('light');
       onSaved(r.data);
     } else {
-      // The form keeps everything typed. Losing a carefully entered list to a
-      // dropped connection would be its own bug.
       tap('warn');
       setError(r.notice ?? 'That could not be saved. Your changes are still here.');
     }

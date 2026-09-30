@@ -1,45 +1,8 @@
-/**
- * The bundled interaction table. Implements InteractionRepository (FR6).
- *
- * ── Scope, stated honestly ───────────────────────────────────────────────────
- *
- * This is a curated subset covering widely-prescribed medicines and
- * well-established, clinically significant interactions between them. It is not
- * a complete interaction database and the app must never imply that it is.
- *
- * That limitation is handled in the type system rather than in a disclaimer:
- * `CheckOutcome` has no "safe" value, and `unrecognised` is part of every
- * report. A user whose medicine is not in this table is told so.
- *
- * ── Why a table rather than a model ──────────────────────────────────────────
- *
- * Interactions are a lookup problem, not an inference problem. A table is
- * auditable line by line, runs in microseconds with no network, and cannot
- * hallucinate a plausible-sounding interaction that does not exist. The web
- * app's model-based checker had the opposite properties, and returned a blank
- * panel for Warfarin + Aspirin.
- *
- * ── Sources ──────────────────────────────────────────────────────────────────
- *
- * Rules are drawn from interactions documented in the New Zealand Formulary
- * (nzf.org.nz) and the NZ Medicines Data Sheets held by Medsafe. Each rule
- * carries its own source string so it can be re-checked individually.
- *
- * Brand names are the ones commonly dispensed in New Zealand, because someone
- * holding a box reads the brand rather than the generic - and the pharmacy
- * aisle is the exact situation this feature is for.
- *
- * REVIEW: this table needs a clinical review pass before any real-world use,
- * and re-checking against the NZF each release. Tracked in the Phase 12
- * hardening work.
- */
 import { Drug, InteractionRule } from '../domain/medicines';
 import { InteractionRepository } from '../domain/ports';
 
-/* ─────────────────────────────────  drugs  ──────────────────────────────── */
-
 const DRUGS: readonly Drug[] = [
-  // Analgesics and anti-inflammatories
+
   { id: 'paracetamol', name: 'Paracetamol', classes: ['ANALGESIC'],
     aliases: ['panadol', 'pamol', 'acetaminophen', 'paracetemol', 'panadeine'] },
   { id: 'ibuprofen', name: 'Ibuprofen', classes: ['NSAID'],
@@ -53,7 +16,6 @@ const DRUGS: readonly Drug[] = [
   { id: 'aspirin', name: 'Aspirin', classes: ['NSAID', 'ANTIPLATELET'],
     aliases: ['acetylsalicylic acid', 'aspec', 'cartia', 'disprin', 'asasantin'] },
 
-  // Anticoagulants and antiplatelets
   { id: 'warfarin', name: 'Warfarin', classes: ['ANTICOAGULANT'],
     aliases: ['coumadin', 'marevan'] },
   { id: 'dabigatran', name: 'Dabigatran', classes: ['ANTICOAGULANT'],
@@ -65,7 +27,6 @@ const DRUGS: readonly Drug[] = [
   { id: 'clopidogrel', name: 'Clopidogrel', classes: ['ANTIPLATELET'],
     aliases: ['plavix', 'clopidin'] },
 
-  // Antidepressants
   { id: 'fluoxetine', name: 'Fluoxetine', classes: ['SSRI'], aliases: ['prozac', 'fluox'] },
   { id: 'citalopram', name: 'Citalopram', classes: ['SSRI'], aliases: ['cipramil', 'celapram'] },
   { id: 'escitalopram', name: 'Escitalopram', classes: ['SSRI'], aliases: ['lexapro', 'loxalate'] },
@@ -76,7 +37,6 @@ const DRUGS: readonly Drug[] = [
   { id: 'moclobemide', name: 'Moclobemide', classes: ['MAOI'], aliases: ['aurorix'] },
   { id: 'tranylcypromine', name: 'Tranylcypromine', classes: ['MAOI'], aliases: ['parnate'] },
 
-  // Opioids and sedatives
   { id: 'tramadol', name: 'Tramadol', classes: ['OPIOID'], aliases: ['tramal', 'zydol'] },
   { id: 'codeine', name: 'Codeine', classes: ['OPIOID'], aliases: ['codalgin', 'panadeine forte'] },
   { id: 'morphine', name: 'Morphine', classes: ['OPIOID'], aliases: ['sevredol', 'm-eslon'] },
@@ -85,11 +45,9 @@ const DRUGS: readonly Drug[] = [
   { id: 'lorazepam', name: 'Lorazepam', classes: ['BENZODIAZEPINE'], aliases: ['ativan'] },
   { id: 'zopiclone', name: 'Zopiclone', classes: ['BENZODIAZEPINE'], aliases: ['imovane', 'zimovane'] },
 
-  // Migraine
   { id: 'sumatriptan', name: 'Sumatriptan', classes: ['TRIPTAN'], aliases: ['imigran', 'imitrex'] },
   { id: 'rizatriptan', name: 'Rizatriptan', classes: ['TRIPTAN'], aliases: ['maxalt'] },
 
-  // Cardiovascular
   { id: 'cilazapril', name: 'Cilazapril', classes: ['ACE_INHIBITOR'], aliases: ['inhibace'] },
   { id: 'lisinopril', name: 'Lisinopril', classes: ['ACE_INHIBITOR'], aliases: ['zestril', 'accupril'] },
   { id: 'enalapril', name: 'Enalapril', classes: ['ACE_INHIBITOR'], aliases: ['renitec'] },
@@ -113,12 +71,10 @@ const DRUGS: readonly Drug[] = [
   { id: 'sildenafil', name: 'Sildenafil', classes: ['PDE5_INHIBITOR'], aliases: ['viagra', 'revatio'] },
   { id: 'tadalafil', name: 'Tadalafil', classes: ['PDE5_INHIBITOR'], aliases: ['cialis'] },
 
-  // Statins
   { id: 'simvastatin', name: 'Simvastatin', classes: ['STATIN'], aliases: ['lipex', 'zocor'] },
   { id: 'atorvastatin', name: 'Atorvastatin', classes: ['STATIN'], aliases: ['lipitor', 'zarator'] },
   { id: 'rosuvastatin', name: 'Rosuvastatin', classes: ['STATIN'], aliases: ['crestor'] },
 
-  // Antibiotics
   { id: 'clarithromycin', name: 'Clarithromycin', classes: ['MACROLIDE', 'ANTIBIOTIC'], aliases: ['klacid'] },
   { id: 'erythromycin', name: 'Erythromycin', classes: ['MACROLIDE', 'ANTIBIOTIC'], aliases: ['eryc', 'e-mycin'] },
   { id: 'ciprofloxacin', name: 'Ciprofloxacin', classes: ['QUINOLONE', 'ANTIBIOTIC'], aliases: ['ciproxin', 'cipflox'] },
@@ -127,7 +83,6 @@ const DRUGS: readonly Drug[] = [
     aliases: ['trisul', 'co-trimoxazole', 'trimethoprim-sulfamethoxazole'] },
   { id: 'metronidazole', name: 'Metronidazole', classes: ['ANTIBIOTIC'], aliases: ['flagyl', 'trichozole'] },
 
-  // Other
   { id: 'omeprazole', name: 'Omeprazole', classes: ['PPI'], aliases: ['losec', 'omezol'] },
   { id: 'pantoprazole', name: 'Pantoprazole', classes: ['PPI'], aliases: ['somac', 'protonix'] },
   { id: 'lithium', name: 'Lithium', classes: ['MOOD_STABILISER'], aliases: ['lithicarb', 'priadel'] },
@@ -141,15 +96,13 @@ const DRUGS: readonly Drug[] = [
   { id: 'prednisone', name: 'Prednisone', classes: [], aliases: ['apo-prednisone', 'prednisolone'] },
 ];
 
-/* ──────────────────────────────  the rules  ─────────────────────────────── */
-
 const D = (id: string) => ({ kind: 'DRUG' as const, id });
 const C = (cls: Drug['classes'][number]) => ({ kind: 'CLASS' as const, cls });
 
 const NZF = 'New Zealand Formulary - interactions';
 
 const RULES: readonly InteractionRule[] = [
-  /* ── Bleeding risk ──────────────────────────────────────────────────────── */
+
   {
     id: 'IX-ANTICOAG-NSAID',
     a: C('ANTICOAGULANT'), b: C('NSAID'),
@@ -207,7 +160,6 @@ const RULES: readonly InteractionRule[] = [
     source: NZF,
   },
 
-  /* ── Serotonin ──────────────────────────────────────────────────────────── */
   {
     id: 'IX-MAOI-SSRI',
     a: C('MAOI'), b: C('SSRI'),
@@ -249,7 +201,6 @@ const RULES: readonly InteractionRule[] = [
     source: NZF,
   },
 
-  /* ── Sedation and breathing ─────────────────────────────────────────────── */
   {
     id: 'IX-OPIOID-BENZO',
     a: C('OPIOID'), b: C('BENZODIAZEPINE'),
@@ -259,7 +210,6 @@ const RULES: readonly InteractionRule[] = [
     source: NZF,
   },
 
-  /* ── Kidneys, potassium and blood pressure ──────────────────────────────── */
   {
     id: 'IX-ACE-POTASSIUM',
     a: C('ACE_INHIBITOR'), b: C('POTASSIUM_SPARING_DIURETIC'),
@@ -301,7 +251,6 @@ const RULES: readonly InteractionRule[] = [
     source: NZF,
   },
 
-  /* ── Lithium ────────────────────────────────────────────────────────────── */
   {
     id: 'IX-LITHIUM-NSAID',
     a: D('lithium'), b: C('NSAID'),
@@ -327,7 +276,6 @@ const RULES: readonly InteractionRule[] = [
     source: NZF,
   },
 
-  /* ── Heart rate and rhythm ──────────────────────────────────────────────── */
   {
     id: 'IX-BETA-CCB',
     a: C('BETA_BLOCKER'), b: C('RATE_LIMITING_CCB'),
@@ -361,7 +309,6 @@ const RULES: readonly InteractionRule[] = [
     source: NZF,
   },
 
-  /* ── Muscle and marrow ──────────────────────────────────────────────────── */
   {
     id: 'IX-SIMVASTATIN-MACROLIDE',
     a: D('simvastatin'), b: C('MACROLIDE'),
@@ -419,7 +366,6 @@ const RULES: readonly InteractionRule[] = [
     source: NZF,
   },
 
-  /* ── Same-class duplication ─────────────────────────────────────────────── */
   {
     id: 'IX-NSAID-NSAID',
     a: C('NSAID'), b: C('NSAID'),
@@ -446,14 +392,11 @@ const RULES: readonly InteractionRule[] = [
   },
 ];
 
-/* ────────────────────────────  the repository  ──────────────────────────── */
-
-/** Lowercase, strip punctuation, collapse whitespace, drop a trailing strength. */
 function normalise(input: string): string {
   return input
     .toLowerCase()
     .replace(/[^a-z0-9\s-]/g, ' ')
-    // "ibuprofen 400mg" and "metoprolol 47.5 mg cr" should both resolve.
+
     .replace(/\b\d+(\.\d+)?\s*(mg|mcg|g|ml|iu|units?)\b/g, ' ')
     .replace(/\b(tab|tabs|tablet|tablets|cap|caps|capsule|capsules|sr|cr|xl|er|mr|forte)\b/g, ' ')
     .replace(/\s+/g, ' ')
@@ -463,7 +406,6 @@ function normalise(input: string): string {
 export class BundledInteractionTable implements InteractionRepository {
   readonly version = '2026.08-nzf';
 
-  /** name → drug, built once. Aliases and generics share one index. */
   private readonly index: ReadonlyMap<string, Drug>;
 
   constructor() {
@@ -483,11 +425,6 @@ export class BundledInteractionTable implements InteractionRepository {
     const exact = this.index.get(key);
     if (exact) return exact;
 
-    // A combination product such as "paracetamol codeine" should resolve to
-    // something rather than nothing, so fall back to a word-level match.
-    // Deliberately conservative: only whole words, and only if exactly one
-    // known medicine appears. An ambiguous string returns null and is reported
-    // as unrecognised, which is the honest answer.
     const words = key.split(' ').filter((w) => w.length > 3);
     const hits = new Set<Drug>();
     for (const w of words) {
@@ -501,7 +438,6 @@ export class BundledInteractionTable implements InteractionRepository {
     return RULES;
   }
 
-  /** Used by the UI for type-ahead. Not part of the domain port. */
   suggest(prefix: string, limit = 6): readonly Drug[] {
     const key = normalise(prefix);
     if (key.length < 2) return [];

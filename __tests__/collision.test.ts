@@ -1,20 +1,7 @@
-/**
- * The collision check's wire mapping.
- *
- * Worth pinning because every failure here is silent. The backend spreads a
- * model-generated object into its response, so the field names are
- * `techIngredients1`, `interactionCause`, `patientAdvice` rather than anything
- * the screen calls them; read one wrongly and the section simply does not
- * render, which looks like the model omitting it rather than like a bug.
- *
- * The same class of mistake is why this feature appeared to do nothing for so
- * long: the service existed and was never called.
- */
 import { ApiClient, DEFAULT_TIMEOUT_MS } from '../src/data/apiClient';
 import { RemoteMedicineCheck } from '../src/data/remoteServices';
 import { COLLISION_NOTICE, REMOTE_NOTICE } from '../src/domain/remote';
 
-/** Shaped exactly like the backend's res.json for a real pair. */
 const WIRE = {
   compatibilityVerdict: 'Caution advised',
   riskLevel: 'Medium',
@@ -74,11 +61,7 @@ describe('collision check mapping', () => {
     expect(d.metabolicPathway).toContain('CYP2E1');
     expect(d.safeAlternatives).toHaveLength(2);
     expect(d.warnings).toHaveLength(2);
-    /*
-     * Parsed but deliberately not rendered - see CollisionScreen. The server
-     * sets it to exactly this string when the pair is in its own
-     * contraindication map, which is provenance rather than a finding.
-     */
+
     expect(d.conflictFlags).toEqual(['Direct Database Match']);
   });
 
@@ -88,17 +71,11 @@ describe('collision check mapping', () => {
     expect(d.agentA?.active).toBe('Paracetamol 500 mg');
     expect(d.agentA?.binders).toContain('povidone');
     expect(d.agentB?.active).toBe('Paracetamol 650 mg');
-    // Missing sub-fields are empty, not undefined - the card skips them.
+
     expect(d.agentB?.additives).toBe('');
   });
 
   it('caps the advice at four sentences and the reasoning at three', async () => {
-    /*
-     * Different limits on purpose. Every sentence of the advice is an
-     * instruction and it is why the screen was opened; the reasoning is
-     * context, and the server asks the model for an "exhaustive deep-dive"
-     * of it.
-     */
     const d = (await run(WIRE)).data!;
     const sentences = (s: string) => (s.match(/[.!?](\s|$)/g) ?? []).length;
 
@@ -106,18 +83,12 @@ describe('collision check mapping', () => {
     expect(sentences(d.interactionCause)).toBe(3);
     expect(sentences(d.explanation)).toBe(3);
 
-    // Whole sentences, never a fragment.
     for (const block of [d.interactionCause, d.explanation, d.patientAdvice]) {
       expect(block.trim()).toMatch(/[.!?]$/);
     }
   });
 
   it('survives a response with the prose fields missing', async () => {
-    /*
-     * The backend's own parse-failure fallback returns a shaped object with
-     * most of this absent. It must render as empty sections rather than
-     * throwing or printing "undefined".
-     */
     const d = (await run({ compatibilityVerdict: 'Unknown', riskLevel: 'Low' })).data!;
 
     expect(d.interactionCause).toBe('');
@@ -128,8 +99,6 @@ describe('collision check mapping', () => {
   });
 
   it('treats a verdict-less response as a failure, not a blank result', async () => {
-    // A blank panel reading as "no interaction found" is the web app failure
-    // this whole feature was written against.
     const out = await run({ riskLevel: 'Low', explanation: 'Something.' });
 
     expect(out.status).not.toBe('OK');
@@ -140,13 +109,6 @@ describe('collision check mapping', () => {
 
 describe('what a failed collision check says', () => {
   it('never claims anything was checked locally', async () => {
-    /*
-     * The screen used to fall back to a bundled table and announce "Checked on
-     * this device" over a message ending "your on-device result above is
-     * complete". Neither was true of a check the person had asked the model
-     * for, and telling someone their medicines had been checked when they had
-     * not is the one thing a failure message here must not do.
-     */
     const out = await run({ riskLevel: 'Low' });
 
     expect(out.notice).toBeTruthy();

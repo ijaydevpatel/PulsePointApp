@@ -1,29 +1,8 @@
-/**
- * Liquid glass is gone, and stays gone.
- *
- * ── Why it went ──────────────────────────────────────────────────────────────
- *
- * Each glass surface was a live Android blur sampling the view hierarchy
- * behind it every frame, plus an SVG carrying a gradient sheen and a
- * circle-pattern grain, rendered twice because it had to measure itself
- * before it could draw. Thirty-three of them on the Symptoms tab made the
- * screen stutter and, because the navigation pill animates on the JS driver,
- * made the bar stutter with it.
- *
- * It was reduced to a budget first. That kept the cost down without settling
- * the question, and the answer turned out to be simpler: the app is
- * minimalist, so the surface is a plain card with a hairline border and a
- * shadow. Nothing to measure, nothing to sample, nothing to starve.
- *
- * This file is the record of that decision. Deleting the component is not
- * enough on its own - someone can always write another one.
- */
 import { readFileSync, readdirSync, existsSync } from 'fs';
 import { join } from 'path';
 
 const UI = join(__dirname, '..', 'src', 'ui');
 
-/** Every .tsx under src/ui, at any depth. */
 function sources(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
     const full = join(dir, e.name);
@@ -35,7 +14,6 @@ function sources(dir: string): string[] {
 const files = sources(UI);
 const read = (f: string) => readFileSync(f, 'utf8');
 
-/** Comments are history worth keeping; code is not. */
 const stripComments = (s: string) =>
   s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
@@ -62,11 +40,6 @@ describe('no liquid glass', () => {
   );
 
   it('does not reach for expo-blur again', () => {
-    /*
-     * The blur itself, not just the wrapper around it. expo-blur is still a
-     * dependency and nothing stops a new screen importing it directly, which
-     * would bring the cost back without bringing the component back.
-     */
     for (const f of files) {
       expect(stripComments(read(f))).not.toContain('expo-blur');
     }

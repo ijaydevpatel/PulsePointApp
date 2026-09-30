@@ -1,10 +1,3 @@
-/**
- * The auth visual system.
- *
- * Login and Sign Up are the same screen with different content, and that is
- * enforced here rather than by discipline: both call the same components, so
- * there is no second implementation of the pill button to drift out of sync.
- */
 import React, { useEffect, useRef } from 'react';
 import {
   ActivityIndicator, Animated, Pressable, StyleSheet, Text,
@@ -16,22 +9,6 @@ import { BrandMark } from './BrandMark';
 import { C, HERO_LEADING, LIFT, T, gaps, heroSize } from './authTheme';
 import { useReveal } from '../useReveal';
 
-/* ──────────────────────────────  ENTRANCE  ─────────────────────────────── */
-
-/**
- * Fade and a short rise. 320ms, no spring, no scale - the brief asks for calm,
- * and anything that overshoots reads as playful.
- *
- * Honours reduce-motion: the animation is skipped entirely rather than merely
- * shortened, because a translate is exactly the kind of motion that triggers
- * vestibular symptoms.
- *
- * Driven by useReveal, because this is native-driven and so had the same
- * defect as Enter and TabTransition: the native side never writes the final
- * value back to JavaScript, so a re-render re-applies the initial 0 and the
- * content vanishes. It had not been reported here yet, but these screens
- * carry the text inputs, and opening the keyboard re-renders them.
- */
 export function Rise({
   children, delay = 0, style,
 }: { children: React.ReactNode; delay?: number; style?: StyleProp<ViewStyle> }) {
@@ -39,8 +16,6 @@ export function Rise({
   const started = useRef(false);
 
   useEffect(() => {
-    // Once per mount. Re-running on a re-render would restart the entrance
-    // partway through someone reading it.
     if (started.current) return;
     started.current = true;
 
@@ -53,7 +28,6 @@ export function Rise({
     return () => { cancelled = true; };
   }, [play, settle, delay]);
 
-  // Literal style once the entrance is over - see Enter and useReveal.
   return (
     <Animated.View
       style={[
@@ -68,21 +42,6 @@ export function Rise({
   );
 }
 
-/* ───────────────────────────────  BRAND  ──────────────────────────────── */
-
-/**
- * The brand lockup: the real mark plus the name.
- *
- * Sized up from the previous 17/17. The name is the app's identity and was
- * reading as a caption - smaller than the supporting copy further down the
- * screen - so it now sits clearly above that, while still well below the hero.
- * The order that matters is hero > wordmark > supporting copy, and only the
- * middle term was wrong.
- *
- * Explicitly transparent. The row had no background of its own, but saying so
- * means no ancestor's surface colour can leak in behind the mark and give it a
- * plate it was never meant to have.
- */
 export function Wordmark({ size = 26, large = false }: { size?: number; large?: boolean }) {
   const iconSize = large ? 52 : size;
   return (
@@ -98,19 +57,10 @@ export function Wordmark({ size = 26, large = false }: { size?: number; large?: 
   );
 }
 
-/* ───────────────────────────────  HERO  ───────────────────────────────── */
-
-/**
- * The editorial headline. Lines are passed in as an array because the breaks
- * are part of the design - letting the text wrap on its own would put the
- * break wherever the device's width happened to fall.
- */
 export function Hero({ lines }: { lines: readonly string[] }) {
   const { width, height } = useWindowDimensions();
   const g = gaps(height, width);
 
-  // The longest line decides the size, so none of them soft-wrap and the
-  // written breaks are the only breaks.
   const longest = lines.reduce((n, l) => Math.max(n, l.length), 0);
   const size = heroSize(width, longest, g.edge);
 
@@ -121,24 +71,14 @@ export function Hero({ lines }: { lines: readonly string[] }) {
         {
           fontSize: size,
           lineHeight: Math.round(size * HERO_LEADING),
-          /*
-           * Android measures a Text block by its line boxes, not by its
-           * glyphs, so the last line's descender is cropped by the view
-           * bounds however correct the leading is. Playfair's tail drops
-           * about 0.21em below the baseline and the line box only accounts
-           * for part of that, so the slack has to clear the remainder - 0.1
-           * did not, and the 'y' in "ready" was still losing its tail.
-           */
+
           paddingBottom: Math.ceil(size * 0.55),
         },
       ]}
       accessibilityRole="header"
-      // One line per entry, enforced. Without this a long line would still
-      // wrap on a narrow device and quietly add a row.
+
       numberOfLines={lines.length}
-      // Playfair's ascenders and descenders clip when the system font scale is
-      // pushed past ~1.3 at this size, and the break pattern stops making
-      // sense. Supporting copy still scales; only the display type is pinned.
+
       allowFontScaling={false}
     >
       {lines.join('\n')}
@@ -146,17 +86,6 @@ export function Hero({ lines }: { lines: readonly string[] }) {
   );
 }
 
-/* ────────────────────────────  PILL BUTTON  ───────────────────────────── */
-
-/**
- * One button component for every auth control, so the Google pill, the email
- * pill, the submit button and the onboarding CTA cannot end up with different
- * heights or radii.
- *
- * Press feedback is a 0.985 scale and a small opacity drop rather than a
- * ripple: a Material ripple inside a white pill on a white shape is the single
- * most obvious tell that this is a stock Android form.
- */
 export function PillButton({
   label, icon, onPress, busy = false, disabled = false, uppercase = false,
   accessibilityHint, widthRatio = 0.88, style,
@@ -171,8 +100,6 @@ export function PillButton({
   widthRatio?: number;
   style?: StyleProp<ViewStyle>;
 }) {
-  // Native-driven, so through useReveal - see that file. Left bare, a render
-  // landing after a press left the button permanently at 98.5%.
   const press = useReveal(1, 1, { native: true });
   const scale = press.value;
   const to = (v: number) =>
@@ -200,8 +127,7 @@ export function PillButton({
         ]}
       >
         {busy ? (
-          /* The loading state stays inside the button - the screen never
-             blanks behind a full-page spinner. */
+
           <ActivityIndicator color={C.ink} size="small" />
         ) : (
           <>
@@ -215,8 +141,6 @@ export function PillButton({
     </Animated.View>
   );
 }
-
-/* ──────────────────────────  ACCOUNT SWITCHER  ────────────────────────── */
 
 export function AuthSwitcher({
   prompt, action, onPress,
@@ -240,13 +164,6 @@ export function AuthSwitcher({
   );
 }
 
-/* ─────────────────────────────  TEXT FIELD  ───────────────────────────── */
-
-/**
- * White, rounded, minimal. The label sits above the field as a real label
- * rather than as a floating placeholder, so it is still readable once the
- * field has content - and so screen readers get a stable name.
- */
 export function AuthField({
   label, value, onChangeText, error, secure, onToggleSecure, secureVisible, ...rest
 }: {
@@ -301,12 +218,6 @@ export function AuthField({
   );
 }
 
-/* ───────────────────────────────  ERROR  ──────────────────────────────── */
-
-/**
- * Announced politely rather than assertively: an error that interrupts what
- * the screen reader is already saying loses the field name the person needs.
- */
 export function AuthError({ text, compact = false }: { text: string; compact?: boolean }) {
   return (
     <View
@@ -321,14 +232,10 @@ export function AuthError({ text, compact = false }: { text: string; compact?: b
   );
 }
 
-/* ────────────────────────────────  GOOGLE  ────────────────────────────── */
-
-/** The project's existing Google mark, at button scale. */
 export function GoogleMark() {
   return <Icon name="google" size={20} />;
 }
 
-/** Minimal envelope. Stroked to match the rest of the icon set. */
 export function EmailMark() {
   return <Icon name="message" size={19} color={C.ink} />;
 }

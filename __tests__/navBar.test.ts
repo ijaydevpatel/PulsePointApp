@@ -1,18 +1,8 @@
-/**
- * The navigation bar's two hard constraints.
- *
- * Both are arithmetic rather than appearance, which is exactly why they belong
- * in a test: the bar looks fine on the device it was built against right up
- * until a sixth tab is added, at which point the targets shrink silently and
- * nothing on screen says so.
- */
 import {
   BAR_PAD, BAR_SIDE_MARGIN, DEFAULT_TAB, MIN_BAR_WIDTH, SELECTED_UNITS,
   TABS, TabKey, UNITS, pillSlot, pillContentWidth, labelWidth,
 } from '../src/ui/nav/routes';
 import { TOUCH } from '../src/ui/theme';
-
-/* ─────────────────────────────── contrast ───────────────────────────────── */
 
 function channel(c: number): number {
   const s = c / 255;
@@ -31,9 +21,6 @@ function ratio(a: string, b: string): number {
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 }
 
-// Mirrors the constants in TabBar. Kept local because they are deliberately
-// private to that file - the bar is fixed light-on-dark in both schemes and
-// must not be themeable.
 const BAR = '#1A1A1A';
 const PILL = '#FFFFFF';
 const ON_PILL = '#0A0A0A';
@@ -47,8 +34,6 @@ describe('the navigation graph', () => {
   });
 
   it('opens on Home', () => {
-    // Home summarises what the phone already knows, so the first screen
-    // answers "where do I stand" before asking for a new task.
     expect(DEFAULT_TAB).toBe('home');
     expect(TABS[0]!.key).toBe('home');
   });
@@ -61,7 +46,6 @@ describe('the navigation graph', () => {
 
 describe('the bar stays readable', () => {
   it('shows unselected glyphs well past the 3:1 floor for controls', () => {
-    // WCAG 1.4.11. A tab you cannot pick out is a tab you cannot reach.
     expect(ratio(OFF_PILL, BAR)).toBeGreaterThanOrEqual(3);
   });
 
@@ -74,19 +58,12 @@ describe('the bar stays readable', () => {
   });
 });
 
-/* ───────────────────────────── touch targets ────────────────────────────── */
-
 describe('every tab stays tappable', () => {
   it('derives its width floor from the real tab count', () => {
-    // If TABS grows, UNITS grows with it and MIN_BAR_WIDTH rises - the
-    // assertion below then fails on a 320dp phone rather than the targets
-    // quietly dropping under the floor.
     expect(UNITS).toBeCloseTo((TABS.length - 1) + SELECTED_UNITS, 5);
   });
 
   it('clears 44dp on the narrowest Android phone in circulation', () => {
-    // 320dp. The bar sheds its side margins before it sheds target size, so
-    // the check uses the reduced margin it falls back to.
     const width = 320;
     const margin = width < MIN_BAR_WIDTH ? 4 : BAR_SIDE_MARGIN;
     const available = width - margin * 2 - BAR_PAD * 2;
@@ -94,24 +71,12 @@ describe('every tab stays tappable', () => {
   });
 
   it('would breach the floor with a sixth tab', () => {
-    // States the reason the bar stops at five, rather than leaving it as a
-    // comment someone can talk themselves out of later.
     const sixUnits = (6 - 1) + SELECTED_UNITS;
     const available = 320 - 2 * BAR_SIDE_MARGIN - 2 * BAR_PAD;
     expect(available / sixUnits).toBeLessThan(TOUCH);
   });
 
   it('holds every label whole, on the narrowest phone', () => {
-    /*
-     * "Symptoms" was rendering as "Sympto...". The pill was wide enough to
-     * look right and too narrow to hold its own label.
-     *
-     * The version of this test that let that through asked for 40dp of label
-     * room while its own comment said "Medicines needs roughly 62" - it
-     * asserted less than it claimed, so it passed on exactly the labels it
-     * existed to catch. It now measures each real label against the same
-     * furniture constants the pill is drawn from, so the two cannot drift.
-     */
     const width = 320;
     const margin = width < MIN_BAR_WIDTH ? 4 : BAR_SIDE_MARGIN;
     const available = width - margin * 2 - BAR_PAD * 2;
@@ -126,19 +91,6 @@ describe('every tab stays tappable', () => {
   });
 
   it('leaves the longest label breathing room, not just a fit', () => {
-    /*
-     * Four points, and the number is a trade rather than a preference.
-     *
-     * The pill fills its slot, so its width is a share of the row: widening
-     * it for comfort at 320dp widens it everywhere, and at 400dp it becomes a
-     * shape visibly larger than its contents. Drawing it narrower than the
-     * slot instead was tried and reverted - it left bare bar showing inside
-     * the first and last tabs, where the slot runs to the capsule's edge.
-     *
-     * So this asks for enough that nothing looks pinched on the narrowest
-     * phone, and no more. The longest label is what sets the floor; a shorter
-     * one would let the whole pill come down.
-     */
     const width = 320;
     const margin = width < MIN_BAR_WIDTH ? 4 : BAR_SIDE_MARGIN;
     const available = width - margin * 2 - BAR_PAD * 2;
@@ -149,9 +101,6 @@ describe('every tab stays tappable', () => {
   });
 
   it('does not buy that room by starving the other tabs', () => {
-    // The selected pill and the touch floor pull in opposite directions -
-    // widening one narrows the other four. Both are asserted, so neither can
-    // be fixed at the other's expense without this failing.
     const available = 320 - 4 * 2 - BAR_PAD * 2;
     expect(available / UNITS).toBeGreaterThanOrEqual(TOUCH);
   });
@@ -164,13 +113,6 @@ describe('every tab stays tappable', () => {
   });
 });
 
-/* ───────────────────────── advice step parsing ──────────────────────────── */
-
-/**
- * The synthesis prompt asks for a preamble then numbered steps on their own
- * lines. The screen renders the steps as a list, so the split has to survive
- * whatever the model actually emits - which is not always what was asked for.
- */
 function splitAdvice(advice: string): { preamble: string; steps: string[] } {
   const lines = advice.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const steps: string[] = [];
@@ -203,14 +145,11 @@ describe('next-step parsing', () => {
   });
 
   it('joins a wrapped line onto the step it belongs to', () => {
-    // Models break long steps across lines despite the prompt. A continuation
-    // must not become a step of its own with no number.
     const { steps } = splitAdvice('1. Book a GP appointment\nwithin the next seven days.');
     expect(steps).toEqual(['Book a GP appointment within the next seven days.']);
   });
 
   it('keeps everything when the model ignores the format', () => {
-    // No numbering at all: nothing may be dropped on the floor.
     const advice = 'Take this report to your GP. They will interpret it properly.';
     const { preamble, steps } = splitAdvice(advice);
     expect(steps).toEqual([]);
@@ -223,17 +162,6 @@ describe('next-step parsing', () => {
 });
 
 describe('the sliding pill', () => {
-  /*
-   * The pill is one view that moves between slots rather than a background
-   * that appears on whichever tab is selected - the eye reads the latter as
-   * two pills, and loses the one it was following.
-   *
-   * Its geometry is arithmetic rather than measurement, which is the only
-   * reason this can be tested at all. These assertions are what stop it
-   * drifting: nothing about the pill is visible in a unit test, so a wrong
-   * slot would otherwise only show up as a pill sitting off-centre on a
-   * device.
-   */
   const WIDTH = 360;
 
   it('fills exactly the selected tab on both ends of the row', () => {
@@ -241,7 +169,7 @@ describe('the sliding pill', () => {
     expect(first.left).toBeCloseTo(BAR_PAD, 5);
 
     const last = pillSlot(WIDTH, TABS.length - 1);
-    // The right edge lands on the far padding, so the pill never overhangs.
+
     expect(last.left + last.width).toBeCloseTo(WIDTH - BAR_PAD, 5);
   });
 
@@ -266,8 +194,6 @@ describe('the sliding pill', () => {
   });
 
   it('reports nothing to draw before the bar has been laid out', () => {
-    // Zero is "not ready", not a position: drawing at it would flash a pill
-    // in the corner on the first frame.
     expect(pillSlot(0, 0)).toEqual({ left: 0, width: 0 });
     expect(pillSlot(BAR_PAD * 2, 2)).toEqual({ left: 0, width: 0 });
   });

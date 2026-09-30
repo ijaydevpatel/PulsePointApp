@@ -1,15 +1,3 @@
-/**
- * Confidence has to mean something.
- *
- * It used to be `symptoms.length >= 3 ? 0.62 : 0.45`. Every one- or
- * two-symptom episode read 45% no matter what was reported, which is not a
- * confidence - it is a constant wearing one, and a figure that looks like
- * information while carrying none is worse than no figure.
- *
- * These tests are mostly about variation and ordering rather than exact
- * numbers: the weights are a judgement call and may be retuned, but the
- * relationships must hold or the figure is decorative again.
- */
 import { RuleClassifier } from '../src/data/ruleClassifier';
 import { AssessSymptomsUseCase } from '../src/domain/assessSymptoms';
 import { SymptomEpisode, Symptom } from '../src/domain/entities';
@@ -32,7 +20,6 @@ const confidenceOf = async (symptoms: Symptom[], over: Partial<SymptomEpisode> =
 
 describe('rule classifier confidence', () => {
   it('is not the same number for every small episode', async () => {
-    // The actual complaint: 45% for everything.
     const values = await Promise.all([
       confidenceOf([sym('runny_nose', 2)]),
       confidenceOf([sym('chest_pain', 9)]),
@@ -62,30 +49,14 @@ describe('rule classifier confidence', () => {
   });
 
   it('is lower for a symptom the table does not know', async () => {
-    /*
-     * Compared against `headache`, which carries the same weight as the
-     * unknown code is scored on (DEFAULT_WEIGHT, 3).
-     *
-     * The first version of this test used `fever` and failed for a reason
-     * worth keeping: swapping a weight-5 symptom for a weight-3 one changes
-     * the severity score, which changes how close the result sits to a band
-     * boundary, and that effect is larger than the one being measured. The
-     * two episodes have to score identically for this to isolate anything.
-     */
     const known = await classifier.classify(episode([sym('cough', 4), sym('headache', 4)]));
     const unknown = await classifier.classify(episode([sym('cough', 4), sym('typed_freehand', 4)]));
 
-    expect(unknown.severity).toBe(known.severity);   // the control
+    expect(unknown.severity).toBe(known.severity);
     expect(unknown.confidence).toBeLessThan(known.confidence);
   });
 
   it('drops near a band boundary', async () => {
-    /*
-     * Built by search rather than by hand: the point is that two episodes
-     * with similar evidence but different distances to a threshold get
-     * different confidence, and hand-picked severities go stale when the
-     * weights are retuned.
-     */
     const samples = await Promise.all(
       [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(async (sev) => {
         const r = await classifier.classify(episode([sym('fever', sev), sym('cough', sev)]));
@@ -99,7 +70,6 @@ describe('rule classifier confidence', () => {
     const near = samples.filter((s) => s.distance <= 2);
     const far = samples.filter((s) => s.distance >= 10);
 
-    // The sweep has to actually contain both cases, or this asserts nothing.
     expect(near.length).toBeGreaterThan(0);
     expect(far.length).toBeGreaterThan(0);
     expect(Math.max(...near.map((s) => s.confidence)))
@@ -117,9 +87,8 @@ describe('rule classifier confidence', () => {
     ]);
 
     for (const c of sweep) {
-      // Never zero: the engine is deterministic and its reasoning is visible.
       expect(c).toBeGreaterThan(0.2);
-      // Never near-certain: it is 18 weights and a threshold table.
+
       expect(c).toBeLessThanOrEqual(0.85);
     }
   });
@@ -140,18 +109,13 @@ describe('confidence when a red flag decides the band', () => {
   it('does not report 45% next to "call 111"', async () => {
     const useCase = new AssessSymptomsUseCase(classifier, store);
 
-    // The episode from the screenshot: chest pain with breathlessness.
     const result = await useCase.execute(episode([
       sym('chest_pain', 8, 'Chest pain'),
       sym('breathlessness', 7, 'Breathlessness'),
     ]));
 
     expect(result.band).toBe('EMERGENCY');
-    /*
-     * The rule either matched what was reported or it did not; there is no
-     * estimate in it. A low number here reads as "we are not sure you should
-     * call", which is not what the screen means.
-     */
+
     expect(result.confidence).toBeGreaterThanOrEqual(0.9);
   });
 

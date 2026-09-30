@@ -1,23 +1,10 @@
-/**
- * The Map tab's data.
- *
- * It shipped with four invented Auckland facilities behind a "Phase 6" notice.
- * On a screen whose entire job is to say where to go, sample data is worse
- * than an empty screen - indistinguishable from a working feature until
- * someone drives to a clinic that does not exist.
- *
- * These cover the parts that are decisions rather than transport: what counts
- * as which kind of place, what may be claimed about opening hours, and the
- * order the list comes back in. The map canvas is not tested here; it is a
- * native view, and none of the reasoning lives in it.
- */
 import {
   classify, isUrgent, isOpen24h, haversineKm, byDistance, matches,
   Facility, KIND_LABEL,
 } from '../src/domain/facilities';
 import { toFacility, readFacilities, OverpassFacilities } from '../src/data/overpassFacilities';
 
-const AT = { lat: -36.8485, lon: 174.7633 };   // Auckland, as it happens
+const AT = { lat: -36.8485, lon: 174.7633 };
 
 const node = (id: number, tags: Record<string, string>, dLat = 0, dLon = 0) => ({
   type: 'node', id, lat: AT.lat + dLat, lon: AT.lon + dLon, tags,
@@ -34,11 +21,6 @@ describe('what counts as which kind of place', () => {
   });
 
   it('finds the categories that are tagged as shops', () => {
-    /*
-     * The reason the Overpass query is as long as it is. OSM files opticians
-     * and chemists under `shop`, so asking only for `amenity` and `healthcare`
-     * loses two whole categories without any sign that it has.
-     */
     expect(classify({ shop: 'optician' })).toBe('EYE_CARE');
     expect(classify({ shop: 'chemist' })).toBe('PHARMACY');
     expect(classify({ shop: 'herbalist' })).toBe('ALTERNATIVE');
@@ -46,20 +28,12 @@ describe('what counts as which kind of place', () => {
   });
 
   it('prefers the more consequential reading when tags overlap', () => {
-    // Urgent care is usually also tagged as a clinic, and a hospital with an
-    // emergency department is still a hospital. Show the one that matters.
     expect(classify({ amenity: 'clinic', healthcare: 'urgent_care' })).toBe('URGENT_CARE');
     expect(classify({ amenity: 'hospital', emergency: 'yes' })).toBe('URGENT_CARE');
     expect(classify({ amenity: 'hospital' })).toBe('HOSPITAL');
   });
 
   it('reads the categories the wider query now returns', () => {
-    /*
-     * The query was widened to `nwr["healthcare"]` with no value filter, plus
-     * office and shop keys, so values that used to be unreachable now arrive.
-     * Left unclassified they would all land in OTHER, which is a grey pin and
-     * the label "Health service" - true, and useless.
-     */
     expect(classify({ healthcare: 'physiotherapist' })).toBe('THERAPY');
     expect(classify({ healthcare: 'psychotherapist' })).toBe('THERAPY');
     expect(classify({ healthcare: 'rehabilitation' })).toBe('THERAPY');
@@ -74,7 +48,6 @@ describe('what counts as which kind of place', () => {
     expect(classify({ healthcare: 'mri' })).toBe('LABORATORY');
     expect(classify({ healthcare: 'scanning' })).toBe('LABORATORY');
 
-    // A GP practice is frequently tagged as an office and nothing else.
     expect(classify({ office: 'physician' })).toBe('CLINIC');
     expect(classify({ healthcare: 'yes' })).toBe('CLINIC');
     expect(classify({ healthcare: 'midwife' })).toBe('CLINIC');
@@ -104,12 +77,6 @@ describe('urgent care', () => {
     expect(isUrgent({ name: 'Accident and Emergency' })).toBe(true);
     expect(isUrgent({ name: 'Auckland A&E' })).toBe(true);
 
-    /*
-     * The reason the name check is a phrase match rather than a word one.
-     * "Emergency" appears in the names of plenty of places that are not
-     * emergency departments, and sending someone to a dental supplies shop at
-     * 3am is the failure this guards against.
-     */
     expect(isUrgent({ name: 'Emergency Dental Supplies' })).toBe(false);
     expect(isUrgent({ name: 'Urgently Good Pharmacy' })).toBe(false);
     expect(isUrgent({ name: 'Care Chemist' })).toBe(false);
@@ -123,11 +90,6 @@ describe('opening hours', () => {
   });
 
   it('says nothing about anything else', () => {
-    /*
-     * opening_hours is a small language with holidays and seasonal rules. A
-     * naive parse would be wrong at exactly the hours this screen gets opened,
-     * so anything that is not the round-the-clock value is simply not a claim.
-     */
     expect(isOpen24h({ opening_hours: 'Mo-Fr 08:00-18:00' })).toBe(false);
     expect(isOpen24h({ opening_hours: 'Mo-Su 00:00-24:00' })).toBe(false);
     expect(isOpen24h({})).toBe(false);
@@ -136,7 +98,6 @@ describe('opening hours', () => {
 
 describe('distance', () => {
   it('measures a known separation', () => {
-    // Auckland to Wellington is about 493km great-circle.
     expect(haversineKm(-36.8485, 174.7633, -41.2866, 174.7756)).toBeCloseTo(493, -1);
   });
 
@@ -157,8 +118,6 @@ describe('distance', () => {
 
 describe('reading an Overpass response', () => {
   it('places a way from its centre, not its nodes', () => {
-    // Hospitals are mapped as building outlines, so they arrive as ways with
-    // a computed centre rather than a lat/lon of their own.
     const way = { type: 'way', id: 7, center: { lat: AT.lat, lon: AT.lon }, tags: { amenity: 'hospital', name: 'City Hospital' } };
     const f = toFacility(way, AT.lat, AT.lon)!;
 
@@ -168,17 +127,10 @@ describe('reading an Overpass response', () => {
   });
 
   it('drops only what it cannot place', () => {
-    // A position is the one thing that cannot be substituted: an element with
-    // no coordinates cannot be put on a map or measured a distance to.
     expect(toFacility({ type: 'way', id: 2, tags: { name: 'No position' } }, AT.lat, AT.lon)).toBeNull();
   });
 
   it('keeps an unnamed place under its category', () => {
-    /*
-     * These used to be dropped. That removed real places from a map of real
-     * places - a pharmacy nobody has typed a name for is still a pharmacy,
-     * still open, and still where it is.
-     */
     const f = toFacility(node(1, { amenity: 'pharmacy' }), AT.lat, AT.lon)!;
 
     expect(f).not.toBeNull();
@@ -200,12 +152,6 @@ describe('reading an Overpass response', () => {
   });
 
   it('does not merge two different unnamed places of the same kind', () => {
-    /*
-     * The de-duplication key is name plus rounded position, and every unnamed
-     * pharmacy shares the same stand-in name. Keyed that way, two real
-     * pharmacies a hundred metres apart would collapse into one - inventing a
-     * duplicate rather than finding one.
-     */
     const list = readFacilities({
       elements: [
         node(1, { amenity: 'pharmacy' }, 0.0002),
@@ -217,11 +163,6 @@ describe('reading an Overpass response', () => {
   });
 
   it('collapses the same place mapped twice', () => {
-    /*
-     * A hospital is frequently mapped as both an outline and a point inside
-     * it, and both come back with different ids - which is why the key is the
-     * name and position rather than the id.
-     */
     const list = readFacilities({
       elements: [
         node(1, { amenity: 'hospital', name: 'City Hospital' }),
@@ -270,22 +211,12 @@ describe('when Overpass will not answer', () => {
   });
 
   it('does not let one unreachable mirror decide how long the wait is', async () => {
-    /*
-     * This is why the Map tab worked on the emulator over laptop wifi and
-     * timed out on the handset. Asked one at a time, a mirror the device
-     * cannot reach costs the entire per-attempt budget before anything else
-     * is tried - and two of those used up the whole deadline.
-     *
-     * Hedged, the second mirror is started because the first is *slow*, not
-     * because it has failed, and the first good answer wins.
-     */
     jest.useFakeTimers();
 
     const calls: string[] = [];
     const fetchImpl = (async (url: string) => {
       calls.push(url);
-      // The first mirror never answers and never errors - the worst case,
-      // and the one a sequential walk handles worst.
+
       if (calls.length === 1) return new Promise(() => {});
       return ok({ elements: [node(1, { amenity: 'pharmacy', name: 'Unichem' })] });
     }) as any;
@@ -295,8 +226,6 @@ describe('when Overpass will not answer', () => {
     for (let i = 0; i < 20; i += 1) await Promise.resolve();
     expect(calls).toHaveLength(1);
 
-    // Past the hedge interval, a second mirror joins in rather than waiting
-    // out the first one's timeout.
     jest.advanceTimersByTime(7000);
     for (let i = 0; i < 20; i += 1) await Promise.resolve();
 
@@ -309,12 +238,6 @@ describe('when Overpass will not answer', () => {
   });
 
   it('says whether it actually got an answer', async () => {
-    /*
-     * The distinction the screen cannot recover from the other two fields.
-     * "Nowhere near here is mapped" and "nothing could be reached" are both
-     * an empty list with a notice, and only the first is a reason to throw
-     * away a list already on screen.
-     */
     const empty = await new OverpassFacilities((async () => ok({ elements: [] })) as any).near(AT);
     expect(empty.ok).toBe(true);
 
@@ -323,8 +246,6 @@ describe('when Overpass will not answer', () => {
   });
 
   it('keeps trying past the second mirror', async () => {
-    // Two mirrors is not much redundancy when both rate-limit per IP and go
-    // down for maintenance independently.
     const calls: string[] = [];
     const fetchImpl = (async (url: string) => {
       calls.push(url);
@@ -341,11 +262,6 @@ describe('when Overpass will not answer', () => {
   });
 
   it('tries the second mirror before giving up', async () => {
-    /*
-     * One mirror is not redundancy. The public instances rate-limit and go
-     * down independently, and an empty map is indistinguishable from a
-     * neighbourhood with no doctors in it.
-     */
     const calls: string[] = [];
     const fetchImpl = (async (url: string) => {
       calls.push(url);
@@ -362,13 +278,6 @@ describe('when Overpass will not answer', () => {
   });
 
   it('asks for enough server time to answer a city centre', async () => {
-    /*
-     * This is the bug the Map tab shipped with. The query carried
-     * `[out:json][timeout:20]`, and a dense city centre takes Overpass well
-     * over twenty seconds - so the *server* aborted, returned nothing, and the
-     * screen reported "did not respond in time" for a query the website
-     * answers fine. The website asks for 45 and gets an answer.
-     */
     let sent = '';
     const fetchImpl = (async (_url: string, init: any) => {
       sent = String(init.body);
@@ -394,8 +303,6 @@ describe('when Overpass will not answer', () => {
   });
 
   it('asks for the tags that carry health places', async () => {
-    // Each of these is a whole category that vanishes from the map if the
-    // query stops asking for it, with nothing on screen to say so.
     let sent = '';
     const fetchImpl = (async (_url: string, init: any) => {
       sent = decodeURIComponent(String(init.body).replace(/^data=/, ''));
@@ -407,8 +314,7 @@ describe('when Overpass will not answer', () => {
     for (const key of ['"amenity"', '"healthcare"', '"shop"', '"office"']) {
       expect(sent).toContain(key);
     }
-    // node, way and relation at once - a hospital is usually a building
-    // outline, not a point.
+
     expect(sent).toContain('nwr[');
     expect(sent).toContain('out center');
   });
@@ -422,8 +328,6 @@ describe('when Overpass will not answer', () => {
   });
 
   it('distinguishes "nothing here" from "nothing came back"', async () => {
-    // Both render as an empty list, so the notice is the only thing telling
-    // the reader which of the two they are looking at.
     const fetchImpl = (async () => ok({ elements: [] })) as any;
     const r = await new OverpassFacilities(fetchImpl).near(AT);
 
@@ -461,17 +365,6 @@ describe('the filter', () => {
   });
 
   it('searches the box the caller asks for', async () => {
-    /*
-     * The wide default asks Overpass for every healthcare-tagged thing in a
-     * box thirteen kilometres across. Cheap over a quiet suburb, expensive
-     * over a dense city centre - and when it is expensive the server hits its
-     * own limit and returns nothing, so the screen shows zero places in a
-     * neighbourhood that may have fifty.
-     *
-     * Area goes with the square of the radius, so a third of the radius is
-     * about a tenth of the work. The screen retries narrow rather than giving
-     * up, and this is what lets it.
-     */
     const answer = (body: unknown) => ({
       ok: true, status: 200,
       headers: { get: () => 'application/json' },

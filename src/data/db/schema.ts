@@ -1,11 +1,7 @@
-/**
- * Schema and migrations. user_version is checked on init so an upgrade never
- * silently drops data - Phases 3, 4 and 9 each add tables here.
- */
 export const SCHEMA_VERSION = 2;
 
 export const MIGRATIONS: readonly string[][] = [
-  // v0 -> v1
+
   [
     `CREATE TABLE IF NOT EXISTS episodes (
        id             TEXT PRIMARY KEY NOT NULL,
@@ -27,8 +23,6 @@ export const MIGRATIONS: readonly string[][] = [
        ON episodes (sync_status, captured_at ASC);`,
   ],
 
-  // v1 -> v2: the activity trace. Separate from episodes on purpose - see
-  // domain/activity.ts for why these are not one table.
   [
     `CREATE TABLE IF NOT EXISTS activity (
        id         TEXT PRIMARY KEY NOT NULL,

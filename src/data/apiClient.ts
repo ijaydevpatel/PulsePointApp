@@ -1,33 +1,8 @@
-/**
- * Transport for the PulsePoint backend. Mirrors frontend/src/lib/api.ts so the
- * app and the website speak to the same server the same way.
- *
- * ── Key handling (P3) ────────────────────────────────────────────────────────
- *
- * No provider key lives here. GROQ_API_KEY and GEMINI_API_KEY stay in the
- * server environment; the app carries only EXPO_PUBLIC_API_URL, which is a
- * public address, and a Clerk session token belonging to the signed-in user.
- *
- * ── The HTML-instead-of-JSON guard ───────────────────────────────────────────
- *
- * Copied deliberately from the web client. A 404 page, a CORS failure or a 502
- * returns HTML, and calling .json() on it throws "Unexpected token '<'" deep in
- * the parser where no caller can interpret it. Checking content-type first
- * turns that into a state the UI can render.
- */
 import { ENV } from '../config/env';
 
 export type TokenProvider = () => Promise<string | null>;
 
 export class ApiError extends Error {
-  /**
-   * @param body The parsed error payload, when the server sent one.
-   *
-   *   Kept because this backend puts useful things in it. The report route
-   *   answers a parse failure with `{ message, raw }`, where `raw` is the
-   *   model's actual reply - discarding the body threw away the only copy of
-   *   an answer that had already been generated and paid for.
-   */
   constructor(
     message: string,
     readonly status: number,
@@ -39,7 +14,7 @@ export class ApiError extends Error {
   }
 }
 
-export const DEFAULT_TIMEOUT_MS = 30000; // model calls are slow; the UI shows progress
+export const DEFAULT_TIMEOUT_MS = 30000;
 
 export class ApiClient {
   private tokenProvider: TokenProvider | null = null;
@@ -50,29 +25,10 @@ export class ApiClient {
     private readonly fetchImpl: typeof fetch = fetch,
   ) {}
 
-  /** Injected from the Clerk session at startup. */
   setTokenProvider(p: TokenProvider): void { this.tokenProvider = p; }
 
   get configured(): boolean { return this.baseUrl !== null; }
 
-  /**
-   * Multipart upload. Used only by the analyzer, whose backend route runs
-   * `multer` and reads a single field named `reportFile`.
-   *
-   * Content-Type is deliberately NOT set: React Native's fetch computes the
-   * multipart boundary itself, and setting the header by hand produces a body
-   * the server cannot split. The web client does the same thing for the same
-   * reason (it deletes the header when the body is FormData).
-   */
-  /**
-   * @param timeoutMs Override for uploads the server spends real time on.
-   *
-   *   The default thirty seconds covers the transfer, not what happens after
-   *   it. A report goes through two vision passes - extraction, then synthesis
-   *   - on a file the server also has to parse first, which does not finish in
-   *   thirty seconds. The client was aborting a job the server went on to
-   *   complete, and reporting it as a timeout.
-   */
   async upload<T>(
     endpoint: string,
     field: string,
@@ -112,11 +68,6 @@ export class ApiClient {
     }
   }
 
-  /**
-   * @param timeoutMs Override for calls that legitimately take longer than the
-   *   default. A forced model generation behind a cold dyno can run past 30s,
-   *   and nothing on screen is blocked waiting for it.
-   */
   async get<T>(endpoint: string, timeoutMs = this.timeoutMs): Promise<T> {
     if (!this.baseUrl) throw new ApiError('No API URL configured', 0);
     const token = this.tokenProvider ? await this.tokenProvider() : null;
@@ -147,18 +98,6 @@ export class ApiClient {
     }
   }
 
-  /**
-   * @param timeoutMs Override for generations that legitimately take longer
-   *   than the default.
-   *
-   *   Thirty seconds is right for a request that reads a database. It is not
-   *   right for one that waits on a 120B model to produce five ranked
-   *   conditions, three treatment lists and a written synopsis - that runs
-   *   past thirty seconds routinely, and the caller was being handed a
-   *   timeout for a request the server was still working on and would have
-   *   completed. The daily briefing hit the same wall and was given the same
-   *   treatment.
-   */
   async post<T>(endpoint: string, body: unknown, timeoutMs = this.timeoutMs): Promise<T> {
     if (!this.baseUrl) throw new ApiError('No API URL configured', 0);
 

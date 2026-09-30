@@ -1,14 +1,3 @@
-/**
- * The history of what was done in the app.
- *
- * Records only ever held symptom checks, because EpisodeStore is the only
- * thing that existed - so looking up a medicine interaction or searching for
- * a pharmacy left no trace, and the screen looked broken rather than narrow.
- *
- * These cover the parts that are decisions rather than plumbing: that a
- * symptom check appears once rather than twice, that a log failure cannot
- * break the feature it is logging, and that clearing means clearing.
- */
 jest.mock('expo-sqlite', () => ({ openDatabaseAsync: jest.fn() }));
 jest.mock('expo-secure-store', () => ({
   getItemAsync: jest.fn(async () => null),
@@ -49,11 +38,6 @@ describe('the activity log', () => {
   });
 
   it('carries the episode id for a symptom check', async () => {
-    /*
-     * This is what lets the merged history show one row per check rather than
-     * two - the trace row and the clinical record are joined on it, and the
-     * richer one wins.
-     */
     const store = new InMemoryEpisodeStore();
     await store.record(entry('SYMPTOM_CHECK', '2026-09-02T10:00:00.000Z', 'ep-1'));
 
@@ -71,14 +55,8 @@ describe('the activity log', () => {
 
 describe('a log that cannot be written', () => {
   it('does not throw, because it would break what it is logging', async () => {
-    /*
-     * record() is called from the middle of a user action - running a check,
-     * searching for care. If it can fail loudly then a full disk stops the
-     * medicine checker from working, which is a far worse outcome than a
-     * missing line in a history.
-     */
     const { SqliteEpisodeStore } = require('../src/data/sqliteStore');
-    const store = new SqliteEpisodeStore();   // never init()ed, so it has no db
+    const store = new SqliteEpisodeStore();
 
     await expect(store.record(entry('CARE_SEARCH', '2026-09-01T10:00:00.000Z')))
       .resolves.toBeUndefined();

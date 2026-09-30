@@ -1,14 +1,3 @@
-/**
- * FR5 + QR3 - encrypted local persistence.
- *
- * The key never leaves SecureStore, which is backed by the Android Keystore.
- * SQLCipher is applied via PRAGMA key before any other statement runs; if that
- * ordering is broken the database opens unencrypted, so it is done in init()
- * and nowhere else.
- *
- * All row mapping lives in db/mapping.ts and is unit-tested separately. This
- * file is deliberately thin: it is the part that cannot run without a device.
- */
 import * as SQLite from 'expo-sqlite';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
@@ -41,7 +30,7 @@ export class SqliteEpisodeStore implements EpisodeStore, ActivityLog {
     if (this.db) return;
     const key = await getOrCreateKey();
     const db = await SQLite.openDatabaseAsync(DB_NAME);
-    // Must be the first statement executed on the connection.
+
     await db.execAsync(`PRAGMA key = "x'${key}'";`);
     await db.execAsync('PRAGMA journal_mode = WAL;');
 
@@ -113,15 +102,6 @@ export class SqliteEpisodeStore implements EpisodeStore, ActivityLog {
     );
   }
 
-  /* ──────────────────────────── activity ─────────────────────────────── */
-
-  /**
-   * Never throws.
-   *
-   * This is a trace of use, not a clinical record. If writing it fails the
-   * person should still get their interaction check - a log that breaks the
-   * thing it is logging has negative value.
-   */
   async record(entry: Omit<ActivityEntry, 'id'>): Promise<void> {
     try {
       const id = `${entry.at}-${Math.random().toString(36).slice(2, 10)}`;
@@ -131,7 +111,6 @@ export class SqliteEpisodeStore implements EpisodeStore, ActivityLog {
         [id, entry.kind, entry.at, entry.title, entry.detail, entry.episodeId],
       );
     } catch {
-      /* a missing line in a history is not worth an error on screen */
     }
   }
 
@@ -158,6 +137,6 @@ export class SqliteEpisodeStore implements EpisodeStore, ActivityLog {
   async clearActivity(): Promise<void> {
     try {
       await this.require().runAsync('DELETE FROM activity');
-    } catch { /* nothing to clear is the same outcome */ }
+    } catch {  }
   }
 }

@@ -1,22 +1,3 @@
-/**
- * The medicine conflict checker: two agents in, one collision report out.
- *
- * ── Why this is two fields and not a list ────────────────────────────────────
- *
- * It used to build an arbitrary-length list and compare every pair against a
- * bundled table of 35 rules. That is a different feature. What this tab is for
- * is the question people arrive with - "can I take these two together" - and
- * the check behind it compares exactly two agents, so a list of five was an
- * interface promising something the engine could not do.
- *
- * ── What the bundled table is for now ────────────────────────────────────────
- *
- * The type-ahead, and nothing else. It is the difference between the model
- * reading "Dolo 650" and reading "dolo65", which is worth keeping. It no
- * longer produces any result of its own: the check is the model, and a second
- * verdict from a 35-rule table sitting beside it only raised the question of
- * which one the reader was supposed to believe.
- */
 import React, { useMemo, useState } from 'react';
 import { View, TextInput, ScrollView, StyleSheet } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -34,7 +15,6 @@ import {
 type Slot = 'a' | 'b';
 
 export function MedicinesScreen({ onRun, check, onCheck }: {
-  /** The two names, as the result screen should title them. */
   onRun: (pair: [string, string]) => void;
   check?: MedicineCheckService;
   onCheck?: (outcome: RemoteOutcome<MedicineCheck> | null | undefined) => void;
@@ -49,10 +29,6 @@ export function MedicinesScreen({ onRun, check, onCheck }: {
   const valueOf = (slot: Slot) => (slot === 'a' ? first : second);
   const setValue = (slot: Slot, v: string) => (slot === 'a' ? setFirst(v) : setSecond(v));
 
-  /*
-   * Suggestions only for the field being typed in, and only while it is
-   * focused. Two open lists at once on a phone would cover the button.
-   */
   const suggestions = useMemo(() => {
     if (!focused) return [];
     const draft = (focused === 'a' ? first : second).trim();
@@ -70,25 +46,17 @@ export function MedicinesScreen({ onRun, check, onCheck }: {
     if (!bothEntered) return;
     tap('medium');
 
-    /*
-     * Canonical names where the table knows them, what was typed where it does
-     * not. Resolving means "Dolo 650", "dolo650" and "DOLO-650" reach the
-     * model as one thing; falling back to the raw text means an unrecognised
-     * medicine is still checked rather than silently dropped, which is the
-     * failure mode this feature exists to prevent.
-     */
     const med1 = table.resolve(first)?.name ?? first.trim();
     const med2 = table.resolve(second)?.name ?? second.trim();
 
     onRun([med1, med2]);
 
     if (!onCheck) return;
-    // Cleared first, always, so a previous pair's verdict cannot sit on screen
-    // beside a new pair's names.
+
     onCheck(undefined);
     if (!check) return;
 
-    onCheck(null);   // in flight
+    onCheck(null);
     void check.check({ primaryMedicine: med1, secondaryMedicine: med2 }).then(onCheck);
   };
 
@@ -117,8 +85,6 @@ export function MedicinesScreen({ onRun, check, onCheck }: {
             autoCorrect={false}
             accessibilityLabel={label}
           />
-          {/* Quietly confirms the table recognised it. Absence is not an
-              error - an unknown name is still sent. */}
           {known ? <Icon name="check" size={16} color={P.ok} /> : null}
         </View>
       </>
@@ -126,9 +92,7 @@ export function MedicinesScreen({ onRun, check, onCheck }: {
   };
 
   return (
-    // Two text fields, both below the fold on a short phone. See KeyboardSafe:
-    // Android stopped resizing the window under edge-to-edge, so without this
-    // the second field is typed into blind.
+
     <KeyboardSafe extra={TAB_CLEARANCE}>
     <ScrollView
       contentContainerStyle={{ paddingBottom: TAB_CLEARANCE + S.xxl }}
@@ -141,12 +105,6 @@ export function MedicinesScreen({ onRun, check, onCheck }: {
       />
 
       <View style={{ paddingHorizontal: S.xl }}>
-        {/*
-          Deliberately not wrapped in Enter. This block re-renders on every
-          keystroke, and an entrance animation around a focused text input is
-          one more thing that can interfere with the field while someone is
-          typing in it - the same reason the symptom note box is left out.
-        */}
         <View>
           {field('a', 'First medicine', 'e.g. Paracetamol')}
           <View style={{ height: S.lg }} />

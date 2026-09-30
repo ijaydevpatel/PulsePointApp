@@ -1,15 +1,5 @@
-/**
- * The synopsis length cap.
- *
- * The server prompt has asked for four or five sentences, in two places, for
- * three rounds now, and the model keeps returning seven or eight. Length is a
- * property of the screen rather than of the prompt, so the app enforces it and
- * these tests hold the enforcement honest - particularly the part where it
- * must never emit a fragment.
- */
 import { limitSentences } from '../src/domain/sentences';
 
-/** The text that prompted this, copied from the result screen. Seven sentences. */
 const REAL_SYNOPSIS =
   'The diagnostic matrix shows that most chest discomfort in a young, lean male '
   + 'is usually linked to reflux, muscle strain, or anxiety, which are common and '
@@ -69,11 +59,6 @@ describe('limitSentences', () => {
   });
 
   it('returns unsplittable text whole rather than guessing', () => {
-    /*
-     * Showing too much beats showing an arbitrary slice: a block with no
-     * boundary the splitter recognises is more likely prose it does not
-     * understand than one enormous sentence.
-     */
     const blob = 'no terminator anywhere in this string at all';
     expect(limitSentences(blob, 2)).toBe(blob);
   });

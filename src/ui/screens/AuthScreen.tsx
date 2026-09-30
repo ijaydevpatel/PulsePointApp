@@ -1,35 +1,3 @@
-/**
- * PulsePoint authentication and onboarding.
- *
- * Seven states, one composition. The flow opens on welcome, which leads to
- * login; from there Google or email, or across to sign up. A completed
- * sign-in leaves this screen for the application.
- *
- *   welcome → login → { google | email } ─┐
- *                 └──→ signup → { … } ─────┴→ PulsePoint
- *
- * Every state draws the same background, the same wordmark, the same hero
- * treatment and the same pill buttons - Login and Sign Up are not two screens
- * that resemble each other, they are one screen with different content.
- *
- * ── What is deliberately absent ──────────────────────────────────────────────
- *
- * There is no Apple button, no Facebook, no phone number, no magic link. The
- * two ways in are Google and email/password, and nothing on these screens
- * suggests otherwise.
- *
- * There is also no imagery. An earlier revision put the beating-heart video on
- * the welcome screen; a medical illustration is the one thing guaranteed to
- * make a health app read as a clinic, and the empty space does more work.
- *
- * ── Architecture ─────────────────────────────────────────────────────────────
- *
- * The provider stays behind ClerkAuthGateway, which implements the domain's
- * AuthGateway port. Nothing in this file knows what Clerk is beyond the hooks
- * it has to call to build the gateway, and the screens themselves only ever
- * call signIn / signUp / verify / resendCode / current. Swapping the provider
- * would not touch this file's layout.
- */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable, Keyboard, BackHandler,
@@ -55,10 +23,6 @@ import {
   confirmError, emailError, humanAuthError, nameError, passwordError,
 } from '../auth/authErrors';
 
-/**
- * Dismisses the browser tab Clerk redirects back through. Must run at module
- * scope: by the time a component mounts, the redirect has already resolved.
- */
 WebBrowser.maybeCompleteAuthSession();
 
 type Mode =
@@ -67,16 +31,6 @@ type Mode =
   | 'verify' | 'reset'
   | 'welcome';
 
-/**
- * Where "back" goes from each state.
- *
- * One step up the flow rather than straight out, so someone who mistyped a
- * password lands on the provider choice instead of being dropped out of the
- * app. Both the hardware gesture and the on-screen chevron read this, which is
- * why it is one pure function rather than two switch statements.
- *
- * `welcome` returns null - it is the root, and the first thing anyone sees.
- */
 function backTarget(m: Mode): Mode | null {
   switch (m) {
     case 'login': return 'welcome';
@@ -90,7 +44,6 @@ function backTarget(m: Mode): Mode | null {
 }
 
 export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
-  /** Authentication finished - hand control to the main application. */
   onEnterApp: () => void;
   onDone: (s: Session) => void;
   initialMode?: Mode;
@@ -99,23 +52,13 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
   const insets = useSafeAreaInsets();
   const [mode, setMode] = useState<Mode>(initialMode);
 
-  /* ── provider ─────────────────────────────────────────────────────────── */
-
   const clerkAuth = useAuth();
   const clerkUser = useUser();
   const clerkSignIn = useSignIn();
   const clerkSignUp = useSignUp();
   const { startSSOFlow } = useSSO();
 
-  /*
-   * Rebuilt each render rather than memoised. Clerk recreates its hook objects
-   * on every render, so a gateway captured in a ref would hold stale handles
-   * and silently authenticate against a dead signIn resource. It is a thin
-   * adapter over four objects - constructing it is free.
-   */
   const gateway = new ClerkAuthGateway(clerkAuth, clerkUser, clerkSignIn, clerkSignUp);
-
-  /* ── form state ───────────────────────────────────────────────────────── */
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -124,11 +67,6 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
   const [code, setCode] = useState('');
   const [showPw, setShowPw] = useState(false);
 
-  /**
-   * Field errors appear on submit and on blur, never on keystroke - telling
-   * someone their email is invalid while they are still halfway through
-   * typing it is noise, and it trains people to ignore the message.
-   */
   const [fieldErr, setFieldErr] = useState<Record<string, string | null>>({});
   const [formErr, setFormErr] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -144,14 +82,12 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
     return () => clearInterval(t);
   }, [resendIn]);
 
-  /* Pre-warms the custom tab so the Google sheet does not flash white. */
   useEffect(() => {
     if (Platform.OS !== 'android') return;
     void WebBrowser.warmUpAsync();
     return () => { void WebBrowser.coolDownAsync(); };
   }, []);
 
-  /** Clears everything transient when the screen changes purpose. */
   const go = useCallback((m: Mode) => {
     setMode(m);
     setFieldErr({});
@@ -159,24 +95,11 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
     setNotice(null);
   }, []);
 
-  /*
-   * Once a session exists, this flow is finished.
-   *
-   * Welcome is the *first* screen, not a reward at the end, so a signed-in
-   * person has no business anywhere in here. This catches the paths that do
-   * not run through a submit handler - Clerk restoring a session mid-render,
-   * or setActive landing after the SSO sheet closes - and hands straight over
-   * to the application.
-   */
   const signedIn = clerkAuth?.isSignedIn === true;
   useEffect(() => {
     if (signedIn) onEnterApp();
   }, [signedIn, onEnterApp]);
 
-  /*
-   * Hardware back walks one step up the flow. Welcome is the root, so back
-   * there falls through to the system default and leaves the app.
-   */
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
       const up = backTarget(mode);
@@ -186,8 +109,6 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
     return () => sub.remove();
   }, [mode, go]);
 
-  /* ── Google ───────────────────────────────────────────────────────────── */
-
   const onGoogle = useCallback(async () => {
     if (submitting.current) return;
     submitting.current = true;
@@ -196,8 +117,6 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
       const redirectUrl = AuthSession.makeRedirectUri({ scheme: 'pulsepoint', path: 'sso-callback' });
       const { createdSessionId, setActive } = await startSSOFlow({ strategy: 'oauth_google', redirectUrl });
 
-      // No session id is the ordinary "closed the sheet" path. Reporting it as
-      // a failure would blame the person for changing their mind.
       if (!createdSessionId) return;
 
       if (setActive) await setActive({ session: createdSessionId });
@@ -209,8 +128,6 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
       submitting.current = false;
     }
   }, [startSSOFlow, onEnterApp]);
-
-  /* ── email submit ─────────────────────────────────────────────────────── */
 
   const onEmailLogin = useCallback(async () => {
     const errs = { email: emailError(email), pw: passwordError(pw) };
@@ -290,14 +207,6 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
     } finally { setBusy(null); }
   }, [resendIn, busy, gateway]);
 
-  /**
-   * Password reset.
-   *
-   * Always reports success, whether or not the address is registered. Saying
-   * "no account with that email" turns the reset form into a way to test
-   * whether a given person uses a health app, which is not information this
-   * app should hand to whoever is holding the phone.
-   */
   const onReset = useCallback(async () => {
     const e1 = emailError(email);
     setFieldErr({ email: e1 });
@@ -310,7 +219,6 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
     try {
       await gateway.requestPasswordReset(email.trim());
     } catch {
-      /* swallowed on purpose - see the note above */
     } finally {
       setNotice('If that email has an account, a reset link is on its way.');
       setBusy(null);
@@ -318,18 +226,9 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
     }
   }, [email, gateway]);
 
-  /* ── shell ────────────────────────────────────────────────────────────── */
-
   const back = backTarget(mode);
   const g = useMemo(() => gaps(height, width), [height, width]);
-  /*
-   * Welcome centres its content optically, so its padding has to be
-   * symmetrical - an asymmetric pad silently shifts the centre by half the
-   * difference, which is what made the group sit low with a void above it.
-   * Both insets are honoured by taking the larger of the two on each side.
-   *
-   * The other states read top-down and keep the tighter, natural padding.
-   */
+
   const scrollPad = useMemo(() => {
     if (mode === 'welcome') {
       const pad = Math.max(insets.top, insets.bottom) + 12;
@@ -342,11 +241,6 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
     <View style={{ flex: 1, backgroundColor: C.canvas }}>
       <AuthBackground variant={mode === 'welcome' ? 'welcome' : 'auth'} width={width} height={height} />
 
-      {/*
-        Was a KeyboardAvoidingView with behavior undefined on Android, which
-        left every field below the fold typed into blind once edge-to-edge
-        stopped the window resizing. See KeyboardSafe.
-      */}
       <KeyboardSafe>
         <ScrollView
           contentContainerStyle={[st.scroll, scrollPad]}
@@ -354,13 +248,6 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
-          {/*
-            The back control is absolutely positioned rather than laid out in
-            the column. In flow it added 44dp above the content, which shifted
-            every "centred" block half that distance down the screen - and on
-            welcome, where there is no back target at all, it was reserving
-            space for a control that does not exist.
-          */}
           {back ? (
             <Pressable
               onPress={() => go(back)}
@@ -406,26 +293,9 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
   );
 }
 
-/* ══════════════════════════════  WELCOME  ═══════════════════════════════ */
-
-/**
- * Onboarding's last step. One heading, one button, nothing else - a second
- * option here would turn a full stop into a decision.
- */
 function WelcomePane({ onStart, g }: {
   onStart: () => void; g: Gaps;
 }) {
-  /*
-   * Centred, and centred by flex rather than by a measured offset.
-   *
-   * An earlier version pinned the block with paddingTop at 27% of the screen
-   * height, reasoning about where the ellipse's upper curve falls. That put
-   * the content low with a large dead area above it, and it could only ever
-   * be right on the one device the fraction was picked for. The ellipse is
-   * itself centred at 50% of the height, so centring the content in the
-   * viewport lands it on the ellipse's centre on every screen, with the
-   * curves reading as equal margins above and below.
-   */
   return (
     <View style={[st.welcomeBody, { paddingHorizontal: g.edge }]}>
       <Rise delay={0}><Wordmark large /></Rise>
@@ -439,8 +309,7 @@ function WelcomePane({ onStart, g }: {
           label="LET'S GET STARTED"
           uppercase
           widthRatio={0.82}
-          // #D88B63 exactly. Decorative - the label carries the meaning -
-          // so it owes nothing to the text-contrast gate.
+
           icon={<Icon name="arrowRight" size={18} color={C.accentSoft} weight="bold" />}
           onPress={onStart}
           accessibilityHint="Continues to sign in"
@@ -449,8 +318,6 @@ function WelcomePane({ onStart, g }: {
     </View>
   );
 }
-
-/* ═══════════════════════  CHOOSE / FORM / VERIFY  ═══════════════════════ */
 
 function ChooseOrForm(p: {
   mode: Mode;
@@ -486,7 +353,6 @@ function ChooseOrForm(p: {
     : mode === 'verify' ? ['Check your', 'inbox.']
     : ['Reset your', 'password.'];
 
-  /** Validates one field on blur, leaving the others alone. */
   const blur = (key: string, check: () => string | null) =>
     () => setFieldErr((f) => ({ ...f, [key]: check() }));
 
@@ -498,7 +364,6 @@ function ChooseOrForm(p: {
         <Hero lines={hero} />
       </Rise>
 
-      {/* ── provider choice ──────────────────────────────────────────── */}
       {mode === 'login' || mode === 'signup' ? (
         <>
           <Rise delay={160} style={[st.buttons, { marginTop: g.heroToButtons }]}>
@@ -529,7 +394,6 @@ function ChooseOrForm(p: {
         </>
       ) : null}
 
-      {/* ── email sign in ────────────────────────────────────────────── */}
       {mode === 'emailLogin' ? (
         <>
           <Rise delay={160} style={[st.form, { marginTop: g.heroToForm }]}>
@@ -596,7 +460,6 @@ function ChooseOrForm(p: {
         </>
       ) : null}
 
-      {/* ── email sign up ────────────────────────────────────────────── */}
       {mode === 'emailSignup' ? (
         <>
           <Rise delay={160} style={[st.form, { marginTop: g.heroToForm }]}>
@@ -675,7 +538,6 @@ function ChooseOrForm(p: {
         </>
       ) : null}
 
-      {/* ── verification code ────────────────────────────────────────── */}
       {mode === 'verify' ? (
         <Rise delay={160} style={[st.form, { marginTop: g.heroToForm }]}>
           <Text style={[T.prompt, st.centreCopy]}>
@@ -725,7 +587,6 @@ function ChooseOrForm(p: {
         </Rise>
       ) : null}
 
-      {/* ── password reset ───────────────────────────────────────────── */}
       {mode === 'reset' ? (
         <Rise delay={160} style={[st.form, { marginTop: g.heroToForm }]}>
           <Text style={[T.prompt, st.centreCopy]}>
@@ -765,7 +626,6 @@ function ChooseOrForm(p: {
   );
 }
 
-/** Neutral confirmation. Same shape as the error row, different colour. */
 function Notice({ text }: { text: string }) {
   return (
     <View style={st.noticeRow} accessibilityLiveRegion="polite">

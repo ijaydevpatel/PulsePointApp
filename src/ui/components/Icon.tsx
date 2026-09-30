@@ -1,14 +1,3 @@
-/**
- * Icon set.
- *
- * Drawn by hand on a 24×24 grid with a single 1.8 stroke weight, round caps
- * and round joins. Original geometry - not traced from Material, SF Symbols or
- * any other set - so the app carries its own mark rather than looking like a
- * default template.
- *
- * Stroke-only, currentColor-style: every icon takes `color`, so the same glyph
- * serves both schemes and both tab states without duplicate assets.
- */
 import React from 'react';
 import Svg, { Path, Circle, Line } from 'react-native-svg';
 
@@ -24,7 +13,7 @@ interface Props {
   name: IconName;
   size?: number;
   color?: string;
-  /** Filled variant for active tab states. Only some icons define one. */
+
   weight?: 'regular' | 'bold';
 }
 
@@ -85,11 +74,9 @@ function glyph(name: IconName, p: object, color: string, sw: number) {
         </>
       );
 
-    /* Triage - a cardiac trace that resolves into a steady line. */
     case 'pulse':
       return <Path {...p} d="M2 12.5h4.2l2.1-6.6 3.4 12.2 2.6-8.1 1.7 2.5H22" />;
 
-    /* Medicines - a capsule split on the diagonal. */
     case 'pill':
       return (
         <>
@@ -99,7 +86,6 @@ function glyph(name: IconName, p: object, color: string, sw: number) {
         </>
       );
 
-    /* Care - a location pin whose head is a cross, not a dot. */
     case 'pin':
       return (
         <>
@@ -139,9 +125,6 @@ function glyph(name: IconName, p: object, color: string, sw: number) {
         </>
       );
 
-    /* Home - a roof over a doorway. Same 24-unit box, same stroke weight and
-       rounded joins as the rest of the set, so it sits in the tab bar without
-       looking imported. */
     case 'home':
       return (
         <>

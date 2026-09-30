@@ -1,28 +1,9 @@
-/**
- * The map components CareScreen renders must exist in the installed package.
- *
- * This exists because of a crash that nothing else caught. The screen was
- * written against MapLibre v10's API - MapView, ShapeSource, CircleLayer -
- * and v11.4.0 renamed all three. The module imported fine, so the runtime
- * guard passed; every component was simply `undefined`, and React reported
- * it as "Element type is invalid ... got: undefined" from deep inside the
- * tree, on a screen that had shipped as working.
- *
- * tsc could not catch it either: the import is a deliberately dynamic
- * `require` so a missing native module degrades rather than failing the
- * bundle, and that makes the namespace `any`.
- *
- * So this reads the source rather than running it. Rendering a native map
- * under Jest would need the native module; the question here is only whether
- * the names line up, and that is answerable statically.
- */
 import { readFileSync } from 'fs';
 import { join } from 'path';
 
 const SCREEN = join(__dirname, '..', 'src', 'ui', 'screens', 'CareScreen.tsx');
 const PACKAGE = '@maplibre/maplibre-react-native';
 
-/** Every `MapLibreGL.<Name>` the screen renders or reads. */
 function usedNames(source: string): string[] {
   const found = new Set<string>();
   for (const m of source.matchAll(/MapLibreGL[?]?\.(\w+)/g)) {
@@ -31,20 +12,7 @@ function usedNames(source: string): string[] {
   return [...found].sort();
 }
 
-/**
- * What the installed package actually exports.
- *
- * Read from its CommonJS entry point, which declares each export with
- * Object.defineProperty, rather than by requiring it - requiring pulls in
- * react-native's native modules, which is not something a unit test should
- * need in order to answer a question about names.
- */
 function exportedNames(): Set<string> {
-  /*
-   * Located by path rather than by require.resolve: the package declares an
-   * "exports" map, which makes deep subpaths unresolvable even though the
-   * file is plainly there.
-   */
   const root = join(__dirname, '..', 'node_modules', ...PACKAGE.split('/'));
   const source = readFileSync(join(root, 'lib', 'commonjs', 'index.js'), 'utf8');
 
@@ -71,31 +39,14 @@ describe('the MapLibre API the Map tab is written against', () => {
   });
 
   it('reads more than nothing, so the check cannot pass vacuously', () => {
-    // A rename that removed every usage would otherwise make the test above
-    // pass by having no names left to check.
     expect(usedNames(source).length).toBeGreaterThanOrEqual(4);
   });
 
   it('still guards on a component rather than on the module', () => {
-    /*
-     * `MapLibreGL != null` was the original guard and is what let the crash
-     * through: the module was present and the components were not. The guard
-     * has to name something it is about to render.
-     */
     expect(source).toMatch(/MapLibreGL\?\.Map\b/);
   });
 
   it('labels the pins with a font the style actually serves', () => {
-    /*
-     * MapLibre renders no text at all - no warning, no fallback - when a
-     * symbol layer asks for a fontstack the style's glyph endpoint does not
-     * have. The default is "Open Sans Regular", which this style does not
-     * serve, so a symbol layer that omits text-font draws nothing and looks
-     * like a layer that failed.
-     *
-     * https://tiles.openfreemap.org/styles/positron declares a glyphs
-     * endpoint and uses exactly these three stacks.
-     */
     const SERVED = ['Noto Sans Regular', 'Noto Sans Bold', 'Noto Sans Italic'];
 
     expect(source).toContain("type=\"symbol\"");
@@ -110,11 +61,6 @@ describe('the MapLibre API the Map tab is written against', () => {
   });
 
   it('marks the person by more than colour', () => {
-    /*
-     * A blue dot was not enough: every facility is a flat coloured disc too,
-     * and two categories are already blue-ish. The own-position mark differs
-     * in shape (concentric), size, and words.
-     */
     expect(source).toContain('me-halo');
     expect(source).toContain('me-disc');
     expect(source).toContain('me-dot');
@@ -122,24 +68,15 @@ describe('the MapLibre API the Map tab is written against', () => {
   });
 
   it('never lets the "you are here" caption be dropped', () => {
-    /*
-     * MapLibre drops colliding labels, and on a crowded street the one label
-     * that must survive is the one saying where the reader is standing.
-     */
     const block = /id="me-label"[\s\S]*?\/>/.exec(source)?.[0] ?? '';
 
     expect(block).toContain("'text-allow-overlap': true");
     expect(block).toContain("'text-ignore-placement': true");
-    // No minzoom: it is wanted at every scale, unlike the facility labels.
+
     expect(block).not.toContain('minzoom');
   });
 
   it('survives a camera move made before the map is up', () => {
-    /*
-     * Every camera method goes through setStop, which throws
-     * "NativeCameraComponent ref is null" until the native view exists.
-     * Uncaught, that is a locate button that silently does nothing.
-     */
     const block = /const moveTo = useCallback[\s\S]*?\n  \}, \[\]\);/.exec(source)?.[0] ?? '';
 
     expect(block).toContain('catch');
@@ -147,11 +84,6 @@ describe('the MapLibre API the Map tab is written against', () => {
   });
 
   it('draws the person\'s own position rather than relying on UserLocation', () => {
-    /*
-     * MapLibre's UserLocation runs its own location provider - a second
-     * permission prompt and a second thing to fail - and it rendered nothing
-     * here. The screen already has a fix, so the dot is drawn from that.
-     */
     expect(source).toContain('me-dot');
     expect(source).not.toContain('MapLibreGL.UserLocation');
   });
@@ -163,27 +95,15 @@ describe('the MapLibre API the Map tab is written against', () => {
   });
 
   it('routes in the maps app rather than dropping a pin', () => {
-    /*
-     * `geo:lat,lon?q=` shows the place and leaves the person to press
-     * Directions themselves. On a screen whose job is getting someone to
-     * care, the useful handover is the route - the maps app already knows
-     * where they are, which roads are shut, and how long it will take.
-     */
     const block = /async function openDirections[\s\S]*?\n\}/.exec(source)?.[0] ?? '';
 
     expect(block).toContain('maps/dir/');
     expect(block).toMatch(/destination=/);
-    // Apple Maps first on iOS: it is the one certainly installed.
+
     expect(block).toContain('daddr=');
   });
 
   it('hit-tests pin taps against the pin layer, with a tolerance', () => {
-    /*
-     * v11 has no onPress on a source or a layer, so the tap is resolved by
-     * querying the map. Restricted to the facility layer, or a tap on a road
-     * label counts as a place; and against a box rather than a pixel, because
-     * the pins are six points across and an exact hit test never hits.
-     */
     const block = /const tapMap = useCallback[\s\S]*?\n  \}, \[facilities\]\);/.exec(source)?.[0] ?? '';
 
     expect(block).toContain("layers: ['facility-pins']");
@@ -191,16 +111,6 @@ describe('the MapLibre API the Map tab is written against', () => {
   });
 
   it('passes the tolerance box as nested corners', () => {
-    /*
-     * PixelPointBounds is [[left, top], [right, bottom]]. A flat
-     * [x1, y1, x2, y2] is still an array whose first two entries are numbers,
-     * which is exactly how the library recognises a *point* - so a flat box
-     * is silently taken as a single pixel up and left of the finger, and a
-     * six-point pin is never under it. Every tap did nothing.
-     *
-     * The compiler could not catch it: the map ref is `any`, because the
-     * module is required dynamically, so there was no shape to check.
-     */
     const block = /const box: \[\[number, number\], \[number, number\]\] = \[[\s\S]*?\];/.exec(source)?.[0];
 
     expect(block).toBeDefined();
@@ -209,12 +119,6 @@ describe('the MapLibre API the Map tab is written against', () => {
   });
 
   it('asks before leaving the app', () => {
-    /*
-     * Opening the maps app straight from a pin tap was a one-way door: the
-     * pins are six points across and packed together in a city centre, so a
-     * mis-tap threw the person into another app to discover it. The tap
-     * selects; the callout offers the route as a second, deliberate press.
-     */
     const block = /const tapMap = useCallback[\s\S]*?\n  \}, \[facilities\]\);/.exec(source)?.[0] ?? '';
 
     expect(block).not.toContain('openDirections');
@@ -222,9 +126,6 @@ describe('the MapLibre API the Map tab is written against', () => {
   });
 
   it('carries the facility id in feature properties', () => {
-    // A feature's own `id` does not reliably survive the round trip through
-    // the native layer, and a pin that cannot say which place it is would
-    // route someone to the wrong one.
     expect(source).toMatch(/properties: \{[\s\S]*?id: f\.id/);
   });
 });

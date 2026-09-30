@@ -1,16 +1,3 @@
-/**
- * Health News - GET /api/news.
- *
- * The backend aggregates RSS feeds, derives a one-line briefing from the top
- * item, and returns each brief with a title, snippet, source, date and
- * category. This renders that list and nothing more.
- *
- * Pull-to-refresh rather than a refresh button: the feed is the whole screen,
- * so the gesture that already means "get me the latest" is the right control.
- * A failed refresh keeps whatever is already on screen and shows the notice
- * above it - throwing away readable articles because a later fetch failed
- * would be a strictly worse outcome than doing nothing.
- */
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, Linking, ActivityIndicator } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -34,7 +21,6 @@ export function NewsScreen({ service, onBack }: { service: NewsService; onBack?:
       setFeed(r.data);
       setNotice(null);
     } else {
-      // Keep any feed we already have. Only the notice changes.
       setNotice(r.notice);
     }
     setRefreshing(false);

@@ -1,8 +1,3 @@
-/**
- * Row <-> entity mapping, kept pure and separate from the SQLite driver so it
- * can be tested on a workstation. The driver calls in sqliteStore.ts are thin
- * wrappers around these functions; this is where the bugs would otherwise hide.
- */
 import {
   SymptomEpisode, TriageResult, Symptom, AgeBand, TriageBand,
   ResultSource, SyncStatus,

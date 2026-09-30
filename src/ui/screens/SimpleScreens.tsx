@@ -1,4 +1,3 @@
-/** Small surfaces that arrive in later phases. Honest placeholders, not dead ends. */
 import React from 'react';
 import { View, ScrollView } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -8,8 +7,6 @@ import { Session } from '../../domain/auth';
 import { useTheme, S, circle } from '../theme';
 
 function Shell({ title, sub, onBack, phase, what, icon }: {
-  // Optional: these screens are tab roots now, and a tab root has nothing to
-  // go back to. ScreenHeader omits the chevron when onBack is undefined.
   title: string; sub?: string; onBack?: () => void;
   phase: number; what: string; icon: IconName;
 }) {

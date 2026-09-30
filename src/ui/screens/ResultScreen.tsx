@@ -1,17 +1,3 @@
-/**
- * FR1, FR3, QR5. Red-flag escalation sits above everything else on the screen.
- *
- * This is the one screen that gets the expressive treatment. Everywhere else
- * the app is deliberately quiet; here it has something to say, so the band
- * fills the top of the screen edge to edge and the severity figure is set at
- * 76pt. The web app buried a 42% meningitis reading in the least prominent row
- * of a table - this layout makes that failure mode structurally impossible,
- * because the band decides the colour of the screen.
- *
- * The number counts up rather than appearing. That is not decoration: a value
- * that animates from zero communicates that it was computed, and it gives the
- * eye a reason to land on the figure before the advice below it.
- */
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View, ScrollView, StyleSheet, Linking, Animated, Easing, ActivityIndicator,
@@ -25,7 +11,6 @@ import {
   RemoteOutcome, SymptomAnalysis, ProbableCondition, MatrixSeverity,
 } from '../../domain/remote';
 
-/** Counts from 0 to `value`, easing out so it decelerates into place. */
 function useCountUp(value: number, duration = 900) {
   const [shown, setShown] = useState(0);
   const av = useRef(new Animated.Value(0)).current;
@@ -43,22 +28,11 @@ function useCountUp(value: number, duration = 900) {
   return shown;
 }
 
-/**
- * How long the hosted engine gets before the local result is shown anyway.
- *
- * Long enough that a normal round trip finishes first and the person sees one
- * complete screen; short enough that an unreachable server does not leave
- * someone who may be unwell staring at a spinner.
- */
 const ANALYSIS_DEADLINE_MS = 12000;
 
 export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }: {
   result: TriageResult; elapsedMs: number | null;
-  /**
-   * The hosted diagnostic matrix. Null means still in flight - the band above
-   * is already decided locally, so this section fills in underneath rather
-   * than holding the whole screen behind a spinner.
-   */
+
   analysis?: RemoteOutcome<SymptomAnalysis> | null;
   onBack: () => void; onFindCare: () => void;
 }) {
@@ -68,27 +42,6 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
   const escalate = requiresEscalation(result);
   const severity = useCountUp(result.severity);
 
-  /*
-   * ── Nothing is shown until the analysis is in ────────────────────────────
-   *
-   * The score and the confidence used to appear immediately, with the
-   * conditions filling in underneath. That is faster, and it made the number
-   * look pre-decided: a finished 45/100 sitting above a spinner invites
-   * exactly one conclusion, and on a triage screen that conclusion is fatal
-   * to trust even when it is wrong.
-   *
-   * So the whole result waits. Two things keep that from becoming its own
-   * hazard:
-   *
-   *   - An emergency is never held. If the local engine has already matched
-   *     a red flag, the advice to act on it is on screen in the same frame
-   *     it was computed. No network call gets to delay that.
-   *
-   *   - There is a deadline. The hosted engine can be slow or unreachable,
-   *     and a screen that waits forever for it shows a person nothing at
-   *     all. After this, the local result is revealed regardless - it was
-   *     always complete, and the provenance note says where it came from.
-   */
   const [revealed, setRevealed] = useState(analysis !== null && analysis !== undefined);
 
   useEffect(() => {
@@ -97,7 +50,6 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
     return () => clearTimeout(timer);
   }, [analysis]);
 
-  // A serious result should feel different in the hand, not only look different.
   useEffect(() => {
     if (revealed || escalate) {
       tap(result.band === 'EMERGENCY' ? 'error' : result.band === 'URGENT' ? 'warn' : 'success');
@@ -114,24 +66,11 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
         contentContainerStyle={{ paddingBottom: TAB_CLEARANCE }}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Colour-blocked band header. The band decides the screen. ── */}
-        {/*
-          The hairline is not decoration. Apple's systemGreen and systemOrange
-          measure ~1.98:1 as a block on the light grouped background, below the
-          3:1 WCAG needs for a graphical boundary. Keeping Apple's fill and
-          carrying the boundary on this border is what makes the contrast audit
-          pass honestly - remove it and QR6 is no longer met.
-        */}
         <View style={[
           st.hero,
           { backgroundColor: band.solid, borderColor: band.solidEdge },
         ]}>
           <View style={st.heroTop}>
-            {/*
-              Not glass here. The hero is a saturated fill, and liquid glass
-              over a flat colour has nothing to refract - it would read as a
-              grey smudge. A tinted circle is the honest choice on solid ground.
-            */}
             <Springy
               onPress={onBack}
               scaleTo={0.88}
@@ -158,11 +97,6 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
                 <Txt t="title" c={band.onSolid + '99'}>/100</Txt>
               </View>
               <View style={{ flex: 1 }} />
-              {/*
-                Tappable, because a percentage with no explanation invites the
-                obvious question - and the honest answer to "why is it not
-                higher" is better than a higher number.
-              */}
               <Springy
                 onPress={() => { tap('light'); setWhyConfidence(true); }}
                 scaleTo={0.94}
@@ -179,12 +113,6 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
         </View>
 
         <View style={{ paddingHorizontal: S.xl, marginTop: -S.xl }}>
-          {/*
-            What the percentage means, in the three things that actually move
-            it. Written as plain sentences rather than the formula: the point
-            is that someone can tell whether a low number is the app being
-            broken or the answer genuinely being uncertain.
-          */}
           {whyConfidence ? (
             <Card style={{ marginBottom: S.md }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.sm }}>
@@ -228,7 +156,6 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
             </Card>
           ) : null}
 
-          {/* Escalation first. QR5: never below the fold, never after the score. */}
           {escalate ? (
             <Enter index={3}>
               <View style={[st.alert, { backgroundColor: P.surface, borderLeftColor: P.danger }, elev(3)]}>
@@ -271,12 +198,6 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
             </Enter>
           ) : null}
 
-          {/* ── Hosted diagnostic matrix ──────────────────────────────────
-              Sits BELOW the band, never above it. The band is decided on the
-              device from rules that can be audited; these five are a model's
-              ranked guess. Putting probability first is the exact failure this
-              project was built to correct - a meningitis row at 42% buried
-              under four commoner conditions. */}
           <MatrixSection analysis={analysis} />
 
           <Enter index={5}>
@@ -284,13 +205,6 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
             <Button title="Find care near me" tone="outline" icon="pin" onPress={onFindCare} />
           </Enter>
 
-          {/*
-            The rationale list lived here as "What this looked at" - the
-            symptoms just entered, read back. It told the person something
-            they had typed thirty seconds earlier and pushed the provenance
-            note below the fold. It is still kept on the record and shown in
-            the Records detail, where it is no longer obvious.
-          */}
 
           <Enter index={7}>
             <View style={{ height: S.xxl }} />
@@ -315,17 +229,6 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
   );
 }
 
-/* ═════════════════ hosted diagnostic matrix ═════════════════════════════ */
-
-/**
- * Severity word -> colour. Critical and High share the danger colour on
- * purpose: at a glance the only question that matters is "is this the serious
- * one", and two near-identical reds would blur that.
- *
- * The word is always rendered alongside the swatch. Colour alone would fail
- * WCAG 1.4.1, and this is precisely the information you cannot afford a
- * colour-blind reader to miss.
- */
 function severityColour(s: MatrixSeverity, P: ReturnType<typeof useTheme>['c']): string {
   switch (s) {
     case 'Critical':
@@ -347,8 +250,6 @@ function ConditionRow({ item, rank }: { item: ProbableCondition; rank: number })
         <Txt t="numeric" c={P.muted}>{`${Math.round(item.confidence)}%`}</Txt>
       </View>
 
-      {/* Confidence bar. Graphical, so the 3:1 bar applies, and it is never the
-          only carrier of the number - the percentage is printed beside it. */}
       <View style={[st.track, { backgroundColor: P.sunken }]}>
         <View style={[st.fill, { width: `${width}%`, backgroundColor: colour }]} />
       </View>
@@ -384,28 +285,7 @@ function hasAnyPathway(p: SymptomAnalysis['treatmentPathways']): boolean {
 function MatrixSection({ analysis }: { analysis?: RemoteOutcome<SymptomAnalysis> | null }) {
   const { c: P } = useTheme();
 
-  // Still in flight. Say so rather than rendering nothing - an absent section
-  // reads as "there is no more information", which is a different claim.
   if (analysis === null || analysis === undefined) {
-    /*
-     * A working state, not a paragraph explaining one.
-     *
-     * This was a grey card of text apologising for the wait, which read as a
-     * screen that had gone wrong and is the first thing anyone sees after a
-     * check. The shape of what is coming says the same thing faster: three
-     * rows the size of the conditions that will replace them, pulsing.
-     *
-     * ── Why the label is not "Analysing your symptoms" ────────────────────
-     *
-     * Because they already have been. The score, the band and the advice
-     * above come from the on-device engine and are final by the time this
-     * renders - so a spinner claiming to be analysing them, next to a
-     * finished score, reads as though the score were decided in advance.
-     *
-     * The thing that is actually pending is narrower: matching the episode
-     * against the hosted clinical database to produce a ranked list of
-     * conditions. Saying that is both true and less alarming.
-     */
     return (
       <Enter index={4}>
         <View style={{ height: S.xxl }} />
@@ -514,18 +394,6 @@ const st = StyleSheet.create({
   },
 });
 
-/**
- * One placeholder row, the size of the condition that will replace it.
- *
- * The pulse runs on the JS driver, like every other animation in this app: a
- * natively driven value lives outside the React tree, and Android loses it
- * when it re-attaches the view - which is what made content vanish on scroll
- * here before.
- *
- * Widths descend, because the real list is ranked and its bars do too. A row
- * of identical grey blocks reads as a broken layout; one that already has the
- * shape of the answer reads as the answer arriving.
- */
 function Skeleton({ index }: { index: number }) {
   const { c: P } = useTheme();
   const pulse = useRef(new Animated.Value(0.35)).current;
@@ -571,13 +439,6 @@ function Skeleton({ index }: { index: number }) {
   );
 }
 
-/**
- * The whole screen, while the analysis is still coming.
- *
- * Deliberately says nothing about the outcome - no band colour, no partial
- * score, no hint of severity. A holding screen that leaked the answer would
- * defeat the point of holding it.
- */
 function Analysing({ onBack }: { onBack: () => void }) {
   const { c: P } = useTheme();
 

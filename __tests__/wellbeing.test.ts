@@ -1,8 +1,3 @@
-/**
- * The score and the streak exist because the web version's did not compute.
- * These tests guard the property that made that a problem: a number must
- * never appear unless something was actually recorded.
- */
 import { checkInStreak, healthScore, SCORE_WINDOW_DAYS } from '../src/domain/wellbeing';
 import { HistoryEntry } from '../src/domain/ports';
 import { TriageBand } from '../src/domain/entities';
@@ -35,8 +30,6 @@ function entry(band: TriageBand, daysAgo: number, redFlags: string[] = []): Hist
 
 describe('health score', () => {
   it('is null with no history, never 100', () => {
-    // The whole reason this module exists: the backend defaults healthScore to
-    // 100 and never writes it, so every account reads "perfect" on no data.
     expect(healthScore([], NOW)).toBeNull();
   });
 
@@ -52,7 +45,6 @@ describe('health score', () => {
   });
 
   it('takes the worst band, not the average', () => {
-    // A run of mild episodes must not dilute the one that mattered.
     const mixed = [
       entry('SELF_CARE', 1), entry('SELF_CARE', 2),
       entry('SELF_CARE', 3), entry('URGENT', 4),
@@ -79,7 +71,6 @@ describe('health score', () => {
   });
 
   it('shows its working', () => {
-    // The UI can explain the number rather than asking to be trusted.
     const s = healthScore([entry('URGENT', 1, ['Chest pain'])], NOW)!;
     expect(s.reasons.length).toBeGreaterThanOrEqual(2);
     for (const r of s.reasons) expect(r.delta).toBeLessThan(0);
@@ -105,7 +96,6 @@ describe('check-in streak', () => {
   });
 
   it('breaks on a gap rather than counting through it', () => {
-    // A streak that survives gaps is not a streak.
     const s = checkInStreak([entry('SELF_CARE', 0), entry('SELF_CARE', 3), entry('SELF_CARE', 4)], NOW);
     expect(s.days).toBe(1);
   });
@@ -120,26 +110,17 @@ describe('check-in streak', () => {
   });
 });
 
-/* ────────────────────────── symptom catalogue ───────────────────────────── */
-
 import { CATALOGUE } from '../src/data/symptomCatalogue';
 
 describe('the symptom catalogue', () => {
   it('has no duplicate codes or labels', () => {
-    // The website list was merged into this one; a duplicate would show as two
-    // identical rows that set the same flag.
     expect(new Set(CATALOGUE.map((c) => c.code)).size).toBe(CATALOGUE.length);
     expect(new Set(CATALOGUE.map((c) => c.label)).size).toBe(CATALOGUE.length);
   });
 
   it('still contains every code a red-flag rule matches on', () => {
-    // redFlags.ts matches by code. A symptom the rules reference but the list
-    // does not offer is a rule that can never fire - silently.
     const codes = new Set(CATALOGUE.map((c) => c.code));
 
-    // The thirteen codes redFlags.ts matches on, listed explicitly so this
-    // fails loudly if one is renamed rather than inferring from the rules and
-    // agreeing with whatever they happen to say.
     const referenced = [
       'chest_pain', 'breathlessness', 'radiating_pain', 'facial_droop',
       'arm_weakness', 'speech_difficulty', 'confusion', 'fever', 'headache',
@@ -152,27 +133,16 @@ describe('the symptom catalogue', () => {
   });
 
   it('keeps the two rashes distinct', () => {
-    // A non-blanching rash is the meningococcal sign; an itchy rash is not.
-    // Collapsing them would lose the rule that exists to catch the first.
     expect(CATALOGUE.some((c) => c.code === 'rash_non_blanching')).toBe(true);
     expect(CATALOGUE.some((c) => c.code === 'skin_rash')).toBe(true);
   });
 
   it('leads with the red-flag symptoms', () => {
-    // Someone with chest pain should not scroll past "itching" to find it.
     expect(CATALOGUE[0]!.code).toBe('chest_pain');
   });
 });
 
-/* ────────────────────────── entrance animation ──────────────────────────── */
-
 describe('the Enter wrapper cannot be left invisible', () => {
-  /**
-   * Reproduces the shape of the bug rather than the component: a native-driven
-   * value starts at 0, the effect that animates it runs once, and a later
-   * re-render re-applies the JS-side style. Without a "played" latch the
-   * content stays at 0 forever; with one, every render re-asserts 1.
-   */
   function simulate({ latch }: { latch: boolean }) {
     let value = 0;
     let played = false;
@@ -180,13 +150,13 @@ describe('the Enter wrapper cannot be left invisible', () => {
     const render = (isFirst: boolean) => {
       if (latch && played) { value = 1; return; }
       if (isFirst) { value = 1; played = true; return; }
-      // A re-render re-applying the stale JS-side value.
+
       if (!latch) value = 0;
     };
 
     render(true);
-    render(false);   // keystroke
-    render(false);   // another keystroke
+    render(false);
+    render(false);
     return value;
   }
 

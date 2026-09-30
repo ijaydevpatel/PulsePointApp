@@ -1,31 +1,3 @@
-/**
- * App preferences, grouped the way Android's settings guidance groups them.
- *
- * ── What is deliberately not here ────────────────────────────────────────────
- *
- * Notification toggles, biometric lock, wearable syncing, data-sharing
- * permissions and an export/delete dashboard were all asked for, and none of
- * them is here, because none of them exists. The app has no push
- * registration, no biometric prompt, no Health Connect integration and no
- * export endpoint.
- *
- * A switch that saves a preference nothing reads is worse than a missing
- * switch, and worse here than in most apps: someone who turns on "require
- * fingerprint to open" and believes it has a false idea of who can read their
- * medical history. The same goes for a "delete my health data" button that
- * deletes nothing. These belong here the day the thing behind them works, and
- * not before.
- *
- * What remains is the set that does something: the theme, the records held on
- * this device, the legal text, and signing out.
- *
- * ── Toggles save instantly ───────────────────────────────────────────────────
- *
- * No Save button on this screen. A switch has one obvious meaning and the
- * change is visible the moment it happens, so a confirmation step would only
- * add a way to lose the change. The profile form is the opposite case and
- * behaves the opposite way.
- */
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, ScrollView, StyleSheet, Alert, Linking } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
@@ -37,7 +9,6 @@ import { EpisodeStore } from '../../domain/ports';
 import { ActivityLog } from '../../domain/activity';
 import { RouteKey } from '../nav/routes';
 
-/** Where the legal text lives. The website is the source of truth for both. */
 const PRIVACY_URL = 'https://pulsepoint-ekqb.onrender.com/privacy';
 const TERMS_URL = 'https://pulsepoint-ekqb.onrender.com/terms';
 
@@ -52,9 +23,9 @@ export function SettingsScreen({
   onBack: () => void;
   onOpen: (r: RouteKey) => void;
   onSignOut: () => void | Promise<void>;
-  /** Changes when an assessment is stored, so the count stays honest. */
+
   historyKey?: number;
-  /** Lets the rest of the app know the local history is gone. */
+
   onDataCleared?: () => void;
 }) {
   const { c: P } = useTheme();
@@ -65,8 +36,6 @@ export function SettingsScreen({
       const all = await store.history(500);
       setRecords(all.length);
     } catch {
-      // A count that cannot be read is not worth an error state; the row
-      // simply does not claim a number.
       setRecords(null);
     }
   }, [store]);
@@ -105,11 +74,6 @@ export function SettingsScreen({
               </Txt>
             </View>
 
-            {/*
-              Two explicit choices rather than a single switch. "Dark mode
-              on/off" cannot express "follow the device", which is the state
-              most people are actually in.
-            */}
             <View style={[st.segment, { backgroundColor: P.sunken }]}>
               <Segment
                 icon="sun"
@@ -141,13 +105,6 @@ export function SettingsScreen({
           />
         </View>
         <Card>
-          {/*
-            This said assessments sync to your account when signed in. They do
-            not: EpisodeStore has pendingSync and markSynced, nothing calls
-            them, and the backend has no episode route at all. Writing the
-            claim into the UI would have been the exact failure this project
-            keeps finding - a screen asserting something nobody implemented.
-          */}
           <Txt t="caption" c={P.muted}>
             Assessments are held only on this phone, signed in or not. They are
             not uploaded, and they do not survive uninstalling the app. Your
@@ -155,13 +112,6 @@ export function SettingsScreen({
           </Txt>
           <View style={{ height: S.lg }} />
 
-          {/*
-            A real deletion, not a gesture: EpisodeStore.clear() drops every
-            row. It is here rather than in a "data controls" dashboard because
-            it is the only part of such a dashboard this app can actually
-            honour, and a button that deletes what it says it deletes is worth
-            more than a page of ones that do not.
-          */}
           <Springy
             scaleTo={0.97}
             accessibilityLabel="Delete all records held on this device"
@@ -198,11 +148,6 @@ export function SettingsScreen({
 
         <SectionLabel>Support and legal</SectionLabel>
 
-        {/*
-          The disclaimer is text rather than a link, because it is the one
-          thing on this screen a person should not have to tap to find, and
-          the one a medical app is most often criticised for burying.
-        */}
         <Card style={{ marginBottom: S.sm }}>
           <View style={st.row}>
             <Icon name="alert" size={18} color={P.warn} />
@@ -236,10 +181,6 @@ export function SettingsScreen({
 
         <View style={{ height: S.xxl }} />
 
-        {/*
-          Destructive last, and confirmed - the Android pattern, and the one
-          place on this screen where a mis-tap costs something.
-        */}
         {session.state === 'SIGNED_IN' ? (
           <Springy
             scaleTo={0.97}

@@ -1,27 +1,7 @@
-/**
- * How precisely the app decides where the person is.
- *
- * This exists because the Map tab put someone on Albert Street while they
- * stood on Mayoral Drive - about four hundred metres out, on a screen whose
- * whole job is telling people where to go. It was not one bug but three
- * choices that each traded accuracy for speed, in a place where speed was
- * worth much less:
- *
- *   - a cached position up to an *hour* old, preferred over asking the device
- *   - Accuracy.Low, which on Android is roughly a kilometre
- *   - a four-second cut-off, shorter than a cold GPS fix indoors, so the
- *     chain fell through to the IP tier - the internet provider's idea of the
- *     city centre
- *
- * Each of those is asserted below, because each of them looked reasonable in
- * isolation and none of them was.
- */
-
 const position = (lat: number, lon: number, accuracy?: number) => ({
   coords: { latitude: lat, longitude: lon, accuracy },
 });
 
-/** A stand-in for expo-location that records what it was asked for. */
 function mockLocation(over: Record<string, unknown> = {}) {
   return {
     PermissionStatus: { GRANTED: 'granted', DENIED: 'denied' },
@@ -40,8 +20,6 @@ function mockLocation(over: Record<string, unknown> = {}) {
 let current = mockLocation();
 jest.mock('expo-location', () => current);
 
-// Required after the mock is registered, and re-required per test so the
-// module under test sees the current stand-in.
 const load = () => require('../src/data/locationFix');
 
 beforeEach(() => {
@@ -51,12 +29,6 @@ beforeEach(() => {
 
 describe('the precise fix the map runs on', () => {
   it('asks for GPS-grade accuracy, not the cheap tier', async () => {
-    /*
-     * Accuracy.Low is right for the air-quality card, which reports at city
-     * resolution anyway. It is wrong for a map someone navigates by: a
-     * kilometre is comfortably wider than a city block, and wide enough to
-     * name the wrong street.
-     */
     const { preciseFix } = load();
     await preciseFix();
 
@@ -72,14 +44,6 @@ describe('the precise fix the map runs on', () => {
   });
 
   it('falls back the way the website does when high accuracy will not answer', async () => {
-    /*
-     * The website asks the browser twice: enableHighAccuracy with
-     * maximumAge 0, then a cheaper pass that will take a cached reading up to
-     * a minute old. The app had only the first of those, so indoors - where a
-     * high-accuracy attempt just times out - it returned nothing, and the
-     * screen fell through to an IP lookup that put the person in the wrong
-     * place entirely.
-     */
     const highThenNothing = jest.fn(async ({ accuracy }: any) => (
       accuracy === 4 ? null : position(-36.8568, 174.7645, 60)
     ));
@@ -107,12 +71,6 @@ describe('the precise fix the map runs on', () => {
   });
 
   it('says why there is no position, rather than just failing', async () => {
-    /*
-     * The reasons are not interchangeable: a refused permission is fixed in
-     * Settings, a disabled service with a toggle, and a device that has not
-     * got a fix yet by waiting. Collapsing them into null is what led to
-     * quietly substituting an IP lookup.
-     */
     current = mockLocation({
       hasServicesEnabledAsync: jest.fn(async () => false),
     });
@@ -146,8 +104,8 @@ describe('the precise fix the map runs on', () => {
 
   it('gives up rather than guessing when the device will not say', async () => {
     current = mockLocation({
-      getCurrentPositionAsync: jest.fn(() => new Promise(() => { /* never */ })),
-      // Nothing cached either, or the second stage would rescue it.
+      getCurrentPositionAsync: jest.fn(() => new Promise(() => {  })),
+
       getLastKnownPositionAsync: jest.fn(async () => null),
     });
     jest.resetModules();
@@ -156,19 +114,6 @@ describe('the precise fix the map runs on', () => {
     const { preciseFix } = load();
     const pending = preciseFix();
 
-    /*
-     * The cut-off timer is not armed synchronously: preciseFix first awaits
-     * the dynamic import, the permission check and the services check, each
-     * of which is a microtask hop. Advancing the clock before those settle
-     * advances past a timer that does not exist yet, and the test hangs on a
-     * promise nothing will ever resolve.
-     */
-    /*
-     * Both stages have to time out, not just the first: fifteen seconds of
-     * high accuracy, then twelve of balanced. Each cut-off is armed only
-     * after the previous stage's promise settles, so the clock has to be
-     * advanced twice with the microtasks flushed in between.
-     */
     for (const _ of [0, 1]) {
       for (let i = 0; i < 30; i += 1) await Promise.resolve();
       jest.advanceTimersByTime(20000);
@@ -182,17 +127,6 @@ describe('the precise fix the map runs on', () => {
   });
 
   it('refuses a mocked reading, however precise it claims to be', async () => {
-    /*
-     * The Android emulator reports a fixed position at Google's headquarters
-     * in Mountain View, complete with a plausible ±5m accuracy. Nothing about
-     * that reading says "invented" except the `mocked` flag, so without this
-     * check the app confidently places someone in Auckland CBD on
-     * Amphitheatre Parkway - and has every reason to believe itself.
-     *
-     * A mocked fix is worth less than the IP lookup it would otherwise beat,
-     * because the IP lookup at least reflects a network the device is really
-     * attached to.
-     */
     current = mockLocation({
       getCurrentPositionAsync: jest.fn(async () => ({
         ...position(37.4220, -122.0840, 5),
@@ -206,7 +140,6 @@ describe('the precise fix the map runs on', () => {
   });
 
   it('accepts a real reading that happens to be precise', async () => {
-    // The guard must key on the flag, not on the accuracy looking too good.
     current = mockLocation({
       getCurrentPositionAsync: jest.fn(async () => ({
         ...position(-36.8568, 174.7645, 5),
@@ -237,11 +170,6 @@ describe('the precise fix the map runs on', () => {
 
 describe('the quick fix the app starts with', () => {
   it('asks the device before reaching for the cache', async () => {
-    /*
-     * It used to take the cached position first, and only ask the device if
-     * there was none. That is the difference between "where you are" and
-     * "where you were when you last opened something".
-     */
     const { resolveFix } = load();
     const fix = await resolveFix();
 
@@ -250,11 +178,6 @@ describe('the quick fix the app starts with', () => {
   });
 
   it('falls through to the network tier when the device reading is mocked', async () => {
-    /*
-     * The whole point of rejecting a mocked fix: something real has to take
-     * its place. On an emulator that is the IP lookup, which puts the person
-     * in the right city even though it cannot put them on the right street.
-     */
     current = mockLocation({
       getCurrentPositionAsync: jest.fn(async () => ({
         ...position(37.4220, -122.0840, 5),

@@ -1,10 +1,3 @@
-/**
- * FR6 safety assertions.
- *
- * The first test is the whole reason this feature exists: the live web app was
- * given Warfarin + Aspirin on 12 Aug 2026 and returned a blank panel. These
- * assertions make that outcome impossible to reintroduce.
- */
 import { CheckInteractionsUseCase } from '../src/domain/checkInteractions';
 import { BundledInteractionTable } from '../src/data/interactionTable';
 import { needsAttention, severityRank } from '../src/domain/medicines';
@@ -38,15 +31,14 @@ describe('never claims safety it cannot support', () => {
   it('has no outcome meaning "safe"', () => {
     const r = check.execute(['Paracetamol', 'Salbutamol']);
     expect(r.outcome).toBe('CLEAR');
-    // CLEAR must mean "nothing in this table matched", never "safe".
+
     expect(Object.keys(r)).not.toContain('safe');
   });
 
   it('reports an unknown medicine instead of quietly ignoring it', () => {
     const r = check.execute(['Warfarin', 'Xyzzyzine']);
     expect(r.unrecognised).toContain('Xyzzyzine');
-    // Only one drug was recognised, so nothing could be compared. This must
-    // not read as a completed check.
+
     expect(r.outcome).toBe('NOT_ENOUGH');
   });
 
@@ -70,7 +62,6 @@ describe('matching', () => {
   });
 
   it('never pairs a drug with itself, even across two of its classes', () => {
-    // Aspirin is both NSAID and ANTIPLATELET, and rules exist for both.
     const r = check.execute(['Aspirin']);
     expect(r.findings).toHaveLength(0);
     expect(r.pairsChecked).toBe(0);
