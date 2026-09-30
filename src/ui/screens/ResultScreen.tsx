@@ -239,20 +239,13 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
             <Button title="Find care near me" tone="outline" icon="pin" onPress={onFindCare} />
           </Enter>
 
-          {result.rationale.length > 0 ? (
-            <Enter index={6}>
-              <View style={{ height: S.xxl }} />
-              <SectionLabel>What this looked at</SectionLabel>
-              <Card>
-                {result.rationale.map((r, i) => (
-                  <View key={r} style={[st.flagRow, i === 0 && { marginTop: 0 }]}>
-                    <View style={[st.bullet, { backgroundColor: P.faint }]} />
-                    <Txt t="body" style={{ flex: 1 }}>{r}</Txt>
-                  </View>
-                ))}
-              </Card>
-            </Enter>
-          ) : null}
+          {/*
+            The rationale list lived here as "What this looked at" - the
+            symptoms just entered, read back. It told the person something
+            they had typed thirty seconds earlier and pushed the provenance
+            note below the fold. It is still kept on the record and shown in
+            the Records detail, where it is no longer obvious.
+          */}
 
           <Enter index={7}>
             <View style={{ height: S.xxl }} />
@@ -355,8 +348,18 @@ function MatrixSection({ analysis }: { analysis?: RemoteOutcome<SymptomAnalysis>
      * This was a grey card of text apologising for the wait, which read as a
      * screen that had gone wrong and is the first thing anyone sees after a
      * check. The shape of what is coming says the same thing faster: three
-     * rows the size of the conditions that will replace them, pulsing, under
-     * a spinner.
+     * rows the size of the conditions that will replace them, pulsing.
+     *
+     * ── Why the label is not "Analysing your symptoms" ────────────────────
+     *
+     * Because they already have been. The score, the band and the advice
+     * above come from the on-device engine and are final by the time this
+     * renders - so a spinner claiming to be analysing them, next to a
+     * finished score, reads as though the score were decided in advance.
+     *
+     * The thing that is actually pending is narrower: matching the episode
+     * against the hosted clinical database to produce a ranked list of
+     * conditions. Saying that is both true and less alarming.
      */
     return (
       <Enter index={4}>
@@ -365,7 +368,7 @@ function MatrixSection({ analysis }: { analysis?: RemoteOutcome<SymptomAnalysis>
         <Card>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: S.md }}>
             <ActivityIndicator size="small" color={P.accent} />
-            <Txt t="bodyStrong" style={{ flex: 1 }}>Analysing your symptoms</Txt>
+            <Txt t="bodyStrong" style={{ flex: 1 }}>Matching possible conditions</Txt>
           </View>
 
           <View style={{ marginTop: S.lg }}>
