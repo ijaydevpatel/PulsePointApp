@@ -329,6 +329,17 @@ export function CareScreen({ service, fix: given }: {
 
   const [facilities, setFacilities] = useState<readonly Facility[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
+
+  /*
+   * How many places are on screen, readable from inside load().
+   *
+   * load() is a useCallback that deliberately does not depend on
+   * `facilities` - rebuilding it whenever the list changed would re-run the
+   * effect that calls it, and re-search on every result. So the count is
+   * mirrored here, where reading it cannot go stale.
+   */
+  const shownCount = useRef(0);
   const [busy, setBusy] = useState(true);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
@@ -340,35 +351,50 @@ export function CareScreen({ service, fix: given }: {
     if (!service || !fix) return;
     setBusy(true);
 
-    let r = await service.near({ lat: fix.lat, lon: fix.lon });
-
     /*
-     * A narrower second try rather than nothing.
+     * Step the radius down, rather than falling off a cliff.
      *
-     * The query asks Overpass for every healthcare-tagged thing in a box
-     * about thirteen kilometres across. That is cheap over a quiet suburb and
-     * expensive over a dense city centre, and when it is expensive the server
-     * hits its own time limit and returns nothing at all - the screen then
-     * says "did not respond in time" and shows zero places, in a
-     * neighbourhood that may have fifty.
+     * The query asks Overpass for every healthcare-tagged thing in the box,
+     * and the cost is the area: cheap over a quiet suburb, expensive over a
+     * dense city, where the server hits its own limit and returns nothing.
      *
-     * Area goes up with the square of the radius, so a third of the radius is
-     * roughly a tenth of the work. Somewhere close is what this screen is for
-     * anyway; a hospital eight kilometres away is not the answer to "I need
-     * help now".
+     * This used to go straight from the full 6.5km to 2km on the first
+     * failure, which turned five hundred places into fourteen and looked like
+     * the app had broken. 4.4km in between recovers most of them, and is
+     * still half the work of the full box.
+     *
+     * Each step only runs because the one before it failed, so a search that
+     * works anywhere still costs exactly one request.
      */
-    if (!r.ok) {
-      const near = await service.near({ lat: fix.lat, lon: fix.lon, radiusDeg: 0.02 });
-      if (near.ok) {
-        r = {
-          ...near,
-          notice: near.facilities.length > 0
-            ? 'Showing places within about 2 km - the wider search timed out.'
-            : near.notice,
-        };
+    const RADII: (number | undefined)[] = [undefined, 0.04, 0.02];
+
+    let r = await service.near({ lat: fix.lat, lon: fix.lon });
+    let narrowedTo: number | null = null;
+
+    for (const radiusDeg of RADII.slice(1)) {
+      if (r.ok) break;
+      const retry = await service.near({ lat: fix.lat, lon: fix.lon, radiusDeg });
+      if (retry.ok) {
+        r = retry;
+        narrowedTo = radiusDeg ?? null;
       }
     }
 
+    if (narrowedTo !== null && r.facilities.length > 0) {
+      // Roughly, and rounded down: 1 degree of latitude is about 111 km.
+      const km = Math.floor(narrowedTo * 111);
+      r = { ...r, notice: `Showing places within about ${km} km - the wider search timed out.` };
+    }
+
+    /*
+     * Whether what is on screen is older than this attempt.
+     *
+     * Only a genuinely failed search leaves the previous list in place, and
+     * only then is "showing what was found last time" true. The banner said
+     * it unconditionally, so a successful narrow retry - fresh results, just
+     * from a smaller box - claimed to be stale data as well.
+     */
+    setStale(!r.ok && shownCount.current > 0);
 
     /*
      * A failed refresh does not throw away a good list.
@@ -382,7 +408,11 @@ export function CareScreen({ service, fix: given }: {
      * `ok` is what distinguishes this from a genuine empty area, which is a
      * real answer and should replace whatever was there.
      */
-    setFacilities((prev) => (r.ok || prev.length === 0 ? r.facilities : prev));
+    setFacilities((prev) => {
+      const next = r.ok || prev.length === 0 ? r.facilities : prev;
+      shownCount.current = next.length;
+      return next;
+    });
     setNotice(r.notice);
     setBusy(false);
   }, [service, fix]);
@@ -979,7 +1009,7 @@ export function CareScreen({ service, fix: given }: {
               <View style={[st.banner, { borderColor: P.line, backgroundColor: P.sunken }]}>
                 <Icon name="alert" size={16} color={P.warn} />
                 <Txt t="caption" c={P.muted} style={{ flex: 1 }}>
-                  {`${notice} Showing what was found last time.`}
+                  {stale ? `${notice} Showing what was found last time.` : notice}
                 </Txt>
                 <Springy onPress={() => { tap('light'); void load(); }} scaleTo={0.94}>
                   <Txt t="bodyStrong" c={P.accent}>Retry</Txt>
