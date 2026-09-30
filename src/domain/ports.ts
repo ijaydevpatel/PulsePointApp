@@ -1,5 +1,6 @@
 import { SymptomEpisode, TriageResult } from './entities';
 import { Drug, InteractionRule } from './medicines';
+import { SymptomAnalysis } from './remote';
 
 export interface Classification {
   readonly severity: number;
@@ -15,6 +16,7 @@ export interface Classifier {
 export interface HistoryEntry {
   readonly episode: SymptomEpisode;
   readonly result: TriageResult;
+  readonly analysis: SymptomAnalysis | null;
 }
 
 export interface EpisodeStore {
@@ -28,6 +30,7 @@ export interface EpisodeStore {
 
   pendingSync(): Promise<readonly HistoryEntry[]>;
   markSynced(episodeId: string): Promise<void>;
+  attachAnalysis(episodeId: string, analysis: SymptomAnalysis): Promise<void>;
 }
 
 export interface InteractionRepository {

@@ -4,6 +4,7 @@ import * as Crypto from 'expo-crypto';
 import { SymptomEpisode, TriageResult } from '../domain/entities';
 import { EpisodeStore, HistoryEntry } from '../domain/ports';
 import { ActivityEntry, ActivityKind, ActivityLog } from '../domain/activity';
+import { SymptomAnalysis } from '../domain/remote';
 import { EpisodeRow, fromRow, toRow } from './db/mapping';
 import { MIGRATIONS, SCHEMA_VERSION } from './db/schema';
 
@@ -79,8 +80,22 @@ export class SqliteEpisodeStore implements EpisodeStore, ActivityLog {
     return row ? fromRow(row) : null;
   }
 
+  async attachAnalysis(episodeId: string, analysis: SymptomAnalysis): Promise<void> {
+    try {
+      await this.require().runAsync(
+        'UPDATE episodes SET analysis_json = ? WHERE id = ?',
+        [JSON.stringify(analysis), episodeId],
+      );
+    } catch {
+    }
+  }
+
   async remove(episodeId: string): Promise<boolean> {
     const res = await this.require().runAsync('DELETE FROM episodes WHERE id = ?', [episodeId]);
+    try {
+      await this.require().runAsync('DELETE FROM activity WHERE episode_id = ?', [episodeId]);
+    } catch {
+    }
     return res.changes > 0;
   }
 

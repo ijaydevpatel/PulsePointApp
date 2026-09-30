@@ -64,3 +64,39 @@ describe('a log that cannot be written', () => {
     await expect(store.clearActivity()).resolves.toBeUndefined();
   });
 });
+
+describe('deleting a check', () => {
+  it('takes its history row with it', async () => {
+    /*
+     * The merged list is built from the activity trace, so a trace row that
+     * outlives its episode keeps appearing - with no record behind it and no
+     * delete control, because the control belongs to the record. Deleting
+     * twice then does nothing, which is what it looked like.
+     */
+    const store = new InMemoryEpisodeStore();
+
+    await store.save(
+      { id: 'ep-1', capturedAt: '2026-09-30T10:00:00.000Z', ageBand: 'ADULT', durationHours: 6, symptoms: [] },
+      { episodeId: 'ep-1', band: 'SELF_CARE', severity: 10, confidence: 0.4,
+        source: 'ON_DEVICE_RULES', redFlags: [], rationale: [], syncStatus: 'PENDING_SYNC' },
+    );
+    await store.record(entry('SYMPTOM_CHECK', '2026-09-30T10:00:00.000Z', 'ep-1'));
+
+    await store.remove('ep-1');
+
+    expect(await store.history()).toEqual([]);
+    expect(await store.recent()).toEqual([]);
+  });
+
+  it('leaves other rows alone', async () => {
+    const store = new InMemoryEpisodeStore();
+    await store.record(entry('CARE_SEARCH', '2026-09-30T09:00:00.000Z'));
+    await store.record(entry('SYMPTOM_CHECK', '2026-09-30T10:00:00.000Z', 'ep-1'));
+
+    await store.remove('ep-1');
+
+    const left = await store.recent();
+    expect(left).toHaveLength(1);
+    expect(left[0]!.kind).toBe('CARE_SEARCH');
+  });
+});

@@ -75,9 +75,6 @@ export function HomeScreen({
     setRefreshing(false);
   }, [loadLocal, loadRemote]);
 
-  const latest = history?.[0] ?? null;
-  const takenAt = latest?.episode.capturedAt ?? null;
-  const stale = takenAt ? Date.now() - new Date(takenAt).getTime() > STALE_AFTER_MS : false;
 
   const score = useMemo(() => (history ? healthScore(history) : null), [history]);
   const streak = useMemo(() => (history ? checkInStreak(history) : null), [history]);
@@ -106,19 +103,6 @@ export function HomeScreen({
           </Txt>
         ) : null}
       </Enter>
-
-      {latest ? (
-        <Enter index={2}>
-          <View style={{ height: S.xxl }} />
-          <SectionLabel>Last assessment</SectionLabel>
-          <BandCard
-            band={latest.result.band}
-            severity={latest.result.severity}
-            takenAt={takenAt!}
-            stale={stale}
-          />
-        </Enter>
-      ) : null}
 
       <Enter index={3}>
         <View style={{ height: S.xxl }} />
@@ -361,40 +345,6 @@ function Metric({ icon, label, value }: { icon: 'sun' | 'search' | 'clock'; labe
   );
 }
 
-function BandCard({
-  band, severity, takenAt, stale,
-}: {
-  band: TriageBand; severity: number; takenAt: string; stale: boolean;
-}) {
-  const { c: P, band: BAND } = useTheme();
-  const b = BAND[band];
-
-  return (
-    <Card padded={false} elevated={2} style={{ overflow: 'hidden' }}>
-      <View style={[st.bandHead, { backgroundColor: b.solid, borderBottomColor: b.solidEdge }]}>
-        <Txt t="micro" c={b.onSolid} style={st.eyebrowTight}>RECOMMENDED</Txt>
-        <Txt t="title" c={b.onSolid} style={{ marginTop: 2 }}>{b.label}</Txt>
-      </View>
-
-      <View style={{ padding: S.lg }}>
-        <View style={st.statRow}>
-          <Icon name="clock" size={16} color={P.muted} />
-          <Txt t="body" style={{ flex: 1 }}>Taken {ago(takenAt)}</Txt>
-          <View style={[st.sevPill, { backgroundColor: P.sunken }]}>
-            <Txt t="numeric" c={P.ink}>{Math.round(severity)}</Txt>
-          </View>
-        </View>
-
-        {stale ? (
-          <Txt t="caption" c={P.muted} style={{ marginTop: 8 }}>
-            This was more than a day ago and may no longer describe how you
-            feel. Check again if anything has changed.
-          </Txt>
-        ) : null}
-      </View>
-    </Card>
-  );
-}
 
 const st = StyleSheet.create({
   body: { paddingHorizontal: S.xl },

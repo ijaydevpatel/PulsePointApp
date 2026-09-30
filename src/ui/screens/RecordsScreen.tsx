@@ -153,7 +153,7 @@ export function RecordsScreen({ store, refreshKey, onBack }: {
 
 function CheckDetail({ entry, onBack }: { entry: HistoryEntry; onBack: () => void }) {
   const { c: P, band: B } = useTheme();
-  const { episode, result } = entry;
+  const { episode, result, analysis } = entry;
 
   return (
     <View style={{ flex: 1 }}>
@@ -202,16 +202,45 @@ function CheckDetail({ entry, onBack }: { entry: HistoryEntry; onBack: () => voi
           </>
         ) : null}
 
-        {result.rationale.length > 0 ? (
+        {analysis ? (
           <>
-            <SectionLabel>Why</SectionLabel>
+            <SectionLabel>What the analysis found</SectionLabel>
             <Card style={{ marginBottom: S.sm }}>
-              {result.rationale.map((r, i) => (
-                <Txt key={r} t="body" style={{ marginTop: i === 0 ? 0 : S.sm }}>{r}</Txt>
-              ))}
+              {analysis.probabilityMatrix.length === 0 ? (
+                <Txt t="caption" c={P.muted}>No conditions were returned.</Txt>
+              ) : (
+                analysis.probabilityMatrix.map((c, i) => (
+                  <View
+                    key={c.name}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center',
+                      gap: S.md, marginTop: i === 0 ? 0 : S.sm,
+                    }}
+                  >
+                    <Txt t="body" style={{ flex: 1 }}>{c.name}</Txt>
+                    <Txt t="numeric" c={P.muted}>{`${Math.round(c.confidence)}%`}</Txt>
+                  </View>
+                ))
+              )}
             </Card>
+
+            {analysis.summaryText ? (
+              <>
+                <SectionLabel>Synopsis</SectionLabel>
+                <Card style={{ marginBottom: S.sm }}>
+                  <Txt t="body">{analysis.summaryText}</Txt>
+                </Card>
+              </>
+            ) : null}
           </>
-        ) : null}
+        ) : (
+          <Card style={{ marginBottom: S.sm }}>
+            <Txt t="caption" c={P.muted}>
+              The clinical engine had not answered when this check was saved,
+              so no condition list was kept for it.
+            </Txt>
+          </Card>
+        )}
 
         <Txt t="micro" c={P.faint} style={{ marginTop: S.md }}>
           {result.syncStatus === 'PENDING_SYNC'

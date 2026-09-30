@@ -1,5 +1,6 @@
 import { EpisodeStore, HistoryEntry } from '../domain/ports';
 import { ActivityEntry, ActivityLog } from '../domain/activity';
+import { SymptomAnalysis } from '../domain/remote';
 import { SymptomEpisode, TriageResult } from '../domain/entities';
 import { SqliteEpisodeStore } from './sqliteStore';
 import { InMemoryEpisodeStore } from './memoryStore';
@@ -62,6 +63,11 @@ export class DurableEpisodeStore implements EpisodeStore, ActivityLog {
   async markSynced(episodeId: string): Promise<void> {
     await this.init();
     return this.inner.markSynced(episodeId);
+  }
+
+  async attachAnalysis(episodeId: string, analysis: SymptomAnalysis): Promise<void> {
+    await this.init();
+    return this.inner.attachAnalysis(episodeId, analysis);
   }
 
   async record(entry: Omit<ActivityEntry, 'id'>): Promise<void> {

@@ -1,4 +1,4 @@
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const MIGRATIONS: readonly string[][] = [
 
@@ -34,5 +34,9 @@ export const MIGRATIONS: readonly string[][] = [
      );`,
     `CREATE INDEX IF NOT EXISTS idx_activity_at
        ON activity (at DESC);`,
+  ],
+
+  [
+    `ALTER TABLE episodes ADD COLUMN analysis_json TEXT;`,
   ],
 ];

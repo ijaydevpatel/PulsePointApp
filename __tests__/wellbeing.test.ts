@@ -8,6 +8,7 @@ const NOW = new Date('2026-09-24T12:00:00').getTime();
 function entry(band: TriageBand, daysAgo: number, redFlags: string[] = []): HistoryEntry {
   const at = new Date(NOW - daysAgo * DAY).toISOString();
   return {
+    analysis: null,
     episode: {
       id: `ep_${daysAgo}_${band}`,
       capturedAt: at,

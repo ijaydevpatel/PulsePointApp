@@ -1,6 +1,7 @@
 import { SymptomEpisode, TriageResult } from '../domain/entities';
 import { EpisodeStore, HistoryEntry } from '../domain/ports';
 import { ActivityEntry, ActivityLog } from '../domain/activity';
+import { SymptomAnalysis } from '../domain/remote';
 
 export class InMemoryEpisodeStore implements EpisodeStore, ActivityLog {
   private trace: ActivityEntry[] = [];
@@ -10,7 +11,7 @@ export class InMemoryEpisodeStore implements EpisodeStore, ActivityLog {
   async init(): Promise<void> {}
 
   async save(episode: SymptomEpisode, result: TriageResult): Promise<void> {
-    const entry: HistoryEntry = { episode, result };
+    const entry: HistoryEntry = { episode, result, analysis: null };
     const i = this.rows.findIndex((r) => r.episode.id === episode.id);
     if (i >= 0) this.rows[i] = entry;
     else this.rows.unshift(entry);
@@ -25,9 +26,16 @@ export class InMemoryEpisodeStore implements EpisodeStore, ActivityLog {
     return this.rows.find((r) => r.episode.id === episodeId) ?? null;
   }
 
+  async attachAnalysis(episodeId: string, analysis: SymptomAnalysis): Promise<void> {
+    const i = this.rows.findIndex((r) => r.episode.id === episodeId);
+    const row = this.rows[i];
+    if (row) this.rows[i] = { ...row, analysis };
+  }
+
   async remove(episodeId: string): Promise<boolean> {
     const before = this.rows.length;
     this.rows = this.rows.filter((r) => r.episode.id !== episodeId);
+    this.trace = this.trace.filter((a) => a.episodeId !== episodeId);
     return this.rows.length < before;
   }
 
@@ -45,7 +53,11 @@ export class InMemoryEpisodeStore implements EpisodeStore, ActivityLog {
     const i = this.rows.findIndex((r) => r.episode.id === episodeId);
     const row = this.rows[i];
     if (row) {
-      this.rows[i] = { episode: row.episode, result: { ...row.result, syncStatus: 'SYNCED' } };
+      this.rows[i] = {
+        episode: row.episode,
+        result: { ...row.result, syncStatus: 'SYNCED' },
+        analysis: row.analysis,
+      };
     }
   }
 

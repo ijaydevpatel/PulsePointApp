@@ -268,7 +268,13 @@ function AppContent() {
                 );
               });
             }}
-            onAnalysis={setAnalysis}
+            onAnalysis={(a) => {
+              setAnalysis(a);
+
+              if (a?.status === 'OK' && a.data && result?.r.episodeId) {
+                void store.attachAnalysis(result.r.episodeId, a.data);
+              }
+            }}
           />
         );
       case 'medicines':

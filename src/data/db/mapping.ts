@@ -3,6 +3,7 @@ import {
   ResultSource, SyncStatus,
 } from '../../domain/entities';
 import { HistoryEntry } from '../../domain/ports';
+import { SymptomAnalysis } from '../../domain/remote';
 
 export interface EpisodeRow {
   id: string;
@@ -17,6 +18,7 @@ export interface EpisodeRow {
   red_flags_json: string;
   rationale_json: string;
   sync_status: string;
+  analysis_json?: string | null;
 }
 
 const BANDS: readonly string[] = ['SELF_CARE', 'PHARMACY_GP', 'URGENT', 'EMERGENCY'];
@@ -58,6 +60,7 @@ export function toRow(episode: SymptomEpisode, result: TriageResult): EpisodeRow
     red_flags_json: JSON.stringify(result.redFlags),
     rationale_json: JSON.stringify(result.rationale),
     sync_status: result.syncStatus,
+    analysis_json: null,
   };
 }
 
@@ -79,5 +82,14 @@ export function fromRow(row: EpisodeRow): HistoryEntry {
     rationale: parseArray<string>(row.rationale_json, 'rationale_json'),
     syncStatus: oneOf<SyncStatus>(row.sync_status, STATUSES, 'sync_status'),
   };
-  return { episode, result };
+  let analysis: SymptomAnalysis | null = null;
+  if (row.analysis_json) {
+    try {
+      analysis = JSON.parse(row.analysis_json) as SymptomAnalysis;
+    } catch {
+      analysis = null;
+    }
+  }
+
+  return { episode, result, analysis };
 }
