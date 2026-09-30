@@ -128,4 +128,27 @@ describe('the MapLibre API the Map tab is written against', () => {
   it('carries the facility id in feature properties', () => {
     expect(source).toMatch(/properties: \{[\s\S]*?id: f\.id/);
   });
+
+  it('draws pins from plain properties, not conditional expressions', () => {
+    const pins = /id="facility-pins"[\s\S]*?\/>/.exec(source)?.[0] ?? '';
+    const labels = /id="facility-labels"[\s\S]*?\/>/.exec(source)?.[0] ?? '';
+
+    expect(pins.length).toBeGreaterThan(50);
+    expect(labels.length).toBeGreaterThan(50);
+
+    for (const block of [pins, labels]) {
+      expect(block).not.toContain("['case'");
+      expect(block).not.toContain('[\'case\'');
+    }
+
+    expect(labels).toContain("'text-field': ['get', 'label']");
+  });
+
+  it('gives every pin the properties those layers read', () => {
+    const props = /properties: \{[\s\S]*?\},/.exec(source)?.[0] ?? '';
+
+    for (const key of ['label', 'colour', 'radius', 'stroke', 'size', 'sort']) {
+      expect(props).toContain(`${key}:`);
+    }
+  });
 });

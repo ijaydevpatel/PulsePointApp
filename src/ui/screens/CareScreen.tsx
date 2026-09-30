@@ -293,10 +293,12 @@ export function CareScreen({ service, fix: given, onSearched }: {
       geometry: { type: 'Point' as const, coordinates: [f.lon, f.lat] },
       properties: {
         id: f.id,
-        name: f.name,
-        named: f.named,
+        label: f.named ? f.name : '',
         colour: kindColour(P, f.kind),
-        selected: f.id === selected,
+        radius: f.id === selected ? 11 : 6,
+        stroke: f.id === selected ? 3 : 2,
+        size: f.id === selected ? 13 : 11,
+        sort: f.id === selected ? 0 : 1,
       },
     })),
   }), [shown, P, selected]);
@@ -445,9 +447,9 @@ export function CareScreen({ service, fix: given, onSearched }: {
                 id="facility-pins"
                 type="circle"
                 paint={{
-                  'circle-radius': ['case', ['get', 'selected'], 11, 6],
+                  'circle-radius': ['get', 'radius'],
                   'circle-color': ['get', 'colour'],
-                  'circle-stroke-width': ['case', ['get', 'selected'], 3, 2],
+                  'circle-stroke-width': ['get', 'stroke'],
                   'circle-stroke-color': '#FFFFFF',
                 }}
               />
@@ -457,15 +459,15 @@ export function CareScreen({ service, fix: given, onSearched }: {
                 type="symbol"
                 minzoom={11}
                 layout={{
-                  'text-field': ['case', ['get', 'named'], ['get', 'name'], ''],
+                  'text-field': ['get', 'label'],
                   'text-font': ['Noto Sans Regular'],
-                  'text-size': ['case', ['get', 'selected'], 13, 11],
+                  'text-size': ['get', 'size'],
                   'text-anchor': 'top',
                   'text-offset': [0, 0.9],
                   'text-max-width': 9,
                   'text-padding': 4,
 
-                  'symbol-sort-key': ['case', ['get', 'selected'], 0, 1],
+                  'symbol-sort-key': ['get', 'sort'],
                 }}
                 paint={{
                   'text-color': scheme === 'dark' ? '#F2F3F5' : '#1A1A1A',
