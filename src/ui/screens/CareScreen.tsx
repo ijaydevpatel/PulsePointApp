@@ -293,7 +293,7 @@ export function CareScreen({ service, fix: given, onSearched }: {
       geometry: { type: 'Point' as const, coordinates: [f.lon, f.lat] },
       properties: {
         id: f.id,
-        label: f.named ? f.name : '',
+        label: f.name,
         colour: kindColour(P, f.kind),
         radius: f.id === selected ? 11 : 6,
         stroke: f.id === selected ? 3 : 2,
@@ -462,10 +462,11 @@ export function CareScreen({ service, fix: given, onSearched }: {
                   'text-field': ['get', 'label'],
                   'text-font': ['Noto Sans Regular'],
                   'text-size': ['get', 'size'],
-                  'text-anchor': 'top',
-                  'text-offset': [0, 0.9],
+                  'text-variable-anchor': ['top', 'bottom', 'left', 'right'],
+                  'text-radial-offset': 0.8,
+                  'text-justify': 'auto',
                   'text-max-width': 9,
-                  'text-padding': 4,
+                  'text-padding': 1,
 
                   'symbol-sort-key': ['get', 'sort'],
                 }}

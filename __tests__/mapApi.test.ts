@@ -151,4 +151,28 @@ describe('the MapLibre API the Map tab is written against', () => {
       expect(props).toContain(`${key}:`);
     }
   });
+
+  it('labels every place, including the unnamed ones', () => {
+    /*
+     * An unnamed OSM entry is given its category as a name - "Pharmacy",
+     * "Clinic" - by toFacility, and the list row shows that. Blanking the map
+     * label for those left pins with no name at all, and disagreeing with the
+     * row for the same place.
+     */
+    expect(source).toContain('label: f.name,');
+    expect(source).not.toContain("f.named ? f.name : ''");
+  });
+
+  it('moves a label rather than dropping it, where it can', () => {
+    /*
+     * MapLibre hides a label that collides with one already placed. A
+     * variable anchor lets it try above, below, left and right before giving
+     * up, which fits far more names on a crowded street than a fixed offset
+     * does.
+     */
+    const labels = /id="facility-labels"[\s\S]*?\/>/.exec(source)?.[0] ?? '';
+
+    expect(labels).toContain("'text-variable-anchor'");
+    expect(labels).toContain("'text-radial-offset'");
+  });
 });
