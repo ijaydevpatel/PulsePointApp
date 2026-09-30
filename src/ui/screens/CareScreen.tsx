@@ -41,6 +41,19 @@ const TAP_SLOP = 14;
 
 const RINGS = [0.012, 0.03, 0.06] as const;
 
+const CACHE_MS = 10 * 60 * 1000;
+const CACHE_GRID = 3;
+
+let cached: { key: string; facilities: readonly Facility[]; at: number } | null = null;
+
+const cacheKey = (lat: number, lon: number) =>
+  `${lat.toFixed(CACHE_GRID)},${lon.toFixed(CACHE_GRID)}`;
+
+function readCache(lat: number, lon: number): readonly Facility[] | null {
+  if (!cached || cached.key !== cacheKey(lat, lon)) return null;
+  return Date.now() - cached.at <= CACHE_MS ? cached.facilities : null;
+}
+
 const FLICK = 0.5;
 
 function kindColour(P: Palette, kind: FacilityKind): string {
@@ -194,11 +207,21 @@ export function CareScreen({ service, fix: given, onSearched }: {
     const run = ++searchRun.current;
     const alive = () => searchRun.current === run;
 
-    setBusy(true);
+    const warm = readCache(fix.lat, fix.lon);
+    if (warm && warm.length > 0) {
+      shownCount.current = warm.length;
+      setFacilities(warm);
+      setBusy(false);
+      setWidening(true);
+    } else {
+      setBusy(true);
+    }
+
     setNotice(null);
     setStale(false);
 
     const found = new Map<string, Facility>();
+    if (warm) for (const f of warm) found.set(f.id, f);
     let answered = false;
     let lastNotice: string | null = null;
 
@@ -226,12 +249,20 @@ export function CareScreen({ service, fix: given, onSearched }: {
     setBusy(false);
 
     if (answered) {
+      if (found.size > 0) {
+        cached = { key: cacheKey(fix.lat, fix.lon), facilities: [...found.values()], at: Date.now() };
+      }
       setNotice(found.size === 0 ? 'No health facilities are mapped around here.' : null);
       searched.current?.(found.size, fix.place ?? null);
       return;
     }
 
-    setStale(shownCount.current > 0);
+    if (shownCount.current > 0) {
+      setStale(true);
+      setNotice(lastNotice ?? 'Nothing could be loaded for this area.');
+      return;
+    }
+
     setNotice(lastNotice ?? 'Nothing could be loaded for this area.');
   }, [service, fix]);
 

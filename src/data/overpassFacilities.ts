@@ -20,7 +20,7 @@ function budgetFor(deg: number) {
   return {
     serverSeconds: small ? 12 : mid ? 25 : 45,
     attemptMs: small ? 9000 : mid ? 18000 : TIMEOUT_MS,
-    hedgeMs: small ? 1200 : 4000,
+    hedgeMs: small ? 0 : 4000,
     totalMs: small ? 14000 : mid ? 26000 : 50000,
   };
 }
@@ -133,7 +133,11 @@ export class OverpassFacilities implements FacilityService {
       try {
         const response = await this.fetchImpl(endpoint, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            Accept: 'application/json',
+            'User-Agent': 'PulsePoint/0.1 (health facility finder)',
+          },
           body,
           signal,
         });
@@ -208,7 +212,11 @@ export class OverpassFacilities implements FacilityService {
       const hedge = setInterval(() => {
         if (done || started >= ENDPOINTS.length) return clearInterval(hedge);
         startNext();
-      }, budget.hedgeMs);
+      }, Math.max(budget.hedgeMs, 50));
+
+      if (budget.hedgeMs === 0) {
+        while (started < ENDPOINTS.length) startNext();
+      }
 
       const deadline = setTimeout(giveUp, budget.totalMs);
 
