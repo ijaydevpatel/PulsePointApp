@@ -129,7 +129,14 @@ export class OverpassFacilities implements FacilityService {
     const body = `data=${encodeURIComponent(query)}`;
     let lastNotice = 'Nothing could be loaded for this area.';
 
+    const log: string[] = [];
+    const note = (line: string) => { if (log.length < 6) log.push(line); };
+
     const ask = async (endpoint: string, signal: AbortSignal): Promise<FacilityResult | null> => {
+      const host = endpoint.replace(/^https?:\/\//, '').split('/')[0] ?? endpoint;
+      const started = Date.now();
+      const secs = () => `${((Date.now() - started) / 1000).toFixed(1)}s`;
+
       try {
         const response = await this.fetchImpl(endpoint, {
           method: 'POST',
@@ -143,12 +150,14 @@ export class OverpassFacilities implements FacilityService {
         });
 
         if (!response.ok) {
+          note(`${host}: HTTP ${response.status} after ${secs()}`);
           lastNotice = `The map service is busy (HTTP ${response.status}).`;
           return null;
         }
 
         const type = response.headers?.get?.('content-type') ?? '';
         if (!type.includes('json')) {
+          note(`${host}: not JSON after ${secs()}`);
           lastNotice = 'The map service is busy right now.';
           return null;
         }
@@ -160,9 +169,16 @@ export class OverpassFacilities implements FacilityService {
           notice: facilities.length === 0
             ? 'No health facilities are mapped within about 6 km.'
             : null,
+          diagnostics: null,
         };
       } catch (error) {
-        lastNotice = (error instanceof Error && error.name === 'AbortError')
+        const aborted = error instanceof Error && error.name === 'AbortError';
+        const why = aborted
+          ? `timed out at ${secs()}`
+          : `${error instanceof Error ? error.message : 'failed'} at ${secs()}`;
+        note(`${host}: ${why}`);
+
+        lastNotice = aborted
           ? 'The map service did not respond in time.'
           : 'The map service could not be reached.';
         return null;
@@ -185,7 +201,12 @@ export class OverpassFacilities implements FacilityService {
         resolve(r);
       };
 
-      const giveUp = () => finish({ ok: false, facilities: [], notice: lastNotice });
+      const giveUp = () => finish({
+        ok: false,
+        facilities: [],
+        notice: lastNotice,
+        diagnostics: log.length ? log.join('\n') : null,
+      });
 
       const startNext = () => {
         if (done || started >= ENDPOINTS.length) return;

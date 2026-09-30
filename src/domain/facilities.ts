@@ -174,6 +174,7 @@ export interface FacilityResult {
   readonly ok: boolean;
   readonly facilities: readonly Facility[];
   readonly notice: string | null;
+  readonly diagnostics?: string | null;
 }
 
 export interface FacilityService {

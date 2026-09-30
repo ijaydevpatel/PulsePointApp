@@ -186,6 +186,7 @@ export function CareScreen({ service, fix: given, onSearched }: {
   const [facilities, setFacilities] = useState<readonly Facility[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<string | null>(null);
 
   const shownCount = useRef(0);
 
@@ -224,12 +225,14 @@ export function CareScreen({ service, fix: given, onSearched }: {
     if (warm) for (const f of warm) found.set(f.id, f);
     let answered = false;
     let lastNotice: string | null = null;
+    let lastDiagnostics: string | null = null;
 
     for (const radiusDeg of RINGS) {
       const r = await service.near({ lat: fix.lat, lon: fix.lon, radiusDeg });
       if (!alive()) return;
 
       lastNotice = r.notice;
+      lastDiagnostics = r.diagnostics ?? null;
 
       if (!r.ok) break;
 
@@ -252,10 +255,13 @@ export function CareScreen({ service, fix: given, onSearched }: {
       if (found.size > 0) {
         cached = { key: cacheKey(fix.lat, fix.lon), facilities: [...found.values()], at: Date.now() };
       }
+      setDiagnostics(null);
       setNotice(found.size === 0 ? 'No health facilities are mapped around here.' : null);
       searched.current?.(found.size, fix.place ?? null);
       return;
     }
+
+    setDiagnostics(lastDiagnostics);
 
     if (shownCount.current > 0) {
       setStale(true);
@@ -635,7 +641,7 @@ export function CareScreen({ service, fix: given, onSearched }: {
           windowSize={7}
           removeClippedSubviews={false}
           ListEmptyComponent={
-            <Empty busy={busy} notice={notice} query={query} onRetry={load} />
+            <Empty busy={busy} notice={notice} diagnostics={diagnostics} query={query} onRetry={load} />
           }
           ListHeaderComponent={
             <>
@@ -752,9 +758,10 @@ function Row({ f, selected, onPress, onDirections }: {
   );
 }
 
-function Empty({ busy, notice, query, onRetry }: {
+function Empty({ busy, notice, diagnostics, query, onRetry }: {
   busy: boolean;
   notice: string | null;
+  diagnostics: string | null;
   query: string;
   onRetry: () => void;
 }) {
@@ -775,6 +782,13 @@ function Empty({ busy, notice, query, onRetry }: {
     return (
       <View style={st.empty}>
         <Txt t="caption" c={P.muted} style={{ textAlign: 'center' }}>{notice}</Txt>
+
+        {diagnostics ? (
+          <Txt t="micro" c={P.faint} style={{ marginTop: S.md, textAlign: 'center' }}>
+            {diagnostics}
+          </Txt>
+        ) : null}
+
         <View style={{ height: S.md }} />
         <Springy onPress={() => { tap('light'); onRetry(); }} scaleTo={0.96}>
           <Txt t="bodyStrong" c={P.accent}>Try again</Txt>
