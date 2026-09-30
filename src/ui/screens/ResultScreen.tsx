@@ -19,6 +19,7 @@ import {
 import { TriageResult, BAND_LABEL, BAND_ADVICE, requiresEscalation } from '../../domain/entities';
 import { Card, SectionLabel, Button, Txt, Springy, Enter, tap } from '../components/Primitives';
 import { Icon } from '../components/Icon';
+import { ScreenHeader } from '../components/ScreenHeader';
 import { useTheme, TYPE, S, R, TOUCH, TAB_CLEARANCE, MOTION, circle } from '../theme';
 import {
   RemoteOutcome, SymptomAnalysis, ProbableCondition, MatrixSeverity,
@@ -42,6 +43,15 @@ function useCountUp(value: number, duration = 900) {
   return shown;
 }
 
+/**
+ * How long the hosted engine gets before the local result is shown anyway.
+ *
+ * Long enough that a normal round trip finishes first and the person sees one
+ * complete screen; short enough that an unreachable server does not leave
+ * someone who may be unwell staring at a spinner.
+ */
+const ANALYSIS_DEADLINE_MS = 12000;
+
 export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }: {
   result: TriageResult; elapsedMs: number | null;
   /**
@@ -58,10 +68,45 @@ export function ResultScreen({ result, elapsedMs, analysis, onBack, onFindCare }
   const escalate = requiresEscalation(result);
   const severity = useCountUp(result.severity);
 
+  /*
+   * ── Nothing is shown until the analysis is in ────────────────────────────
+   *
+   * The score and the confidence used to appear immediately, with the
+   * conditions filling in underneath. That is faster, and it made the number
+   * look pre-decided: a finished 45/100 sitting above a spinner invites
+   * exactly one conclusion, and on a triage screen that conclusion is fatal
+   * to trust even when it is wrong.
+   *
+   * So the whole result waits. Two things keep that from becoming its own
+   * hazard:
+   *
+   *   - An emergency is never held. If the local engine has already matched
+   *     a red flag, the advice to act on it is on screen in the same frame
+   *     it was computed. No network call gets to delay that.
+   *
+   *   - There is a deadline. The hosted engine can be slow or unreachable,
+   *     and a screen that waits forever for it shows a person nothing at
+   *     all. After this, the local result is revealed regardless - it was
+   *     always complete, and the provenance note says where it came from.
+   */
+  const [revealed, setRevealed] = useState(analysis !== null && analysis !== undefined);
+
+  useEffect(() => {
+    if (analysis !== null && analysis !== undefined) { setRevealed(true); return; }
+    const timer = setTimeout(() => setRevealed(true), ANALYSIS_DEADLINE_MS);
+    return () => clearTimeout(timer);
+  }, [analysis]);
+
   // A serious result should feel different in the hand, not only look different.
   useEffect(() => {
-    tap(result.band === 'EMERGENCY' ? 'error' : result.band === 'URGENT' ? 'warn' : 'success');
-  }, [result.band]);
+    if (revealed || escalate) {
+      tap(result.band === 'EMERGENCY' ? 'error' : result.band === 'URGENT' ? 'warn' : 'success');
+    }
+  }, [result.band, revealed, escalate]);
+
+  if (!revealed && !escalate) {
+    return <Analysing onBack={onBack} />;
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: P.bg }}>
@@ -522,6 +567,35 @@ function Skeleton({ index }: { index: number }) {
           opacity: pulse,
         }}
       />
+    </View>
+  );
+}
+
+/**
+ * The whole screen, while the analysis is still coming.
+ *
+ * Deliberately says nothing about the outcome - no band colour, no partial
+ * score, no hint of severity. A holding screen that leaked the answer would
+ * defeat the point of holding it.
+ */
+function Analysing({ onBack }: { onBack: () => void }) {
+  const { c: P } = useTheme();
+
+  return (
+    <View style={{ flex: 1, backgroundColor: P.bg }}>
+      <ScreenHeader title="Checking your symptoms" onBack={onBack} />
+
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: S.xxl }}>
+        <ActivityIndicator size="large" color={P.accent} />
+
+        <Txt t="bodyStrong" style={{ marginTop: S.xl, textAlign: 'center' }}>
+          Matching against the clinical engine
+        </Txt>
+        <Txt t="caption" c={P.muted} style={{ marginTop: S.sm, textAlign: 'center' }}>
+          This usually takes a few seconds. Your result appears once the
+          possible conditions have been worked out.
+        </Txt>
+      </View>
     </View>
   );
 }
