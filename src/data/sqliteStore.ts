@@ -14,6 +14,7 @@ import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import { SymptomEpisode, TriageResult } from '../domain/entities';
 import { EpisodeStore, HistoryEntry } from '../domain/ports';
+import { ActivityEntry, ActivityKind, ActivityLog } from '../domain/activity';
 import { EpisodeRow, fromRow, toRow } from './db/mapping';
 import { MIGRATIONS, SCHEMA_VERSION } from './db/schema';
 
@@ -33,7 +34,7 @@ async function getOrCreateKey(): Promise<string> {
   return key;
 }
 
-export class SqliteEpisodeStore implements EpisodeStore {
+export class SqliteEpisodeStore implements EpisodeStore, ActivityLog {
   private db: SQLite.SQLiteDatabase | null = null;
 
   async init(): Promise<void> {
@@ -110,5 +111,53 @@ export class SqliteEpisodeStore implements EpisodeStore {
     await this.require().runAsync(
       `UPDATE episodes SET sync_status = 'SYNCED' WHERE id = ?`, [episodeId],
     );
+  }
+
+  /* ──────────────────────────── activity ─────────────────────────────── */
+
+  /**
+   * Never throws.
+   *
+   * This is a trace of use, not a clinical record. If writing it fails the
+   * person should still get their interaction check - a log that breaks the
+   * thing it is logging has negative value.
+   */
+  async record(entry: Omit<ActivityEntry, 'id'>): Promise<void> {
+    try {
+      const id = `${entry.at}-${Math.random().toString(36).slice(2, 10)}`;
+      await this.require().runAsync(
+        `INSERT INTO activity (id, kind, at, title, detail, episode_id)
+         VALUES (?,?,?,?,?,?)`,
+        [id, entry.kind, entry.at, entry.title, entry.detail, entry.episodeId],
+      );
+    } catch {
+      /* a missing line in a history is not worth an error on screen */
+    }
+  }
+
+  async recent(limit = 100): Promise<readonly ActivityEntry[]> {
+    try {
+      const rows = await this.require().getAllAsync<{
+        id: string; kind: string; at: string;
+        detail: string | null; title: string; episode_id: string | null;
+      }>('SELECT * FROM activity ORDER BY at DESC LIMIT ?', [limit]);
+
+      return rows.map((r) => ({
+        id: r.id,
+        kind: r.kind as ActivityKind,
+        at: r.at,
+        title: r.title,
+        detail: r.detail,
+        episodeId: r.episode_id,
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+  async clearActivity(): Promise<void> {
+    try {
+      await this.require().runAsync('DELETE FROM activity');
+    } catch { /* nothing to clear is the same outcome */ }
   }
 }

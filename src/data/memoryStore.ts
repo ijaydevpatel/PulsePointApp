@@ -6,8 +6,11 @@
  */
 import { SymptomEpisode, TriageResult } from '../domain/entities';
 import { EpisodeStore, HistoryEntry } from '../domain/ports';
+import { ActivityEntry, ActivityLog } from '../domain/activity';
 
-export class InMemoryEpisodeStore implements EpisodeStore {
+export class InMemoryEpisodeStore implements EpisodeStore, ActivityLog {
+  private trace: ActivityEntry[] = [];
+
   private rows: HistoryEntry[] = [];
 
   async init(): Promise<void> {}
@@ -50,5 +53,19 @@ export class InMemoryEpisodeStore implements EpisodeStore {
     if (row) {
       this.rows[i] = { episode: row.episode, result: { ...row.result, syncStatus: 'SYNCED' } };
     }
+  }
+
+  /* Activity, for the session only - this is the fallback when storage fails. */
+
+  async record(entry: Omit<ActivityEntry, 'id'>): Promise<void> {
+    this.trace.unshift({ ...entry, id: `${entry.at}-${this.trace.length}` });
+  }
+
+  async recent(limit = 100): Promise<readonly ActivityEntry[]> {
+    return this.trace.slice(0, limit);
+  }
+
+  async clearActivity(): Promise<void> {
+    this.trace = [];
   }
 }

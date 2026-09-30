@@ -8,6 +8,7 @@ import {
 import { SeveritySpine } from '../components/SeveritySpine';
 import { Icon } from '../components/Icon';
 import { EpisodeStore, HistoryEntry } from '../../domain/ports';
+import { ActivityEntry, ActivityLog, ACTIVITY_LABEL } from '../../domain/activity';
 import { BAND_LABEL } from '../../domain/entities';
 import { useTheme, S, TOUCH, TAB_CLEARANCE } from '../theme';
 
@@ -29,7 +30,7 @@ function when(iso: string): string {
 }
 
 export function RecordsScreen({ store, refreshKey, onBack }: {
-  store: EpisodeStore;
+  store: EpisodeStore & ActivityLog;
   refreshKey: number;
   /** Present now that Records is reached from the account sheet rather than
    *  from a tab - a pushed screen needs a way back. */
@@ -40,10 +41,28 @@ export function RecordsScreen({ store, refreshKey, onBack }: {
   const [loaded, setLoaded] = useState(false);
   const [open, setOpen] = useState<HistoryEntry | null>(null);
 
+  const [trace, setTrace] = useState<readonly ActivityEntry[]>([]);
+
   const load = useCallback(async () => {
-    setRows(await store.history(100));
+    const [checks, activity] = await Promise.all([store.history(100), store.recent(200)]);
+    setRows(checks);
+    setTrace(activity);
     setLoaded(true);
   }, [store]);
+
+  /**
+   * One list, newest first.
+   *
+   * A symptom check appears once, not twice: it writes an activity row too,
+   * and that row carries the episode id, so the richer clinical record is
+   * shown wherever one exists and the trace stands in only where it does
+   * not.
+   */
+  const byEpisode = new Map(rows.map((r) => [r.episode.id, r]));
+  const items = trace.map((a) => ({
+    activity: a,
+    check: a.episodeId ? byEpisode.get(a.episodeId) ?? null : null,
+  }));
 
   useEffect(() => { void load(); }, [load, refreshKey]);
 
@@ -63,64 +82,83 @@ export function RecordsScreen({ store, refreshKey, onBack }: {
     <View style={{ flex: 1 }}>
       <ScreenHeader title="Records" subtitle="Stored encrypted on this device only" onBack={onBack} />
       <FlatList
-        data={rows}
-        keyExtractor={(r) => r.episode.id}
+        data={items}
+        keyExtractor={(i) => i.activity.id}
         contentContainerStyle={{ paddingHorizontal: S.xl, paddingBottom: TAB_CLEARANCE + S.xxl }}
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={rows.length ? <SectionLabel>Past checks</SectionLabel> : undefined}
+        ListHeaderComponent={items.length ? <SectionLabel>Everything you have done</SectionLabel> : undefined}
         ListEmptyComponent={loaded ? (
           <EmptyState
             icon="clock"
-            title="No checks yet"
-            body="Symptom checks you run will be saved here, encrypted, so you can look back at them."
+            title="Nothing here yet"
+            body="Symptom checks, medicine checks and care searches are saved here, encrypted, so you can look back at them."
           />
         ) : undefined}
-        renderItem={({ item, index }) => (
-          <Enter index={Math.min(index, 8)}>
-            <Card style={{ marginBottom: S.sm }} onPress={() => setOpen(item)}>
-              <View style={{ flexDirection: 'row', gap: S.lg, alignItems: 'center' }}>
-                <SeveritySpine band={item.result.band} height={42} width={5} />
-                <View style={{ flex: 1 }}>
+        renderItem={({ item, index }) => {
+          const { activity, check } = item;
+
+          return (
+            <Enter index={Math.min(index, 8)}>
+              <Card
+                style={{ marginBottom: S.sm }}
+                onPress={check ? () => setOpen(check) : undefined}
+              >
+                <View style={{ flexDirection: 'row', gap: S.lg, alignItems: 'center' }}>
                   {/*
-                    What was reported, not what was advised.
-                    
-                    The row used to lead with the band - "See a pharmacist or
-                    GP" - which is the answer, not the question. Every check
-                    that landed in the same band read identically, so a list
-                    of them said nothing about which was which. The symptoms
-                    are what the person remembers doing.
+                    A check gets its severity spine; everything else gets a
+                    plain marker, because a colour that means "how urgent" on
+                    one row must not appear on a row where nothing was
+                    assessed.
                   */}
-                  <Txt t="bodyStrong" numberOfLines={2}>{summarise(item)}</Txt>
-                  <Txt t="caption" c={B[item.result.band].fg} style={{ marginTop: 3 }}>
-                    {BAND_LABEL[item.result.band]}
-                  </Txt>
-                  <Txt t="caption" style={{ marginTop: 1 }}>
-                    {`${when(item.episode.capturedAt)} · ${item.result.severity}/100`}
-                  </Txt>
-                  {item.result.syncStatus === 'PENDING_SYNC' ? (
-                    <Txt t="micro" style={{ marginTop: 3 }}>Not yet enriched</Txt>
-                  ) : null}
+                  {check
+                    ? <SeveritySpine band={check.result.band} height={42} width={5} />
+                    : <View style={{ width: 5, height: 42, borderRadius: 3, backgroundColor: P.line }} />}
+
+                  <View style={{ flex: 1 }}>
+                    <Txt t="bodyStrong" numberOfLines={2}>{activity.title}</Txt>
+                    <Txt t="caption" c={P.muted} style={{ marginTop: 3 }}>
+                      {`${ACTIVITY_LABEL[activity.kind]} · ${when(activity.at)}`}
+                    </Txt>
+                    {activity.detail ? (
+                      <Txt
+                        t="caption"
+                        c={check ? B[check.result.band].fg : P.muted}
+                        style={{ marginTop: 1 }}
+                      >
+                        {activity.detail}
+                      </Txt>
+                    ) : null}
+                  </View>
+
+                  {check ? (
+                    <Springy
+                      onPress={() => remove(check.episode.id)}
+                      scaleTo={0.85}
+                      weight="warn"
+                      accessibilityLabel={`Delete check from ${when(activity.at)}`}
+                      style={{ width: TOUCH, height: TOUCH, alignItems: 'center', justifyContent: 'center' }}
+                    >
+                      <Icon name="trash" size={18} color={P.faint} />
+                    </Springy>
+                  ) : (
+                    <Icon name="chevronRight" size={16} color={P.faint} />
+                  )}
                 </View>
-                <Springy
-                  onPress={() => remove(item.episode.id)}
-                  scaleTo={0.85}
-                  weight="warn"
-                  accessibilityLabel={`Delete check from ${when(item.episode.capturedAt)}`}
-                  style={{ width: TOUCH, height: TOUCH, alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <Icon name="trash" size={18} color={P.faint} />
-                </Springy>
-              </View>
-            </Card>
-          </Enter>
-        )}
-        ListFooterComponent={rows.length > 1 ? (
+              </Card>
+            </Enter>
+          );
+        }}
+        ListFooterComponent={items.length > 1 ? (
           <View style={{ marginTop: S.xl }}>
             <Button title="Delete all records" tone="danger" icon="trash" onPress={() => {
-              Alert.alert('Delete everything?', 'All saved checks will be removed from this device.', [
+              Alert.alert('Delete everything?', 'Every check and every history entry will be removed from this device.', [
                 { text: 'Cancel', style: 'cancel' },
                 { text: 'Delete all', style: 'destructive',
-                  onPress: async () => { await store.clear(); await load(); } },
+                  onPress: async () => {
+                    await store.clear();
+                    await store.clearActivity();
+                    await load();
+                  } },
               ]);
             }} />
           </View>

@@ -261,10 +261,18 @@ async function openDirections(f: Facility) {
 
 /* ──────────────────────────────── screen ────────────────────────────────── */
 
-export function CareScreen({ service, fix: given }: {
+export function CareScreen({ service, fix: given, onSearched }: {
   service?: FacilityService;
   /** Where to search from. Null while the location is still being resolved. */
   fix?: Fix | null;
+  /**
+   * Called once per successful search, for the activity log.
+   *
+   * Reported from here rather than inferred from the tab opening, because
+   * opening the tab is not a search - the location may still be resolving,
+   * and a failed search should not appear in a history as if it worked.
+   */
+  onSearched?: (count: number, place: string | null) => void;
 }) {
   const { c: P, scheme } = useTheme();
 
@@ -340,6 +348,17 @@ export function CareScreen({ service, fix: given }: {
    * mirrored here, where reading it cannot go stale.
    */
   const shownCount = useRef(0);
+
+  /*
+   * The search callback, held rather than depended on.
+   *
+   * App passes an inline arrow, so it is a new function on every render. In
+   * load()'s dependency array that would rebuild load, re-run the effect that
+   * calls it, and search again - on every render, forever. This is the same
+   * trick the services memo uses for Clerk's getToken, for the same reason.
+   */
+  const searched = useRef(onSearched);
+  searched.current = onSearched;
   const [busy, setBusy] = useState(true);
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState<string | null>(null);
@@ -415,6 +434,8 @@ export function CareScreen({ service, fix: given }: {
     });
     setNotice(r.notice);
     setBusy(false);
+
+    if (r.ok) searched.current?.(r.facilities.length, fix.place ?? null);
   }, [service, fix]);
 
   useEffect(() => { void load(); }, [load]);

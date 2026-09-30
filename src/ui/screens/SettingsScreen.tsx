@@ -34,6 +34,7 @@ import { Icon } from '../components/Icon';
 import { useTheme, S, R, TOUCH, TAB_CLEARANCE, Scheme } from '../theme';
 import { Session } from '../../domain/auth';
 import { EpisodeStore } from '../../domain/ports';
+import { ActivityLog } from '../../domain/activity';
 import { RouteKey } from '../nav/routes';
 
 /** Where the legal text lives. The website is the source of truth for both. */
@@ -45,7 +46,7 @@ export function SettingsScreen({
   onDataCleared,
 }: {
   session: Session;
-  store: EpisodeStore;
+  store: EpisodeStore & ActivityLog;
   scheme: Scheme;
   onToggleScheme: () => void;
   onBack: () => void;
@@ -179,6 +180,7 @@ export function SettingsScreen({
                     onPress: () => {
                       void (async () => {
                         await store.clear();
+                        await store.clearActivity();
                         await count();
                         onDataCleared?.();
                       })();

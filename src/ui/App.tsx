@@ -16,9 +16,10 @@ import {
 // @ts-ignore
 import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-expo';
 
-import { TriageResult } from '../domain/entities';
+import { TriageResult, BAND_LABEL } from '../domain/entities';
 import { InteractionReport } from '../domain/medicines';
 import { Session, GUEST } from '../domain/auth';
+import { ActivityKind } from '../domain/activity';
 import { SymptomAnalysis, MedicineCheck, RemoteOutcome } from '../domain/remote';
 import { RuleClassifier } from '../data/ruleClassifier';
 import { DurableEpisodeStore } from '../data/episodeStore';
@@ -155,6 +156,25 @@ function AppContent() {
   useEffect(() => { void store.init(); }, [store]);
 
   const ready = fontsLoaded || !!fontError;
+
+  /**
+   * One place that writes to the activity log.
+   *
+   * It lives here rather than in each screen so no screen's signature has to
+   * change to gain a history entry, and so the log cannot be written twice
+   * for one action by two components that both think they own it.
+   *
+   * record() never throws - see SqliteEpisodeStore.record. A missing line in
+   * a history is not worth interrupting what the person was doing.
+   */
+  const log = useCallback((
+    kind: ActivityKind,
+    title: string,
+    detail: string | null = null,
+    episodeId: string | null = null,
+  ) => {
+    void store.record({ kind, title, detail, episodeId, at: new Date().toISOString() });
+  }, [store]);
 
   const push = useCallback((r: RouteKey) => setStack((s) => [...s, r]), []);
   const pop = useCallback(() => setStack((s) => s.slice(0, -1)), []);
@@ -357,6 +377,16 @@ function AppContent() {
               setResult({ r, ms });
               setHistoryKey((k) => k + 1);
               push('result');
+
+              void store.get(r.episodeId).then((entry) => {
+                const names = entry?.episode.symptoms.map((x) => x.label) ?? [];
+                log(
+                  'SYMPTOM_CHECK',
+                  names.length ? names.join(', ') : 'Symptom check',
+                  `${BAND_LABEL[r.band]} · ${r.severity}/100`,
+                  r.episodeId,
+                );
+              });
             }}
             onAnalysis={setAnalysis}
           />
@@ -365,7 +395,11 @@ function AppContent() {
         return (
           <MedicinesScreen
             check={services.medicines}
-            onRun={(p) => { setPair(p); push('interactions'); }}
+            onRun={(p) => {
+              setPair(p);
+              push('interactions');
+              log('MEDICINE_CHECK', `${p[0]} and ${p[1]}`);
+            }}
             // The screen clears this on every run before deciding whether to
             // start a check, so a previous pair's verdict can never appear
             // beside a new pair's names.
@@ -384,7 +418,17 @@ function AppContent() {
           conversation={conversation} onConversation={setConversation}
         />
       );
-      case 'care':      return <CareScreen service={services.facilities} fix={fix} />;
+      case 'care':      return (
+        <CareScreen
+          service={services.facilities}
+          fix={fix}
+          onSearched={(count, place) => log(
+            'CARE_SEARCH',
+            place ? `Care near ${place}` : 'Care near you',
+            `${count} place${count === 1 ? '' : 's'} found`,
+          )}
+        />
+      );
     }
   }
 

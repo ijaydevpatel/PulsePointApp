@@ -22,12 +22,13 @@
  * a screen can be honest rather than promising storage it does not have.
  */
 import { EpisodeStore, HistoryEntry } from '../domain/ports';
+import { ActivityEntry, ActivityLog } from '../domain/activity';
 import { SymptomEpisode, TriageResult } from '../domain/entities';
 import { SqliteEpisodeStore } from './sqliteStore';
 import { InMemoryEpisodeStore } from './memoryStore';
 
-export class DurableEpisodeStore implements EpisodeStore {
-  private inner: EpisodeStore = new SqliteEpisodeStore();
+export class DurableEpisodeStore implements EpisodeStore, ActivityLog {
+  private inner: EpisodeStore & ActivityLog = new SqliteEpisodeStore();
 
   /** False once storage has failed and this is holding things in memory. */
   private persisted = true;
@@ -93,5 +94,20 @@ export class DurableEpisodeStore implements EpisodeStore {
   async markSynced(episodeId: string): Promise<void> {
     await this.init();
     return this.inner.markSynced(episodeId);
+  }
+
+  async record(entry: Omit<ActivityEntry, 'id'>): Promise<void> {
+    await this.init();
+    return this.inner.record(entry);
+  }
+
+  async recent(limit?: number): Promise<readonly ActivityEntry[]> {
+    await this.init();
+    return this.inner.recent(limit);
+  }
+
+  async clearActivity(): Promise<void> {
+    await this.init();
+    return this.inner.clearActivity();
   }
 }
