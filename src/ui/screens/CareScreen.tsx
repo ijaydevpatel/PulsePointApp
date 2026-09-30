@@ -39,7 +39,7 @@ import {
   Animated, PanResponder, FlatList, useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Txt, Springy, tap } from '../components/Primitives';
+import { Txt, Springy, Card, Button, tap } from '../components/Primitives';
 import { Icon, IconName } from '../components/Icon';
 import { useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE, Palette } from '../theme';
 import {
@@ -386,6 +386,12 @@ export function CareScreen({ service, fix: given }: {
    * `selected` is baked into the feature rather than drawn as a second layer,
    * so the highlighted pin cannot end up painted underneath an ordinary one.
    */
+  /** The place the callout is describing, if any. */
+  const chosen = useMemo(
+    () => facilities.find((f) => f.id === selected) ?? null,
+    [facilities, selected],
+  );
+
   const pins = useMemo(() => ({
     type: 'FeatureCollection' as const,
     features: shown.map((f) => ({
@@ -568,8 +574,23 @@ export function CareScreen({ service, fix: given }: {
      * whether one is under a single coordinate would mean nothing is ever
      * hit. This is roughly a fingertip, and the nearest match wins.
      */
+    /*
+     * Nested corners, not four loose numbers.
+     *
+     * PixelPointBounds is [[left, top], [right, bottom]]. A flat
+     * [x1, y1, x2, y2] is still an array whose first two entries are numbers,
+     * which is exactly how the library recognises a *point* - so it quietly
+     * took the tolerance box as a single pixel up and to the left of the
+     * finger, and a six-point pin was never under it.
+     *
+     * Nothing caught this: the map ref is `any`, because the module is
+     * required dynamically, so the compiler had no shape to check against.
+     */
     const [x, y] = point;
-    const box: [number, number, number, number] = [x - TAP_SLOP, y - TAP_SLOP, x + TAP_SLOP, y + TAP_SLOP];
+    const box: [[number, number], [number, number]] = [
+      [x - TAP_SLOP, y - TAP_SLOP],
+      [x + TAP_SLOP, y + TAP_SLOP],
+    ];
 
     let hits: any[] = [];
     try {
@@ -585,11 +606,15 @@ export function CareScreen({ service, fix: given }: {
     const facility = facilities.find((f) => f.id === id);
     if (!facility) return;
 
-    // Select first: if the maps app takes a moment to come up, the pin has
-    // already acknowledged the tap rather than appearing to ignore it.
+    /*
+     * Selecting is the whole job. Opening the maps app straight from the tap
+     * was a one-way door: the pins are six points across and packed together
+     * in a city centre, so a mis-tap threw the person into another app to
+     * find out they had hit the wrong place. The callout says which place it
+     * is and offers the route as a second, deliberate tap.
+     */
     tap('light');
     setSelected(facility.id);
-    await openDirections(facility);
   }, [facilities]);
 
   /*
@@ -769,6 +794,51 @@ export function CareScreen({ service, fix: given }: {
           </Centred>
         )}
       </View>
+
+      {/*
+        The callout: which place was tapped, and the way to it.
+
+        It sits above the sheet at its resting height rather than over the
+        pin, because a bubble anchored to a pin has to dodge the screen edges
+        and the sheet, and at this zoom the pin is usually near the middle
+        anyway. Tapping the card itself centres the map on the place; the
+        button is the one that leaves the app.
+      */}
+      {chosen ? (
+        <View style={[st.callout, { bottom: PEEK + S.md }]} pointerEvents="box-none">
+          <Card style={{ marginBottom: 0 }} onPress={() => locate(chosen)}>
+            <View style={st.calloutRow}>
+              <View style={[st.dot, { backgroundColor: kindColour(P, chosen.kind) }]}>
+                <Icon name={KIND_ICON[chosen.kind]} size={15} color="#FFFFFF" weight="bold" />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <Txt t="bodyStrong" numberOfLines={2}>{chosen.name}</Txt>
+                <Txt t="caption" c={P.muted} style={{ marginTop: 2 }}>
+                  {`${KIND_LABEL[chosen.kind]} · ${distance(chosen.km)}`}
+                </Txt>
+              </View>
+
+              <Springy
+                onPress={() => { tap('light'); setSelected(null); }}
+                scaleTo={0.85}
+                accessibilityLabel="Dismiss"
+              >
+                <View style={[st.close, { borderColor: P.line }]}>
+                  <Icon name="close" size={15} color={P.muted} />
+                </View>
+              </Springy>
+            </View>
+
+            <View style={{ height: S.md }} />
+            <Button
+              title="Directions"
+              icon="arrowRight"
+              onPress={() => { tap('light'); void openDirections(chosen); }}
+            />
+          </Card>
+        </View>
+      ) : null}
 
       <Animated.View
         style={[
@@ -1090,6 +1160,13 @@ const st = StyleSheet.create({
   flag: { paddingHorizontal: S.sm, paddingVertical: 3, borderRadius: R.pill },
 
   empty: { paddingVertical: S.xxl, alignItems: 'center' },
+
+  callout: { position: 'absolute', left: S.xl, right: S.xl },
+  calloutRow: { flexDirection: 'row', gap: S.md, alignItems: 'center' },
+  close: {
+    width: 28, height: 28, borderRadius: 14, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
+  },
 
   banner: {
     flexDirection: 'row', gap: S.sm, alignItems: 'center',

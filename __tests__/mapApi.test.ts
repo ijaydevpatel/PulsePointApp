@@ -188,7 +188,37 @@ describe('the MapLibre API the Map tab is written against', () => {
 
     expect(block).toContain("layers: ['facility-pins']");
     expect(block).toContain('TAP_SLOP');
-    expect(block).toContain('openDirections');
+  });
+
+  it('passes the tolerance box as nested corners', () => {
+    /*
+     * PixelPointBounds is [[left, top], [right, bottom]]. A flat
+     * [x1, y1, x2, y2] is still an array whose first two entries are numbers,
+     * which is exactly how the library recognises a *point* - so a flat box
+     * is silently taken as a single pixel up and left of the finger, and a
+     * six-point pin is never under it. Every tap did nothing.
+     *
+     * The compiler could not catch it: the map ref is `any`, because the
+     * module is required dynamically, so there was no shape to check.
+     */
+    const block = /const box: \[\[number, number\], \[number, number\]\] = \[[\s\S]*?\];/.exec(source)?.[0];
+
+    expect(block).toBeDefined();
+    expect(block).toMatch(/\[x - TAP_SLOP, y - TAP_SLOP\]/);
+    expect(block).toMatch(/\[x \+ TAP_SLOP, y \+ TAP_SLOP\]/);
+  });
+
+  it('asks before leaving the app', () => {
+    /*
+     * Opening the maps app straight from a pin tap was a one-way door: the
+     * pins are six points across and packed together in a city centre, so a
+     * mis-tap threw the person into another app to discover it. The tap
+     * selects; the callout offers the route as a second, deliberate press.
+     */
+    const block = /const tapMap = useCallback[\s\S]*?\n  \}, \[facilities\]\);/.exec(source)?.[0] ?? '';
+
+    expect(block).not.toContain('openDirections');
+    expect(source).toMatch(/title="Directions"/);
   });
 
   it('carries the facility id in feature properties', () => {
