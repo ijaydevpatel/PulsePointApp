@@ -67,12 +67,6 @@ describe('a log that cannot be written', () => {
 
 describe('deleting a check', () => {
   it('takes its history row with it', async () => {
-    /*
-     * The merged list is built from the activity trace, so a trace row that
-     * outlives its episode keeps appearing - with no record behind it and no
-     * delete control, because the control belongs to the record. Deleting
-     * twice then does nothing, which is what it looked like.
-     */
     const store = new InMemoryEpisodeStore();
 
     await store.save(

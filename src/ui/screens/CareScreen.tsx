@@ -207,7 +207,8 @@ export function CareScreen({ service, fix: given, onSearched }: {
       if (!alive()) return;
 
       lastNotice = r.notice;
-      if (!r.ok) continue;
+
+      if (!r.ok) break;
 
       answered = true;
       for (const f of r.facilities) found.set(f.id, f);

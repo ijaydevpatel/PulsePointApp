@@ -14,11 +14,19 @@ const BBOX_DEGREES = 0.06;
 
 const TIMEOUT_MS = 40000;
 
-const HEDGE_MS = 6000;
+function budgetFor(deg: number) {
+  const small = deg <= 0.02;
+  const mid = deg <= 0.04;
+  return {
+    serverSeconds: small ? 12 : mid ? 25 : 45,
+    attemptMs: small ? 9000 : mid ? 18000 : TIMEOUT_MS,
+    hedgeMs: small ? 1200 : 4000,
+    totalMs: small ? 14000 : mid ? 26000 : 50000,
+  };
+}
 
-const TOTAL_BUDGET_MS = 50000;
 
-const QUERY_TIMEOUT_S = 45;
+
 
 function buildQuery(lat: number, lon: number, deg: number = BBOX_DEGREES): string {
   const s = (lat - deg).toFixed(5);
@@ -43,12 +51,11 @@ function buildQuery(lat: number, lon: number, deg: number = BBOX_DEGREES): strin
     `nwr["amenity"~"^(${amenity})$"](${bbox});`,
 
     `nwr["healthcare"](${bbox});`,
-    `nwr["healthcare:speciality"](${bbox});`,
     `nwr["shop"~"^(${shop})$"](${bbox});`,
     `nwr["office"~"^(${office})$"](${bbox});`,
   ];
 
-  return `[out:json][timeout:${QUERY_TIMEOUT_S}];(\n${lines.join('\n')}\n);out center qt;`;
+  return `[out:json][timeout:${budgetFor(deg).serverSeconds}];(\n${lines.join('\n')}\n);out center qt;`;
 }
 
 function address(tags: Record<string, string | undefined>): string | null {
@@ -116,7 +123,9 @@ export class OverpassFacilities implements FacilityService {
   constructor(private readonly fetchImpl: typeof fetch = fetch) {}
 
   async near(at: FacilitySearch): Promise<FacilityResult> {
-    const query = buildQuery(at.lat, at.lon, at.radiusDeg);
+    const deg = at.radiusDeg ?? BBOX_DEGREES;
+    const budget = budgetFor(deg);
+    const query = buildQuery(at.lat, at.lon, deg);
     const body = `data=${encodeURIComponent(query)}`;
     let lastNotice = 'Nothing could be loaded for this area.';
 
@@ -183,7 +192,7 @@ export class OverpassFacilities implements FacilityService {
 
         const controller = new AbortController();
         controllers.push(controller);
-        const perAttempt = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        const perAttempt = setTimeout(() => controller.abort(), budget.attemptMs);
 
         void ask(endpoint, controller.signal).then((r) => {
           clearTimeout(perAttempt);
@@ -199,9 +208,9 @@ export class OverpassFacilities implements FacilityService {
       const hedge = setInterval(() => {
         if (done || started >= ENDPOINTS.length) return clearInterval(hedge);
         startNext();
-      }, HEDGE_MS);
+      }, budget.hedgeMs);
 
-      const deadline = setTimeout(giveUp, TOTAL_BUDGET_MS);
+      const deadline = setTimeout(giveUp, budget.totalMs);
 
       startNext();
     });

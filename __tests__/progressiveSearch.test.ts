@@ -1,22 +1,3 @@
-/**
- * The Map tab fills in as results arrive, rather than after they all have.
- *
- * ── Why rings, and not streaming ─────────────────────────────────────────────
- *
- * A streaming read would be the obvious answer and is not available: React
- * Native's fetch gives no readable body, and Overpass answers with one JSON
- * document at the end of the query. There is nothing to consume incrementally.
- *
- * Expanding rings gets the same behaviour from the same API. A small box
- * answers in about a second because the cost of the query is its area, so the
- * nearest places - the ones this screen is for - are on screen almost at once,
- * and the wider passes fill in behind them.
- *
- * ── What this file pins ──────────────────────────────────────────────────────
- *
- * The properties that make that safe: rings that only grow, results that merge
- * rather than replace, and a stale run that cannot overwrite a newer one.
- */
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { byDistance, Facility } from '../src/domain/facilities';
@@ -43,11 +24,6 @@ describe('the rings', () => {
   });
 
   it('starts small enough to answer quickly', () => {
-    /*
-     * The first ring is the one the person waits for. Query cost goes with
-     * area, so this is the number that decides whether the screen feels
-     * instant or not - roughly a kilometre and a bit.
-     */
     const first = Number(/const RINGS = \[([0-9.]+)/.exec(SOURCE)?.[1]);
 
     expect(first).toBeGreaterThan(0);
@@ -64,12 +40,6 @@ describe('the rings', () => {
 
 describe('merging', () => {
   it('keeps what earlier rings found', () => {
-    /*
-     * Each ring re-reports everything inside it, so replacing rather than
-     * merging would be harmless - until a wider ring fails, which is the case
-     * that matters. The list must never shrink because a later query did
-     * worse than an earlier one.
-     */
     const found = new Map<string, Facility>();
     for (const f of [place('a', 0.4), place('b', 0.9)]) found.set(f.id, f);
     for (const f of [place('a', 0.4), place('c', 2.2)]) found.set(f.id, f);
@@ -87,12 +57,6 @@ describe('merging', () => {
 
 describe('a search that has been superseded', () => {
   it('cannot overwrite a newer one', () => {
-    /*
-     * The rings are awaited in sequence, so a run started for an old position
-     * is still in flight when the locate button starts another. Without a
-     * guard the slow one lands last and puts the wrong neighbourhood on
-     * screen.
-     */
     expect(SOURCE).toContain('const run = ++searchRun.current;');
     expect(SOURCE).toContain('const alive = () => searchRun.current === run;');
     expect(SOURCE).toMatch(/if \(!alive\(\)\) return;/);
