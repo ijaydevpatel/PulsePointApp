@@ -1,0 +1,345 @@
+{
+  "nodes": [
+    {
+      "name": "Use device coordinate",
+      "x": 28,
+      "y": 112,
+      "w": 404,
+      "h": 114
+    },
+    {
+      "name": "Fresh cached result?",
+      "x": 498,
+      "y": 112,
+      "w": 404,
+      "h": 114
+    },
+    {
+      "name": "Show cached facilities",
+      "x": 968,
+      "y": 112,
+      "w": 404,
+      "h": 114
+    },
+    {
+      "name": "Next coordinate box",
+      "x": 498,
+      "y": 360,
+      "w": 404,
+      "h": 114
+    },
+    {
+      "name": "OverpassFacilities.near",
+      "x": 28,
+      "y": 360,
+      "w": 404,
+      "h": 162
+    },
+    {
+      "name": "Ring succeeded?",
+      "x": 28,
+      "y": 628,
+      "w": 404,
+      "h": 114
+    },
+    {
+      "name": "Merge and show partial results",
+      "x": 498,
+      "y": 628,
+      "w": 404,
+      "h": 114
+    },
+    {
+      "name": "Another ring?",
+      "x": 968,
+      "y": 628,
+      "w": 404,
+      "h": 114
+    },
+    {
+      "name": "Earlier ring answered?",
+      "x": 28,
+      "y": 876,
+      "w": 404,
+      "h": 114
+    },
+    {
+      "name": "Finish search",
+      "x": 498,
+      "y": 1120,
+      "w": 874,
+      "h": 144
+    }
+  ],
+  "edges": [
+    {
+      "from": "Use device coordinate",
+      "to": "Fresh cached result?",
+      "kind": "flow",
+      "points": [
+        [
+          432,
+          169.0
+        ],
+        [
+          498,
+          169.0
+        ]
+      ],
+      "label": null,
+      "proof": "src/ui/screens/CareScreen.tsx"
+    },
+    {
+      "from": "Fresh cached result?",
+      "to": "Show cached facilities",
+      "kind": "flow",
+      "points": [
+        [
+          902,
+          169.0
+        ],
+        [
+          968,
+          169.0
+        ]
+      ],
+      "label": "yes",
+      "proof": "src/data/facilityCache.ts"
+    },
+    {
+      "from": "Fresh cached result?",
+      "to": "Next coordinate box",
+      "kind": "flow",
+      "points": [
+        [
+          700.0,
+          226
+        ],
+        [
+          700.0,
+          360
+        ]
+      ],
+      "label": "no",
+      "proof": "CareScreen RINGS"
+    },
+    {
+      "from": "Show cached facilities",
+      "to": "Next coordinate box",
+      "kind": "flow",
+      "points": [
+        [
+          1170.0,
+          226
+        ],
+        [
+          1170,
+          300
+        ],
+        [
+          836,
+          300
+        ],
+        [
+          836,
+          360
+        ]
+      ],
+      "label": "refresh",
+      "proof": "CareScreen displays warm result and still enters RINGS loop"
+    },
+    {
+      "from": "Next coordinate box",
+      "to": "OverpassFacilities.near",
+      "kind": "flow",
+      "points": [
+        [
+          498,
+          417.0
+        ],
+        [
+          465.0,
+          417.0
+        ],
+        [
+          465.0,
+          416.7
+        ],
+        [
+          432,
+          416.7
+        ]
+      ],
+      "label": null,
+      "proof": "src/data/overpassFacilities.ts"
+    },
+    {
+      "from": "OverpassFacilities.near",
+      "to": "Ring succeeded?",
+      "kind": "flow",
+      "points": [
+        [
+          230.0,
+          522
+        ],
+        [
+          230.0,
+          628
+        ]
+      ],
+      "label": null,
+      "proof": "FacilityResult.ok"
+    },
+    {
+      "from": "Ring succeeded?",
+      "to": "Merge and show partial results",
+      "kind": "flow",
+      "points": [
+        [
+          432,
+          685.0
+        ],
+        [
+          498,
+          685.0
+        ]
+      ],
+      "label": "yes",
+      "proof": "CareScreen progressive search"
+    },
+    {
+      "from": "Merge and show partial results",
+      "to": "Another ring?",
+      "kind": "flow",
+      "points": [
+        [
+          902,
+          685.0
+        ],
+        [
+          968,
+          685.0
+        ]
+      ],
+      "label": null,
+      "proof": "CareScreen loop"
+    },
+    {
+      "from": "Ring succeeded?",
+      "to": "Earlier ring answered?",
+      "kind": "flow",
+      "points": [
+        [
+          230.0,
+          742
+        ],
+        [
+          230.0,
+          876
+        ]
+      ],
+      "label": "no",
+      "proof": "CareScreen: if (!r.ok)"
+    },
+    {
+      "from": "Earlier ring answered?",
+      "to": "Another ring?",
+      "kind": "flow",
+      "points": [
+        [
+          432,
+          933.0
+        ],
+        [
+          460,
+          933
+        ],
+        [
+          460,
+          798
+        ],
+        [
+          1170,
+          798
+        ],
+        [
+          1170,
+          742
+        ]
+      ],
+      "label": "yes: continue",
+      "proof": "CareScreen: if (!answered) break; otherwise continue"
+    },
+    {
+      "from": "Another ring?",
+      "to": "Next coordinate box",
+      "kind": "flow",
+      "points": [
+        [
+          1170.0,
+          628
+        ],
+        [
+          1170,
+          417
+        ],
+        [
+          902,
+          417
+        ]
+      ],
+      "label": "yes",
+      "proof": "CareScreen RINGS loop"
+    },
+    {
+      "from": "Another ring?",
+      "to": "Finish search",
+      "kind": "flow",
+      "points": [
+        [
+          1372,
+          685.0
+        ],
+        [
+          1386,
+          685
+        ],
+        [
+          1386,
+          1080
+        ],
+        [
+          1200,
+          1080
+        ],
+        [
+          1200,
+          1120
+        ]
+      ],
+      "label": "no",
+      "proof": "CareScreen final cache write / notice"
+    },
+    {
+      "from": "Earlier ring answered?",
+      "to": "Finish search",
+      "kind": "flow",
+      "points": [
+        [
+          230.0,
+          990
+        ],
+        [
+          230,
+          1192
+        ],
+        [
+          498,
+          1192
+        ]
+      ],
+      "label": "no: stop",
+      "proof": "CareScreen: first ring failure breaks the loop"
+    }
+  ]
+}

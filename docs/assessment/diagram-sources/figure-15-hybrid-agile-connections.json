@@ -1,0 +1,140 @@
+{
+  "nodes": [
+    {
+      "name": "Sprint 1",
+      "x": 56,
+      "y": 350,
+      "w": 412,
+      "h": 108
+    },
+    {
+      "name": "Sprint 2",
+      "x": 496,
+      "y": 350,
+      "w": 412,
+      "h": 108
+    },
+    {
+      "name": "Sprint 3",
+      "x": 936,
+      "y": 350,
+      "w": 412,
+      "h": 108
+    },
+    {
+      "name": "Planning",
+      "x": 56,
+      "y": 546,
+      "w": 302,
+      "h": 106
+    },
+    {
+      "name": "Daily build",
+      "x": 386,
+      "y": 546,
+      "w": 302,
+      "h": 106
+    },
+    {
+      "name": "Review",
+      "x": 716,
+      "y": 546,
+      "w": 302,
+      "h": 106
+    },
+    {
+      "name": "Retrospective",
+      "x": 1046,
+      "y": 546,
+      "w": 302,
+      "h": 106
+    }
+  ],
+  "edges": [
+    {
+      "from": "Sprint 1",
+      "to": "Sprint 2",
+      "kind": "flow",
+      "points": [
+        [
+          468,
+          404.0
+        ],
+        [
+          496,
+          404.0
+        ]
+      ],
+      "label": null,
+      "proof": "Report section 3.8"
+    },
+    {
+      "from": "Sprint 2",
+      "to": "Sprint 3",
+      "kind": "flow",
+      "points": [
+        [
+          908,
+          404.0
+        ],
+        [
+          936,
+          404.0
+        ]
+      ],
+      "label": null,
+      "proof": "Report section 3.8"
+    },
+    {
+      "from": "Planning",
+      "to": "Daily build",
+      "kind": "flow",
+      "points": [
+        [
+          358,
+          599.0
+        ],
+        [
+          386,
+          599.0
+        ]
+      ],
+      "label": null,
+      "proof": "Report section 3.8"
+    },
+    {
+      "from": "Daily build",
+      "to": "Review",
+      "kind": "flow",
+      "points": [
+        [
+          688,
+          599.0
+        ],
+        [
+          716,
+          599.0
+        ]
+      ],
+      "label": null,
+      "proof": "Report section 3.8"
+    },
+    {
+      "from": "Review",
+      "to": "Retrospective",
+      "kind": "flow",
+      "points": [
+        [
+          1018,
+          599.0
+        ],
+        [
+          1046,
+          599.0
+        ]
+      ],
+      "label": null,
+      "proof": "Report section 3.8"
+    }
+  ]
+}

@@ -1,0 +1,191 @@
+{
+  "nodes": [
+    {
+      "name": "EpisodeStore",
+      "x": 28,
+      "y": 270,
+      "w": 404,
+      "h": 242
+    },
+    {
+      "name": "ActivityLog",
+      "x": 968,
+      "y": 270,
+      "w": 404,
+      "h": 218
+    },
+    {
+      "name": "DurableEpisodeStore",
+      "x": 498,
+      "y": 112,
+      "w": 404,
+      "h": 106
+    },
+    {
+      "name": "SqliteEpisodeStore",
+      "x": 498,
+      "y": 370,
+      "w": 404,
+      "h": 106
+    },
+    {
+      "name": "InMemoryEpisodeStore",
+      "x": 498,
+      "y": 576,
+      "w": 404,
+      "h": 106
+    }
+  ],
+  "edges": [
+    {
+      "from": "DurableEpisodeStore",
+      "to": "EpisodeStore",
+      "kind": "realization",
+      "points": [
+        [
+          498,
+          165
+        ],
+        [
+          466,
+          165
+        ],
+        [
+          466,
+          315
+        ],
+        [
+          432,
+          315
+        ]
+      ],
+      "label": null,
+      "proof": "src/data/episodeStore.ts"
+    },
+    {
+      "from": "DurableEpisodeStore",
+      "to": "ActivityLog",
+      "kind": "realization",
+      "points": [
+        [
+          902,
+          165
+        ],
+        [
+          940,
+          165
+        ],
+        [
+          940,
+          309.24
+        ],
+        [
+          968,
+          309.24
+        ]
+      ],
+      "label": null,
+      "proof": "src/data/episodeStore.ts"
+    },
+    {
+      "from": "SqliteEpisodeStore",
+      "to": "EpisodeStore",
+      "kind": "realization",
+      "points": [
+        [
+          498,
+          423
+        ],
+        [
+          466,
+          423
+        ],
+        [
+          466,
+          405
+        ],
+        [
+          432,
+          405
+        ]
+      ],
+      "label": null,
+      "proof": "src/data/sqliteStore.ts"
+    },
+    {
+      "from": "SqliteEpisodeStore",
+      "to": "ActivityLog",
+      "kind": "realization",
+      "points": [
+        [
+          902,
+          423
+        ],
+        [
+          940,
+          423
+        ],
+        [
+          940,
+          379.0
+        ],
+        [
+          968,
+          379.0
+        ]
+      ],
+      "label": null,
+      "proof": "src/data/sqliteStore.ts"
+    },
+    {
+      "from": "InMemoryEpisodeStore",
+      "to": "EpisodeStore",
+      "kind": "realization",
+      "points": [
+        [
+          498,
+          629
+        ],
+        [
+          466,
+          629
+        ],
+        [
+          466,
+          495
+        ],
+        [
+          432,
+          495
+        ]
+      ],
+      "label": null,
+      "proof": "src/data/memoryStore.ts:6"
+    },
+    {
+      "from": "InMemoryEpisodeStore",
+      "to": "ActivityLog",
+      "kind": "realization",
+      "points": [
+        [
+          902,
+          629
+        ],
+        [
+          940,
+          629
+        ],
+        [
+          940,
+          448.76
+        ],
+        [
+          968,
+          448.76
+        ]
+      ],
+      "label": null,
+      "proof": "src/data/memoryStore.ts:6"
+    }
+  ]
+}

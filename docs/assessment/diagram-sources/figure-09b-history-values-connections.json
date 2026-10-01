@@ -1,0 +1,181 @@
+{
+  "nodes": [
+    {
+      "name": "HistoryEntry",
+      "x": 498,
+      "y": 112,
+      "w": 404,
+      "h": 170
+    },
+    {
+      "name": "SymptomEpisode",
+      "x": 28,
+      "y": 346,
+      "w": 404,
+      "h": 218
+    },
+    {
+      "name": "TriageResult",
+      "x": 498,
+      "y": 346,
+      "w": 404,
+      "h": 194
+    },
+    {
+      "name": "SymptomAnalysis",
+      "x": 968,
+      "y": 346,
+      "w": 404,
+      "h": 242
+    },
+    {
+      "name": "ProbableCondition",
+      "x": 498,
+      "y": 652,
+      "w": 404,
+      "h": 170
+    },
+    {
+      "name": "TreatmentPathways",
+      "x": 968,
+      "y": 652,
+      "w": 404,
+      "h": 170
+    },
+    {
+      "name": "MatrixSeverity",
+      "x": 28,
+      "y": 652,
+      "w": 404,
+      "h": 122
+    }
+  ],
+  "edges": [
+    {
+      "from": "HistoryEntry",
+      "to": "SymptomEpisode",
+      "kind": "association",
+      "points": [
+        [
+          498,
+          197.0
+        ],
+        [
+          230,
+          197
+        ],
+        [
+          230.0,
+          346
+        ]
+      ],
+      "label": "episode: 1",
+      "proof": "src/domain/ports.ts: HistoryEntry"
+    },
+    {
+      "from": "HistoryEntry",
+      "to": "TriageResult",
+      "kind": "association",
+      "points": [
+        [
+          700.0,
+          282
+        ],
+        [
+          700.0,
+          346
+        ]
+      ],
+      "label": "result: 1",
+      "proof": "src/domain/ports.ts: HistoryEntry"
+    },
+    {
+      "from": "HistoryEntry",
+      "to": "SymptomAnalysis",
+      "kind": "association",
+      "points": [
+        [
+          902,
+          197.0
+        ],
+        [
+          1170,
+          197
+        ],
+        [
+          1170.0,
+          346
+        ]
+      ],
+      "label": "analysis: 0..1",
+      "proof": "src/domain/ports.ts: HistoryEntry"
+    },
+    {
+      "from": "SymptomAnalysis",
+      "to": "ProbableCondition",
+      "kind": "association",
+      "points": [
+        [
+          1069.0,
+          588
+        ],
+        [
+          1069,
+          627.6962025316456
+        ],
+        [
+          700,
+          627.6962025316456
+        ],
+        [
+          700.0,
+          652
+        ]
+      ],
+      "label": "probabilityMatrix: 0..*",
+      "proof": "src/domain/remote.ts"
+    },
+    {
+      "from": "SymptomAnalysis",
+      "to": "TreatmentPathways",
+      "kind": "association",
+      "points": [
+        [
+          1271.0,
+          588
+        ],
+        [
+          1271,
+          652
+        ]
+      ],
+      "label": null,
+      "proof": "src/domain/remote.ts"
+    },
+    {
+      "from": "ProbableCondition",
+      "to": "MatrixSeverity",
+      "kind": "dependency",
+      "points": [
+        [
+          498,
+          737.0
+        ],
+        [
+          465.0,
+          737.0
+        ],
+        [
+          465.0,
+          713.0
+        ],
+        [
+          432,
+          713.0
+        ]
+      ],
+      "label": null,
+      "proof": "src/domain/remote.ts"
+    }
+  ]
+}

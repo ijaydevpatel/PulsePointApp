@@ -1,0 +1,201 @@
+{
+  "nodes": [
+    {
+      "name": "User",
+      "x": 14,
+      "y": 112,
+      "w": 196,
+      "h": 98
+    },
+    {
+      "name": "TriageScreen",
+      "x": 250,
+      "y": 112,
+      "w": 196,
+      "h": 98
+    },
+    {
+      "name": "AssessSymptoms\nUseCase",
+      "x": 486,
+      "y": 112,
+      "w": 196,
+      "h": 98
+    },
+    {
+      "name": "RuleClassifier",
+      "x": 722,
+      "y": 112,
+      "w": 196,
+      "h": 98
+    },
+    {
+      "name": "EpisodeStore /\nActivityLog",
+      "x": 958,
+      "y": 112,
+      "w": 196,
+      "h": 98
+    },
+    {
+      "name": "AppContent /\nResultScreen",
+      "x": 1194,
+      "y": 112,
+      "w": 196,
+      "h": 98
+    }
+  ],
+  "edges": [
+    {
+      "from": "User",
+      "to": "TriageScreen",
+      "kind": "async",
+      "points": [
+        [
+          112,
+          270
+        ],
+        [
+          348,
+          270
+        ]
+      ],
+      "label": "submit symptoms",
+      "proof": "src/ui/screens/TriageScreen.tsx: assess; src/domain/assessSymptoms.ts: execute"
+    },
+    {
+      "from": "TriageScreen",
+      "to": "AssessSymptoms\nUseCase",
+      "kind": "call",
+      "points": [
+        [
+          348,
+          338
+        ],
+        [
+          584,
+          338
+        ]
+      ],
+      "label": "execute(episode)",
+      "proof": "src/ui/screens/TriageScreen.tsx: assess; src/domain/assessSymptoms.ts: execute"
+    },
+    {
+      "from": "AssessSymptoms\nUseCase",
+      "to": "RuleClassifier",
+      "kind": "call",
+      "points": [
+        [
+          584,
+          468
+        ],
+        [
+          820,
+          468
+        ]
+      ],
+      "label": "classify(episode)",
+      "proof": "src/ui/screens/TriageScreen.tsx: assess; src/domain/assessSymptoms.ts: execute"
+    },
+    {
+      "from": "RuleClassifier",
+      "to": "AssessSymptoms\nUseCase",
+      "kind": "return",
+      "points": [
+        [
+          820,
+          538
+        ],
+        [
+          584,
+          538
+        ]
+      ],
+      "label": "Classification",
+      "proof": "src/ui/screens/TriageScreen.tsx: assess; src/domain/assessSymptoms.ts: execute"
+    },
+    {
+      "from": "AssessSymptoms\nUseCase",
+      "to": "EpisodeStore /\nActivityLog",
+      "kind": "call",
+      "points": [
+        [
+          584,
+          816
+        ],
+        [
+          1056,
+          816
+        ]
+      ],
+      "label": "save(episode, result)",
+      "proof": "src/ui/screens/TriageScreen.tsx: assess; src/domain/assessSymptoms.ts: execute"
+    },
+    {
+      "from": "EpisodeStore /\nActivityLog",
+      "to": "AssessSymptoms\nUseCase",
+      "kind": "return",
+      "points": [
+        [
+          1056,
+          880
+        ],
+        [
+          584,
+          880
+        ]
+      ],
+      "label": "saved",
+      "proof": "src/ui/screens/TriageScreen.tsx: assess; src/domain/assessSymptoms.ts: execute"
+    },
+    {
+      "from": "AssessSymptoms\nUseCase",
+      "to": "TriageScreen",
+      "kind": "return",
+      "points": [
+        [
+          584,
+          920
+        ],
+        [
+          348,
+          920
+        ]
+      ],
+      "label": "TriageResult",
+      "proof": "src/ui/screens/TriageScreen.tsx: assess; src/domain/assessSymptoms.ts: execute"
+    },
+    {
+      "from": "TriageScreen",
+      "to": "AppContent /\nResultScreen",
+      "kind": "call",
+      "points": [
+        [
+          348,
+          980
+        ],
+        [
+          1292,
+          980
+        ]
+      ],
+      "label": "onResult(result, elapsedMs)",
+      "proof": "src/ui/screens/TriageScreen.tsx: assess; src/domain/assessSymptoms.ts: execute"
+    },
+    {
+      "from": "AppContent /\nResultScreen",
+      "to": "User",
+      "kind": "async",
+      "points": [
+        [
+          1292,
+          1050
+        ],
+        [
+          112,
+          1050
+        ]
+      ],
+      "label": "show advice [escalated or revealed]",
+      "proof": "src/ui/screens/TriageScreen.tsx: assess; src/domain/assessSymptoms.ts: execute"
+    }
+  ]
+}

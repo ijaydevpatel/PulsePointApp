@@ -1,0 +1,263 @@
+{
+  "nodes": [
+    {
+      "name": "AppContent",
+      "x": 44,
+      "y": 162,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "HomeScreen",
+      "x": 280,
+      "y": 162,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "TriageScreen",
+      "x": 516,
+      "y": 162,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "CareScreen",
+      "x": 752,
+      "y": 162,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "RecordsScreen",
+      "x": 988,
+      "y": 162,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "SymptomEpisode",
+      "x": 44,
+      "y": 322,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "AssessSymptoms\nUseCase",
+      "x": 280,
+      "y": 322,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "Classifier / EpisodeStore",
+      "x": 516,
+      "y": 322,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "FacilityService",
+      "x": 752,
+      "y": 322,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "ActivityLog",
+      "x": 988,
+      "y": 322,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "RuleClassifier",
+      "x": 44,
+      "y": 482,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "DurableEpisodeStore",
+      "x": 280,
+      "y": 482,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "OverpassFacilities",
+      "x": 516,
+      "y": 482,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "Remote services",
+      "x": 752,
+      "y": 482,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "ApiClient",
+      "x": 988,
+      "y": 482,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "expo-sqlite",
+      "x": 44,
+      "y": 642,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "SecureStore",
+      "x": 280,
+      "y": 642,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "Device location",
+      "x": 516,
+      "y": 642,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "MapLibre GL",
+      "x": 752,
+      "y": 642,
+      "w": 220,
+      "h": 70
+    },
+    {
+      "name": "fetch / HTTPS",
+      "x": 988,
+      "y": 642,
+      "w": 220,
+      "h": 70
+    }
+  ],
+  "edges": [
+    {
+      "from": "UI",
+      "to": "DOMAIN",
+      "kind": "dependency",
+      "points": [
+        [
+          1224,
+          180
+        ],
+        [
+          1272,
+          180
+        ],
+        [
+          1272,
+          332
+        ],
+        [
+          1224,
+          332
+        ]
+      ],
+      "label": "types + use case",
+      "proof": "src/ui/screens/TriageScreen.tsx:6-19"
+    },
+    {
+      "from": "DATA",
+      "to": "DOMAIN",
+      "kind": "dependency",
+      "points": [
+        [
+          1224,
+          500
+        ],
+        [
+          1328,
+          500
+        ],
+        [
+          1328,
+          366
+        ],
+        [
+          1224,
+          366
+        ]
+      ],
+      "label": "implements",
+      "proof": "src/data/ruleClassifier.ts; src/data/episodeStore.ts"
+    },
+    {
+      "from": "UI root",
+      "to": "DATA",
+      "kind": "dependency",
+      "points": [
+        [
+          28,
+          180
+        ],
+        [
+          12,
+          180
+        ],
+        [
+          12,
+          500
+        ],
+        [
+          28,
+          500
+        ]
+      ],
+      "label": "constructs",
+      "proof": "src/ui/App.tsx:20-27"
+    },
+    {
+      "from": "DATA",
+      "to": "PLATFORM",
+      "kind": "dependency",
+      "points": [
+        [
+          700,
+          570
+        ],
+        [
+          700,
+          592
+        ]
+      ],
+      "label": null,
+      "proof": "src/data/sqliteStore.ts; src/data/overpassFacilities.ts"
+    },
+    {
+      "from": "UI",
+      "to": "PLATFORM",
+      "kind": "dependency",
+      "points": [
+        [
+          1224,
+          236
+        ],
+        [
+          1388,
+          236
+        ],
+        [
+          1388,
+          706
+        ],
+        [
+          1224,
+          706
+        ]
+      ],
+      "label": "native UI + map",
+      "proof": "src/ui/screens/CareScreen.tsx: MapLibreGL; src/ui/components/*.tsx: react-native"
+    }
+  ]
+}

@@ -1,0 +1,160 @@
+{
+  "nodes": [
+    {
+      "name": "TriageScreen",
+      "x": 28,
+      "y": 112,
+      "w": 200,
+      "h": 100
+    },
+    {
+      "name": "RemoteSymptom\nAnalysis",
+      "x": 314,
+      "y": 112,
+      "w": 200,
+      "h": 100
+    },
+    {
+      "name": "ApiClient",
+      "x": 600,
+      "y": 112,
+      "w": 200,
+      "h": 100
+    },
+    {
+      "name": "PulsePoint API",
+      "x": 886,
+      "y": 112,
+      "w": 200,
+      "h": 100
+    },
+    {
+      "name": "AppContent",
+      "x": 1172,
+      "y": 112,
+      "w": 200,
+      "h": 100
+    }
+  ],
+  "edges": [
+    {
+      "from": "TriageScreen",
+      "to": "RemoteSymptom\nAnalysis",
+      "kind": "async",
+      "points": [
+        [
+          128,
+          290
+        ],
+        [
+          414,
+          290
+        ]
+      ],
+      "label": "analyze(request)",
+      "proof": "src/ui/screens/TriageScreen.tsx; src/data/remoteServices.ts; src/data/apiClient.ts"
+    },
+    {
+      "from": "RemoteSymptom\nAnalysis",
+      "to": "ApiClient",
+      "kind": "call",
+      "points": [
+        [
+          414,
+          372
+        ],
+        [
+          700,
+          372
+        ]
+      ],
+      "label": "post(path, body, 90000)",
+      "proof": "src/ui/screens/TriageScreen.tsx; src/data/remoteServices.ts; src/data/apiClient.ts"
+    },
+    {
+      "from": "ApiClient",
+      "to": "PulsePoint API",
+      "kind": "call",
+      "points": [
+        [
+          700,
+          454
+        ],
+        [
+          986,
+          454
+        ]
+      ],
+      "label": "POST /api/symptoms/analyze",
+      "proof": "src/ui/screens/TriageScreen.tsx; src/data/remoteServices.ts; src/data/apiClient.ts"
+    },
+    {
+      "from": "PulsePoint API",
+      "to": "ApiClient",
+      "kind": "return",
+      "points": [
+        [
+          986,
+          536
+        ],
+        [
+          700,
+          536
+        ]
+      ],
+      "label": "JSON / HTTP failure",
+      "proof": "src/ui/screens/TriageScreen.tsx; src/data/remoteServices.ts; src/data/apiClient.ts"
+    },
+    {
+      "from": "ApiClient",
+      "to": "RemoteSymptom\nAnalysis",
+      "kind": "return",
+      "points": [
+        [
+          700,
+          618
+        ],
+        [
+          414,
+          618
+        ]
+      ],
+      "label": "parsed data / ApiError",
+      "proof": "src/ui/screens/TriageScreen.tsx; src/data/remoteServices.ts; src/data/apiClient.ts"
+    },
+    {
+      "from": "RemoteSymptom\nAnalysis",
+      "to": "TriageScreen",
+      "kind": "return",
+      "points": [
+        [
+          414,
+          700
+        ],
+        [
+          128,
+          700
+        ]
+      ],
+      "label": "RemoteOutcome<SymptomAnalysis>",
+      "proof": "src/ui/screens/TriageScreen.tsx; src/data/remoteServices.ts; src/data/apiClient.ts"
+    },
+    {
+      "from": "TriageScreen",
+      "to": "AppContent",
+      "kind": "async",
+      "points": [
+        [
+          128,
+          778
+        ],
+        [
+          1272,
+          778
+        ]
+      ],
+      "label": "onAnalysis(outcome)",
+      "proof": "src/ui/screens/TriageScreen.tsx; src/data/remoteServices.ts; src/data/apiClient.ts"
+    }
+  ]
+}

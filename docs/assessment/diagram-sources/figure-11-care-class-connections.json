@@ -1,0 +1,145 @@
+{
+  "nodes": [
+    {
+      "name": "FacilityService",
+      "x": 28,
+      "y": 112,
+      "w": 548,
+      "h": 122
+    },
+    {
+      "name": "FacilitySearch",
+      "x": 824,
+      "y": 112,
+      "w": 548,
+      "h": 170
+    },
+    {
+      "name": "OverpassFacilities",
+      "x": 28,
+      "y": 352,
+      "w": 548,
+      "h": 142
+    },
+    {
+      "name": "FacilityResult",
+      "x": 28,
+      "y": 594,
+      "w": 404,
+      "h": 194
+    },
+    {
+      "name": "Facility",
+      "x": 498,
+      "y": 594,
+      "w": 404,
+      "h": 242
+    },
+    {
+      "name": "FacilityKind",
+      "x": 968,
+      "y": 594,
+      "w": 404,
+      "h": 194
+    }
+  ],
+  "edges": [
+    {
+      "from": "OverpassFacilities",
+      "to": "FacilityService",
+      "kind": "realization",
+      "points": [
+        [
+          302.0,
+          352
+        ],
+        [
+          302.0,
+          234
+        ]
+      ],
+      "label": null,
+      "proof": "src/data/overpassFacilities.ts"
+    },
+    {
+      "from": "OverpassFacilities",
+      "to": "FacilitySearch",
+      "kind": "dependency",
+      "points": [
+        [
+          576,
+          408.8
+        ],
+        [
+          710,
+          408.8
+        ],
+        [
+          710,
+          224
+        ],
+        [
+          824,
+          224
+        ]
+      ],
+      "label": "at",
+      "proof": "src/data/overpassFacilities.ts: near"
+    },
+    {
+      "from": "OverpassFacilities",
+      "to": "FacilityResult",
+      "kind": "dependency",
+      "points": [
+        [
+          230.76,
+          494
+        ],
+        [
+          230,
+          494
+        ],
+        [
+          230.0,
+          594
+        ]
+      ],
+      "label": "returns",
+      "proof": "src/data/overpassFacilities.ts: near"
+    },
+    {
+      "from": "FacilityResult",
+      "to": "Facility",
+      "kind": "association",
+      "points": [
+        [
+          432,
+          736
+        ],
+        [
+          498,
+          736
+        ]
+      ],
+      "label": null,
+      "proof": "src/domain/facilities.ts:175"
+    },
+    {
+      "from": "Facility",
+      "to": "FacilityKind",
+      "kind": "dependency",
+      "points": [
+        [
+          902,
+          724
+        ],
+        [
+          968,
+          724
+        ]
+      ],
+      "label": "kind",
+      "proof": "src/domain/facilities.ts"
+    }
+  ]
+}

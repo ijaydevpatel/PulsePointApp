@@ -1,113 +1,94 @@
-# PulsePoint Mobile
+# PulsePoint Android prototype
 
-COMP826 Mobile Systems Development - Milestone 2 build.
-Offline-first symptom triage and care navigation.
+COMP826 Mobile Systems Development, Milestone 2. This is an Android prototype for symptom urgency assessment, nearby-care search and related medicine/profile functions. It is not clinically validated.
 
-## Quick start
+## Install and run
 
-```powershell
-npm install
-npx expo prebuild --platform android   # generates the native android/ project
-npm test                               # domain tests - plain Node, no emulator
-```
+1. Install Node **20.19.4 or newer**, npm, **JDK 17** and Android Studio. The checked React Native toolchain uses Android **compile/target SDK 36**, build tools **36.0.0** and NDK **27.1.12297006**. Install the required SDK components through Android Studio. Device minimum is **API 29**.
+2. Clone the repository and enter it:
 
-Then **File → Open → `PulsePointApp/android`** in Android Studio and press **Run ▶**.
+   ```powershell
+   git clone https://github.com/ijaydevpatel/PulsePointApp.git
+   cd PulsePointApp
+   npm install
+   ```
 
-> `android/` is generated, not committed. That is deliberate and standard: it is
-> machine-specific and fully reproducible from `app.json`. Regenerate any time with
-> `npx expo prebuild --platform android --clean`.
+3. Prepare client configuration:
 
-## Commands
+   ```powershell
+   Copy-Item .env.example .env
+   ```
 
-| Command | What it does |
-|---|---|
-| `npm test` | Domain + safety tests. No emulator, no device. |
-| `npm run typecheck` | `tsc --noEmit`, strict mode |
-| `npm run lint:boundaries` | Evaluation criterion **E3** - fails if the domain layer imports React, React Native, Expo, SQLite or any network client |
-| `npm run android` | Build and launch on a connected device/emulator |
-| `npm run prebuild:clean` | Regenerate `android/` from scratch |
+   Set `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` and `EXPO_PUBLIC_API_URL`. The API value is an origin only, without `/api` or a trailing slash. Use a Clerk project and backend that you are authorised to access. Server secrets, including database connection strings, must not be bundled into the app. `.env` is ignored by Git.
 
-## Dependency security
+4. Generate Android files:
 
-`npm audit` reports 20 findings. They trace back to **two** upstream packages, and
-neither reaches the shipped APK - Metro only bundles what the app actually imports,
-and none of these are imported by app code.
+   ```powershell
+   npm run prebuild
+   ```
 
-| Package | Severity | Where it lives | Status |
-|---|---|---|---|
-| `postcss` | high + moderate | `@expo/metro-config`, build time | **Fixed** - pinned to `^8.5.26` via `overrides` |
-| `image-size` | high | `metro` bundler, build time | **No fix exists.** Latest published version (2.0.2) is still within the vulnerable range. Denial-of-service in ICNS/JXL parsers, reachable only by feeding hostile image files to the bundler at build time. |
-| `uuid` | moderate | `xcode`, iOS project generation | **Not overridden on purpose.** `xcode` requires `uuid@^7`; forcing `uuid@11` breaks it. It runs only during iOS prebuild. |
+   `android/` is generated and ignored. The package script also runs the project's debug JS-bundle helper. Prefer it to a bare Expo prebuild command when reproducing this project.
 
-Do not run `npm audit fix --force`. It ignores Expo's version pinning and will break
-the SDK. Re-check with `npm run audit` after each SDK upgrade - the SDK 52 → 54 move
-alone took this from 31 findings (1 critical) down to 20.
+5. Connect an Android device with USB debugging, or start an emulator. Run:
 
-## Architecture
+   ```powershell
+   npm run android
+   ```
 
-Clean Architecture with a strict inward dependency rule.
+   You can also open the generated `android/` folder in Android Studio. Authentication needs the Clerk configuration; remote analysis, profile and chat need a compatible backend. Map tiles and facility queries need connectivity.
 
-```
-src/domain/     ← imports NOTHING platform-specific. Enforced by npm run lint:boundaries.
-  entities.ts        types + invariants (TriageBand, TriageResult, requiresEscalation)
-  redFlags.ts        FR3/QR5 safety rules - run before scoring, never suppressed
-  ports.ts           Classifier, EpisodeStore interfaces (requirement L1)
-  assessSymptoms.ts  the use case: red flags → classify → combine, escalate-only
+6. Run verification:
 
-src/data/       ← implements the domain's interfaces
-  ruleClassifier.ts    Phase 1 noisy-OR engine; swapped for TFLite in Phase 4
-  memoryStore.ts       Phase 1 store; swapped for SQLCipher in Phase 2
-  symptomCatalogue.ts
+   ```powershell
+   npm run verify
+   ```
 
-src/ui/         ← stateless views, no business rules
-  TriageScreen.tsx, ResultCard.tsx, theme.ts
+   It runs `typecheck`, `lint:boundaries`, `contrast` and `test`. There is no `npm run lint` script. Individual commands are available in `package.json`.
 
-scripts/check-domain-boundaries.js   ← criterion E3, runs in CI
-```
+7. Build a release APK:
 
-**Why this shape:** in Phase 4 the TensorFlow Lite model replaces `RuleClassifier` by
-implementing the same `Classifier` interface. Nothing above the data layer changes.
-That is evaluation criterion **E5**, and there is a test asserting it.
+   ```powershell
+   cd android
+   .\gradlew.bat assembleRelease
+   ```
 
-## Safety design (FR3 / QR5)
+   Check `app/build/outputs/apk/release/`. The checked generated release configuration uses the **debug signing key**. It is not a production-signing setup. Configure release signing separately before distribution.
 
-`AssessSymptomsUseCase` runs in a fixed order, and the order is the point:
+## Current functions
 
-1. **Red-flag rules first.** Deterministic, readable, reviewable line by line.
-2. **Then** the classifier scores the episode.
-3. **Combine so the result can only escalate, never de-escalate.**
+The five tabs are Home, Symptoms, Medicines, AI Doctor and Care. Profile and Settings open Records as an overlay.
 
-Three tests lock this in: a red flag escalates even when the classifier returns 1/100;
-low confidence cannot suppress an escalation; and a high score is never pulled down.
+- Symptoms uses a local rules engine and saves the result. Selected symptom labels and free text are also submitted for remote analysis when the service is available.
+- Result shows urgency advice, confidence information and red flags. Non-escalated display can wait for remote analysis or a 12-second reveal timer. There is no result-rating control.
+- Medicines supports information lookup and interaction checks through CollisionScreen.
+- AI Doctor uses a remote chat service. It is not a clinician consultation service.
+- Care queries Overpass in three expanding coordinate boxes, with mirror racing and a short in-memory cache. Directions opens an external maps application.
+- Records stores episode/activity history on the device. Profile data is handled remotely.
 
-## Scoring model
+News/check-in routes and additional service modules exist, but those routes have no entry from the currently rendered tab controls. They are not listed as demonstrated features. A TensorFlow Lite adapter exists but AppContent constructs RuleClassifier.
 
-The classifier uses a **saturating (noisy-OR) aggregate**, not a linear sum. A linear
-sum is wrong here - it is unbounded, so it cannot map onto the 0-100 band thresholds
-without arbitrary rescaling, and it lets many trivial symptoms out-vote one serious
-symptom. Current calibration:
+## Code structure
 
-| Presentation | Severity | Band |
-|---|---|---|
-| Mild sore throat | 6 | Self-care |
-| Flu-like, 3 days | 48 | Pharmacy/GP |
-| Child, fever + vomiting | 56 | Urgent |
-| Chest pain + breathlessness + radiating pain | 89 | Emergency (red flag) |
+`index.ts` registers App, which re-exports `src/ui/App.tsx`. AppContent constructs the classifier, store and services and manages tabs/overlays.
 
-## Phases
+`src/domain/` contains the types, contracts and use cases. `src/data/` contains adapters, including RuleClassifier, DurableEpisodeStore, SQLite/memory storage, ApiClient, remote services and Overpass. `src/ui/screens/` contains React screen functions; `src/ui/components/` contains shared controls. State uses hooks and callbacks, not a named ViewModel class.
 
-| Phase | Scope | Status |
-|---|---|---|
-| 1 | Skeleton, domain layer, triage engine, red flags, UI, tests | **Done** |
-| 2 | `expo-sqlite` + SQLCipher persistence, episode history (FR5, QR3) | Next |
-| 3 | Location, cached facility dataset, care map (FR4) | |
-| 4 | Quantised TFLite classifier + QR1 benchmark in Studio's profiler | |
-| 5 | Sync queue, connectivity worker, idempotent reconciliation (FR6) | |
-| 6 | Document import + on-device extraction (FR7) | |
-| 7 | Detox/Maestro suites, SUS study, 45-vignette audit | |
+The domain boundary script checks direct imports and forbidden patterns. It is not a complete transitive dependency analyser. The documentation includes a separate static import audit.
 
-## Safety note
+## Storage and privacy limits
 
-The red-flag rules in `src/domain/redFlags.ts` are **placeholders**. Before Milestone 2
-each rule must be traced to citable published triage guidance. This is a prototype for
-academic assessment and is not a medical device.
+DurableEpisodeStore retains one active delegate. It attempts SQLite and replaces it with memory if initialization fails. Memory fallback loses history when the app restarts.
+
+SqliteEpisodeStore generates a SecureStore key and issues `PRAGMA key`, but **SQLCipher is not enabled in the checked Expo/native configuration**. Native encryption support has not been verified. Do not treat the Records screen's current encrypted-storage wording as evidence of encryption.
+
+Stored history is local; optional remote analysis sends symptom information, and other services process profile, medicine or chat requests. Local records do not mean every health-related value stays on the device. There is no working background episode-history synchronisation service.
+
+## Verified checks and missing measurements
+
+Verification on 1 October 2026 returned **442 passing tests in 23 suites**, passing TypeScript/direct-boundary checks and **84 passing contrast pairs**. Jest emitted an open-handle warning after the assertions completed. The suite does not prove native encryption, clinical accuracy or complete accessibility compliance.
+
+Reported device timing, APK size and restart observations need reproducible logs/build identifiers. Cold start, RAM and battery have no measured results. SUS has not been conducted. The documentation's Nielsen review is a source-based inspection, not a device walkthrough or participant study.
+
+## Before assessment submission
+
+Add genuine implementation screenshots and a demonstration link. Complete device-based evaluation and process evidence where required. Check assessor access to the repository, commit the required documentation, export the report PDF and submit a ZIP of the main branch on Canvas. Do not put private keys or `.env` into either repository or ZIP.

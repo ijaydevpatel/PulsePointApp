@@ -1,0 +1,141 @@
+{
+  "nodes": [
+    {
+      "name": "Classifier",
+      "x": 28,
+      "y": 112,
+      "w": 404,
+      "h": 146
+    },
+    {
+      "name": "EpisodeStore",
+      "x": 28,
+      "y": 508,
+      "w": 404,
+      "h": 146
+    },
+    {
+      "name": "AssessSymptomsUseCase",
+      "x": 498,
+      "y": 300,
+      "w": 404,
+      "h": 190
+    },
+    {
+      "name": "SymptomEpisode",
+      "x": 968,
+      "y": 112,
+      "w": 404,
+      "h": 146
+    },
+    {
+      "name": "TriageResult",
+      "x": 968,
+      "y": 508,
+      "w": 404,
+      "h": 146
+    }
+  ],
+  "edges": [
+    {
+      "from": "AssessSymptomsUseCase",
+      "to": "Classifier",
+      "kind": "association",
+      "points": [
+        [
+          498,
+          350
+        ],
+        [
+          466,
+          350
+        ],
+        [
+          466,
+          180
+        ],
+        [
+          432,
+          180
+        ]
+      ],
+      "label": "classifier",
+      "proof": "src/domain/assessSymptoms.ts: constructor"
+    },
+    {
+      "from": "AssessSymptomsUseCase",
+      "to": "EpisodeStore",
+      "kind": "association",
+      "points": [
+        [
+          498,
+          434
+        ],
+        [
+          466,
+          434
+        ],
+        [
+          466,
+          566
+        ],
+        [
+          432,
+          566
+        ]
+      ],
+      "label": "store",
+      "proof": "src/domain/assessSymptoms.ts: constructor"
+    },
+    {
+      "from": "AssessSymptomsUseCase",
+      "to": "SymptomEpisode",
+      "kind": "dependency",
+      "points": [
+        [
+          902,
+          350
+        ],
+        [
+          940,
+          350
+        ],
+        [
+          940,
+          180
+        ],
+        [
+          968,
+          180
+        ]
+      ],
+      "label": "argument",
+      "proof": "src/domain/assessSymptoms.ts: execute"
+    },
+    {
+      "from": "AssessSymptomsUseCase",
+      "to": "TriageResult",
+      "kind": "dependency",
+      "points": [
+        [
+          902,
+          434
+        ],
+        [
+          940,
+          434
+        ],
+        [
+          940,
+          566
+        ],
+        [
+          968,
+          566
+        ]
+      ],
+      "label": "returns",
+      "proof": "src/domain/assessSymptoms.ts: execute"
+    }
+  ]
+}

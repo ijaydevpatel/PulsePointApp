@@ -1,0 +1,251 @@
+{
+  "nodes": [
+    {
+      "name": "Symptom",
+      "x": 28,
+      "y": 112,
+      "w": 404,
+      "h": 170
+    },
+    {
+      "name": "RuleClassifier",
+      "x": 498,
+      "y": 112,
+      "w": 404,
+      "h": 166
+    },
+    {
+      "name": "Classifier",
+      "x": 968,
+      "y": 112,
+      "w": 404,
+      "h": 190
+    },
+    {
+      "name": "SymptomEpisode",
+      "x": 28,
+      "y": 440,
+      "w": 404,
+      "h": 218
+    },
+    {
+      "name": "TriageResult",
+      "x": 498,
+      "y": 440,
+      "w": 404,
+      "h": 290
+    },
+    {
+      "name": "Classification",
+      "x": 968,
+      "y": 344,
+      "w": 404,
+      "h": 170
+    },
+    {
+      "name": "TriageBand",
+      "x": 968,
+      "y": 580,
+      "w": 404,
+      "h": 194
+    },
+    {
+      "name": "AgeBand",
+      "x": 28,
+      "y": 730,
+      "w": 404,
+      "h": 122
+    },
+    {
+      "name": "ActivityEntry",
+      "x": 28,
+      "y": 910,
+      "w": 404,
+      "h": 218
+    },
+    {
+      "name": "ActivityKind",
+      "x": 498,
+      "y": 910,
+      "w": 404,
+      "h": 194
+    },
+    {
+      "name": "Other value types",
+      "x": 968,
+      "y": 910,
+      "w": 404,
+      "h": 170
+    }
+  ],
+  "edges": [
+    {
+      "from": "RuleClassifier",
+      "to": "Classifier",
+      "kind": "realization",
+      "points": [
+        [
+          902,
+          178.4
+        ],
+        [
+          935.0,
+          178.4
+        ],
+        [
+          935.0,
+          188.0
+        ],
+        [
+          968,
+          188.0
+        ]
+      ],
+      "label": null,
+      "proof": "src/data/ruleClassifier.ts"
+    },
+    {
+      "from": "Classifier",
+      "to": "Classification",
+      "kind": "dependency",
+      "points": [
+        [
+          1170.0,
+          302
+        ],
+        [
+          1170.0,
+          344
+        ]
+      ],
+      "label": "returns",
+      "proof": "src/domain/ports.ts"
+    },
+    {
+      "from": "SymptomEpisode",
+      "to": "Symptom",
+      "kind": "association",
+      "points": [
+        [
+          230.0,
+          440
+        ],
+        [
+          230.0,
+          282
+        ]
+      ],
+      "label": "symptoms",
+      "proof": "src/domain/entities.ts:21"
+    },
+    {
+      "from": "TriageResult",
+      "to": "TriageBand",
+      "kind": "dependency",
+      "points": [
+        [
+          902,
+          630
+        ],
+        [
+          968,
+          630
+        ]
+      ],
+      "label": "band",
+      "proof": "src/domain/entities.ts:26"
+    },
+    {
+      "from": "RuleClassifier",
+      "to": "SymptomEpisode",
+      "kind": "dependency",
+      "points": [
+        [
+          498,
+          195.0
+        ],
+        [
+          466,
+          195.0
+        ],
+        [
+          466,
+          500
+        ],
+        [
+          432,
+          500
+        ]
+      ],
+      "label": "argument",
+      "proof": "src/domain/ports.ts"
+    },
+    {
+      "from": "SymptomEpisode",
+      "to": "AgeBand",
+      "kind": "dependency",
+      "points": [
+        [
+          230.0,
+          658
+        ],
+        [
+          230.0,
+          730
+        ]
+      ],
+      "label": null,
+      "proof": "src/domain/entities.ts: ageBand"
+    },
+    {
+      "from": "ActivityEntry",
+      "to": "ActivityKind",
+      "kind": "dependency",
+      "points": [
+        [
+          432,
+          1019.0
+        ],
+        [
+          465.0,
+          1019.0
+        ],
+        [
+          465.0,
+          1007.0
+        ],
+        [
+          498,
+          1007.0
+        ]
+      ],
+      "label": "kind",
+      "proof": "src/domain/activity.ts"
+    },
+    {
+      "from": "TriageResult",
+      "to": "Other value types",
+      "kind": "dependency",
+      "points": [
+        [
+          902,
+          686.5
+        ],
+        [
+          940,
+          686.5
+        ],
+        [
+          940,
+          954
+        ],
+        [
+          968,
+          954
+        ]
+      ],
+      "label": "source / syncStatus",
+      "proof": "src/domain/entities.ts"
+    }
+  ]
+}

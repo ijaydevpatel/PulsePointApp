@@ -1,0 +1,264 @@
+﻿Importer,Dependency,Relationship,Imported symbols
+index.ts,App.tsx,import,App
+App.tsx,src/ui/App.tsx,re-export,{ default }
+src/data/apiClient.ts,src/config/env.ts,import,{ ENV }
+src/data/clerkAuth.ts,src/domain/auth.ts,import,"{ AuthGateway, Session, GUEST }"
+src/data/conditionsService.ts,src/domain/remote.ts,import,"{ Conditions, ConditionsService, LocationState }"
+src/data/conditionsService.ts,src/data/locationFix.ts,import,"{ Fix, zoneFix }"
+src/data/db/mapping.ts,src/domain/entities.ts,import,"{
+  SymptomEpisode, TriageResult, Symptom, AgeBand, TriageBand,
+  ResultSource, SyncStatus,
+}"
+src/data/db/mapping.ts,src/domain/ports.ts,import,{ HistoryEntry }
+src/data/db/mapping.ts,src/domain/remote.ts,import,{ SymptomAnalysis }
+src/data/episodeStore.ts,src/domain/ports.ts,import,"{ EpisodeStore, HistoryEntry }"
+src/data/episodeStore.ts,src/domain/activity.ts,import,"{ ActivityEntry, ActivityLog }"
+src/data/episodeStore.ts,src/domain/remote.ts,import,{ SymptomAnalysis }
+src/data/episodeStore.ts,src/domain/entities.ts,import,"{ SymptomEpisode, TriageResult }"
+src/data/episodeStore.ts,src/data/sqliteStore.ts,import,{ SqliteEpisodeStore }
+src/data/episodeStore.ts,src/data/memoryStore.ts,import,{ InMemoryEpisodeStore }
+src/data/facilityCache.ts,src/domain/facilities.ts,import,{ Facility }
+src/data/interactionTable.ts,src/domain/medicines.ts,import,"{ Drug, InteractionRule }"
+src/data/interactionTable.ts,src/domain/ports.ts,import,{ InteractionRepository }
+src/data/memoryStore.ts,src/domain/entities.ts,import,"{ SymptomEpisode, TriageResult }"
+src/data/memoryStore.ts,src/domain/ports.ts,import,"{ EpisodeStore, HistoryEntry }"
+src/data/memoryStore.ts,src/domain/activity.ts,import,"{ ActivityEntry, ActivityLog }"
+src/data/memoryStore.ts,src/domain/remote.ts,import,{ SymptomAnalysis }
+src/data/onDeviceClassifier.ts,src/domain/entities.ts,import,{ SymptomEpisode }
+src/data/onDeviceClassifier.ts,src/domain/ports.ts,import,"{ Classifier, Classification }"
+src/data/onDeviceClassifier.ts,src/data/ruleClassifier.ts,import,{ RuleClassifier }
+src/data/overpassFacilities.ts,src/domain/facilities.ts,import,"{
+  Facility, FacilityResult, FacilityService, FacilitySearch, byDistance, classify,
+  haversineKm, isOpen24h, isUrgent, KIND_LABEL,
+}"
+src/data/remoteServices.ts,src/domain/remote.ts,import,"{
+  AgentProfile, MedicineCheck, MedicineCheckRequest, MedicineCheckService,
+  RemoteOutcome, RemoteStatus, REMOTE_NOTICE, COLLISION_NOTICE,
+  BUSY_NOTICE, isBusy,
+  SymptomAnalysis, SymptomAnalysisRequest, SymptomAnalysisService,
+  ProbableCondition, MatrixSeverity,
+  DailyStatus, DashboardService, Intelligence, RiskTrend,
+  ProfileService, UserProfile, ProfileEdits,
+}"
+src/data/remoteServices.ts,src/domain/sentences.ts,import,{ limitSentences }
+src/data/remoteServices.ts,src/data/apiClient.ts,import,"{ ApiClient, ApiError }"
+src/data/remoteServices.ts,src/domain/remote.ts,import,"{
+  ChatGreeting, ChatReply, ChatService,
+  NewsFeed, NewsItem, NewsService,
+}"
+src/data/ruleClassifier.ts,src/domain/entities.ts,import,{ SymptomEpisode }
+src/data/ruleClassifier.ts,src/domain/assessSymptoms.ts,import,{ BAND_THRESHOLDS }
+src/data/ruleClassifier.ts,src/domain/ports.ts,import,"{ Classifier, Classification }"
+src/data/services.ts,src/data/apiClient.ts,import,"{ ApiClient, TokenProvider }"
+src/data/services.ts,src/data/remoteServices.ts,import,"{
+  RemoteSymptomAnalysis, RemoteMedicineCheck,
+  RemoteChat, RemoteNews, RemoteDashboard, RemoteProfile,
+}"
+src/data/services.ts,src/data/conditionsService.ts,import,{ OpenMeteoConditions }
+src/data/services.ts,src/data/overpassFacilities.ts,import,{ OverpassFacilities }
+src/data/sqliteStore.ts,src/domain/entities.ts,import,"{ SymptomEpisode, TriageResult }"
+src/data/sqliteStore.ts,src/domain/ports.ts,import,"{ EpisodeStore, HistoryEntry }"
+src/data/sqliteStore.ts,src/domain/activity.ts,import,"{ ActivityEntry, ActivityKind, ActivityLog }"
+src/data/sqliteStore.ts,src/domain/remote.ts,import,{ SymptomAnalysis }
+src/data/sqliteStore.ts,src/data/db/mapping.ts,import,"{ EpisodeRow, fromRow, toRow }"
+src/data/sqliteStore.ts,src/data/db/schema.ts,import,"{ MIGRATIONS, SCHEMA_VERSION }"
+src/data/symptomCatalogue.ts,src/domain/entities.ts,import,{ Symptom }
+src/domain/assessSymptoms.ts,src/domain/entities.ts,import,"{
+  SymptomEpisode, TriageResult, TriageBand, maxBand,
+}"
+src/domain/assessSymptoms.ts,src/domain/redFlags.ts,import,{ detectRedFlags }
+src/domain/assessSymptoms.ts,src/domain/ports.ts,import,"{ Classifier, EpisodeStore }"
+src/domain/checkInteractions.ts,src/domain/ports.ts,import,{ InteractionRepository }
+src/domain/checkInteractions.ts,src/domain/medicines.ts,import,"{
+  Drug, InteractionFinding, InteractionReport, InteractionRule, Side,
+  maxSeverity, severityRank,
+}"
+src/domain/ports.ts,src/domain/entities.ts,import,"{ SymptomEpisode, TriageResult }"
+src/domain/ports.ts,src/domain/medicines.ts,import,"{ Drug, InteractionRule }"
+src/domain/ports.ts,src/domain/remote.ts,import,{ SymptomAnalysis }
+src/domain/redFlags.ts,src/domain/entities.ts,import,"{ SymptomEpisode, TriageBand }"
+src/domain/remote.ts,src/domain/entities.ts,import,{ TriageBand }
+src/domain/wellbeing.ts,src/domain/ports.ts,import,{ HistoryEntry }
+src/domain/wellbeing.ts,src/domain/entities.ts,import,{ TriageBand }
+src/ui/App.tsx,src/domain/entities.ts,import,"{ TriageResult, BAND_LABEL }"
+src/ui/App.tsx,src/domain/medicines.ts,import,{ InteractionReport }
+src/ui/App.tsx,src/domain/auth.ts,import,"{ Session, GUEST }"
+src/ui/App.tsx,src/domain/activity.ts,import,{ ActivityKind }
+src/ui/App.tsx,src/data/facilityCache.ts,import,"{ readFacilityCache, writeFacilityCache }"
+src/ui/App.tsx,src/domain/remote.ts,import,"{ SymptomAnalysis, MedicineCheck, RemoteOutcome }"
+src/ui/App.tsx,src/data/ruleClassifier.ts,import,{ RuleClassifier }
+src/ui/App.tsx,src/data/episodeStore.ts,import,{ DurableEpisodeStore }
+src/ui/App.tsx,src/data/clerkAuth.ts,import,{ tokenCache }
+src/ui/App.tsx,src/data/services.ts,import,{ createServices }
+src/ui/App.tsx,src/data/locationFix.ts,import,"{ Fix, resolveFix }"
+src/ui/App.tsx,src/config/env.ts,import,{ ENV }
+src/ui/App.tsx,src/ui/nav/TabBar.tsx,import,{ TabBar }
+src/ui/App.tsx,src/ui/nav/TopBar.tsx,import,{ TopBar }
+src/ui/App.tsx,src/ui/nav/TabTransition.tsx,import,{ TabTransition }
+src/ui/App.tsx,src/ui/nav/routes.ts,import,"{ DEFAULT_TAB, RouteKey, TabKey }"
+src/ui/App.tsx,src/ui/components/ScreenHeader.tsx,import,{ OfflineBanner }
+src/ui/App.tsx,src/ui/components/BottomScrim.tsx,import,{ BottomScrim }
+src/ui/App.tsx,src/ui/screens/TriageScreen.tsx,import,{ TriageScreen }
+src/ui/App.tsx,src/ui/screens/ResultScreen.tsx,import,{ ResultScreen }
+src/ui/App.tsx,src/ui/screens/MedicinesScreen.tsx,import,{ MedicinesScreen }
+src/ui/App.tsx,src/ui/screens/CollisionScreen.tsx,import,{ CollisionScreen }
+src/ui/App.tsx,src/ui/screens/CareScreen.tsx,import,{ CareScreen }
+src/ui/App.tsx,src/ui/screens/RecordsScreen.tsx,import,{ RecordsScreen }
+src/ui/App.tsx,src/ui/screens/MoreScreen.tsx,import,{ MoreScreen }
+src/ui/App.tsx,src/ui/screens/AuthScreen.tsx,import,{ AuthScreen }
+src/ui/App.tsx,src/ui/screens/HomeScreen.tsx,import,{ HomeScreen }
+src/ui/App.tsx,src/ui/screens/ProfileScreen.tsx,import,{ ProfileScreen }
+src/ui/App.tsx,src/ui/screens/SettingsScreen.tsx,import,{ SettingsScreen }
+src/ui/App.tsx,src/ui/screens/ChatScreen.tsx,import,"{ ChatScreen, Conversation, EMPTY_CONVERSATION }"
+src/ui/App.tsx,src/ui/screens/NewsScreen.tsx,import,{ NewsScreen }
+src/ui/App.tsx,src/ui/screens/SimpleScreens.tsx,import,{ CheckInScreen }
+src/ui/App.tsx,src/ui/theme.ts,import,"{ ThemeContext, buildTheme, Scheme }"
+src/ui/auth/atmosphere.ts,src/ui/auth/authTheme.ts,import,{ GLOW }
+src/ui/auth/AuthBackground.tsx,src/ui/auth/authTheme.ts,import,{ C }
+src/ui/auth/AuthBackground.tsx,src/ui/auth/atmosphere.ts,import,"{ SHAPE, fieldsFor, tail }"
+src/ui/auth/AuthPrimitives.tsx,src/ui/components/Icon.tsx,import,{ Icon }
+src/ui/auth/AuthPrimitives.tsx,src/ui/auth/BrandMark.tsx,import,{ BrandMark }
+src/ui/auth/AuthPrimitives.tsx,src/ui/auth/authTheme.ts,import,"{ C, HERO_LEADING, LIFT, T, gaps, heroSize }"
+src/ui/auth/AuthPrimitives.tsx,src/ui/useReveal.ts,import,{ useReveal }
+src/ui/auth/authTheme.ts,src/ui/theme.ts,import,{ FONT }
+src/ui/components/BottomScrim.tsx,src/ui/theme.ts,import,"{ useTheme, TAB_CLEARANCE }"
+src/ui/components/Primitives.tsx,src/ui/useReveal.ts,import,{ useReveal }
+src/ui/components/Primitives.tsx,src/ui/theme.ts,import,"{ useTheme, TYPE, TypeToken, S, R, TOUCH, MOTION, circle }"
+src/ui/components/Primitives.tsx,src/ui/components/Icon.tsx,import,"{ Icon, IconName }"
+src/ui/components/ScreenHeader.tsx,src/ui/theme.ts,import,"{ useTheme, S, TOUCH, R }"
+src/ui/components/ScreenHeader.tsx,src/ui/components/Icon.tsx,import,{ Icon }
+src/ui/components/ScreenHeader.tsx,src/ui/components/Primitives.tsx,import,"{ Springy, Txt, Enter }"
+src/ui/components/SeveritySpine.tsx,src/domain/entities.ts,import,"{ TriageBand, BAND_ORDER }"
+src/ui/components/SeveritySpine.tsx,src/ui/theme.ts,import,{ useTheme }
+src/ui/nav/routes.ts,src/ui/components/Icon.tsx,import,{ IconName }
+src/ui/nav/TabBar.tsx,src/ui/nav/routes.ts,import,"{
+  BAR_PAD, BAR_SIDE_MARGIN, MIN_BAR_WIDTH, SELECTED_UNITS, TABS, TabKey, pillSlot,
+  PILL_ICON, PILL_GAP, PILL_PAD_H, PILL_FONT,
+}"
+src/ui/nav/TabBar.tsx,src/ui/useReveal.ts,import,{ useReveal }
+src/ui/nav/TabBar.tsx,src/ui/theme.ts,import,"{ TYPE, S, R, TOUCH }"
+src/ui/nav/TabBar.tsx,src/ui/components/Icon.tsx,import,{ Icon }
+src/ui/nav/TabTransition.tsx,src/ui/nav/routes.ts,import,"{ TABS, TabKey }"
+src/ui/nav/TabTransition.tsx,src/ui/useReveal.ts,import,{ useReveal }
+src/ui/nav/TopBar.tsx,src/ui/components/Icon.tsx,import,{ Icon }
+src/ui/nav/TopBar.tsx,src/domain/auth.ts,import,{ Session }
+src/ui/nav/TopBar.tsx,src/ui/theme.ts,import,"{ S, TOUCH, TYPE }"
+src/ui/screens/AuthScreen.tsx,src/ui/components/Icon.tsx,import,{ Icon }
+src/ui/screens/AuthScreen.tsx,src/ui/components/KeyboardSafe.tsx,import,{ KeyboardSafe }
+src/ui/screens/AuthScreen.tsx,src/domain/auth.ts,import,{ Session }
+src/ui/screens/AuthScreen.tsx,src/data/clerkAuth.ts,import,{ ClerkAuthGateway }
+src/ui/screens/AuthScreen.tsx,src/ui/auth/AuthBackground.tsx,import,{ AuthBackground }
+src/ui/screens/AuthScreen.tsx,src/ui/auth/AuthPrimitives.tsx,import,"{
+  AuthError, AuthField, AuthSwitcher, EmailMark, GoogleMark,
+  Hero, PillButton, Rise, Wordmark,
+}"
+src/ui/screens/AuthScreen.tsx,src/ui/auth/authTheme.ts,import,"{ C, COLUMN, COPY, Gaps, T, gaps }"
+src/ui/screens/AuthScreen.tsx,src/ui/auth/authErrors.ts,import,"{
+  confirmError, emailError, humanAuthError, nameError, passwordError,
+}"
+src/ui/screens/CareScreen.tsx,src/ui/components/Primitives.tsx,import,"{ Txt, Springy, Card, Button, tap }"
+src/ui/screens/CareScreen.tsx,src/ui/components/Icon.tsx,import,"{ Icon, IconName }"
+src/ui/screens/CareScreen.tsx,src/ui/theme.ts,import,"{ useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE, Palette }"
+src/ui/screens/CareScreen.tsx,src/domain/facilities.ts,import,"{
+  Facility, FacilityKind, FacilityService, KIND_LABEL, matches, byDistance,
+}"
+src/ui/screens/CareScreen.tsx,src/data/locationFix.ts,import,"{ Fix, FixOutcome, preciseFix, recentPreciseFix }"
+src/ui/screens/CareScreen.tsx,src/data/facilityCache.ts,import,"{ readFacilityCache, writeFacilityCache }"
+src/ui/screens/ChatScreen.tsx,src/ui/components/ScreenHeader.tsx,import,{ ScreenHeader }
+src/ui/screens/ChatScreen.tsx,src/ui/components/KeyboardSafe.tsx,import,{ KeyboardSafe }
+src/ui/screens/ChatScreen.tsx,src/ui/components/Primitives.tsx,import,"{ Txt, Springy, tap, EmptyState }"
+src/ui/screens/ChatScreen.tsx,src/ui/components/Icon.tsx,import,{ Icon }
+src/ui/screens/ChatScreen.tsx,src/ui/nav/routes.ts,import,{ BAR_PAD }
+src/ui/screens/ChatScreen.tsx,src/ui/theme.ts,import,"{ useTheme, S, R, TOUCH, TYPE }"
+src/ui/screens/ChatScreen.tsx,src/domain/remote.ts,import,"{ ChatService, ChatTurn }"
+src/ui/screens/CollisionScreen.tsx,src/domain/remote.ts,import,"{ AgentProfile, MedicineCheck, RemoteOutcome }"
+src/ui/screens/CollisionScreen.tsx,src/ui/components/Primitives.tsx,import,"{ Card, SectionLabel, Button, Txt, Springy, Enter }"
+src/ui/screens/CollisionScreen.tsx,src/ui/components/Icon.tsx,import,{ Icon }
+src/ui/screens/CollisionScreen.tsx,src/ui/theme.ts,import,"{ useTheme, S, R, TOUCH, TAB_CLEARANCE, Palette, circle }"
+src/ui/screens/HomeScreen.tsx,src/domain/ports.ts,import,"{ EpisodeStore, HistoryEntry }"
+src/ui/screens/HomeScreen.tsx,src/domain/auth.ts,import,{ Session }
+src/ui/screens/HomeScreen.tsx,src/domain/entities.ts,import,{ TriageBand }
+src/ui/screens/HomeScreen.tsx,src/domain/wellbeing.ts,import,"{ checkInStreak, healthScore }"
+src/ui/screens/HomeScreen.tsx,src/domain/remote.ts,import,"{
+  BRIEFING_NOTICE, Conditions, ConditionsService, DashboardService,
+  Intelligence, LocationState, RemoteOutcome,
+}"
+src/ui/screens/HomeScreen.tsx,src/ui/components/Primitives.tsx,import,"{ Card, Txt, SectionLabel, Enter }"
+src/ui/screens/HomeScreen.tsx,src/ui/components/Icon.tsx,import,{ Icon }
+src/ui/screens/HomeScreen.tsx,src/ui/theme.ts,import,"{ useTheme, S, R, TAB_CLEARANCE }"
+src/ui/screens/HomeScreen.tsx,src/ui/nav/TopBar.tsx,import,{ TOP_BAR_HEIGHT }
+src/ui/screens/MedicinesScreen.tsx,src/ui/components/ScreenHeader.tsx,import,{ ScreenHeader }
+src/ui/screens/MedicinesScreen.tsx,src/ui/components/Primitives.tsx,import,"{
+  Button, Card, SectionLabel, Txt, Springy, Enter, tap,
+}"
+src/ui/screens/MedicinesScreen.tsx,src/ui/components/Icon.tsx,import,{ Icon }
+src/ui/screens/MedicinesScreen.tsx,src/ui/components/KeyboardSafe.tsx,import,{ KeyboardSafe }
+src/ui/screens/MedicinesScreen.tsx,src/ui/theme.ts,import,"{ useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE }"
+src/ui/screens/MedicinesScreen.tsx,src/data/interactionTable.ts,import,{ BundledInteractionTable }
+src/ui/screens/MedicinesScreen.tsx,src/domain/remote.ts,import,"{
+  MedicineCheck, MedicineCheckService, RemoteOutcome,
+}"
+src/ui/screens/MoreScreen.tsx,src/ui/components/ScreenHeader.tsx,import,{ ScreenHeader }
+src/ui/screens/MoreScreen.tsx,src/ui/components/Primitives.tsx,import,"{ Card, SectionLabel, NavCard, Txt, Enter, Springy }"
+src/ui/screens/MoreScreen.tsx,src/ui/components/Icon.tsx,import,"{ Icon, IconName }"
+src/ui/screens/MoreScreen.tsx,src/domain/auth.ts,import,{ Session }
+src/ui/screens/MoreScreen.tsx,src/ui/theme.ts,import,"{ useTheme, S, R, TOUCH, TAB_CLEARANCE, Scheme, circle }"
+src/ui/screens/MoreScreen.tsx,src/ui/nav/routes.ts,import,{ RouteKey }
+src/ui/screens/NewsScreen.tsx,src/ui/components/ScreenHeader.tsx,import,{ ScreenHeader }
+src/ui/screens/NewsScreen.tsx,src/ui/components/Primitives.tsx,import,"{ Txt, Springy, Card, EmptyState, tap }"
+src/ui/screens/NewsScreen.tsx,src/ui/components/Icon.tsx,import,{ Icon }
+src/ui/screens/NewsScreen.tsx,src/ui/theme.ts,import,"{ useTheme, S, R, TAB_CLEARANCE }"
+src/ui/screens/NewsScreen.tsx,src/domain/remote.ts,import,"{ NewsService, NewsItem, NewsFeed }"
+src/ui/screens/ProfileScreen.tsx,src/ui/components/ScreenHeader.tsx,import,{ ScreenHeader }
+src/ui/screens/ProfileScreen.tsx,src/ui/components/KeyboardSafe.tsx,import,{ KeyboardSafe }
+src/ui/screens/ProfileScreen.tsx,src/ui/components/Primitives.tsx,import,"{ Card, NavCard, SectionLabel, Txt, Springy, Button, tap }"
+src/ui/screens/ProfileScreen.tsx,src/ui/components/Icon.tsx,import,{ Icon }
+src/ui/screens/ProfileScreen.tsx,src/ui/theme.ts,import,"{ useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE }"
+src/ui/screens/ProfileScreen.tsx,src/domain/auth.ts,import,{ Session }
+src/ui/screens/ProfileScreen.tsx,src/domain/remote.ts,import,"{ ProfileService, UserProfile, ProfileEdits }"
+src/ui/screens/ProfileScreen.tsx,src/ui/nav/routes.ts,import,{ RouteKey }
+src/ui/screens/RecordsScreen.tsx,src/ui/components/ScreenHeader.tsx,import,{ ScreenHeader }
+src/ui/screens/RecordsScreen.tsx,src/ui/components/Primitives.tsx,import,"{
+  Card, EmptyState, SectionLabel, Button, Txt, Springy, Enter,
+}"
+src/ui/screens/RecordsScreen.tsx,src/ui/components/SeveritySpine.tsx,import,{ SeveritySpine }
+src/ui/screens/RecordsScreen.tsx,src/ui/components/Icon.tsx,import,{ Icon }
+src/ui/screens/RecordsScreen.tsx,src/domain/ports.ts,import,"{ EpisodeStore, HistoryEntry }"
+src/ui/screens/RecordsScreen.tsx,src/domain/activity.ts,import,"{ ActivityEntry, ActivityLog, ACTIVITY_LABEL }"
+src/ui/screens/RecordsScreen.tsx,src/domain/entities.ts,import,{ BAND_LABEL }
+src/ui/screens/RecordsScreen.tsx,src/ui/theme.ts,import,"{ useTheme, S, TOUCH, TAB_CLEARANCE }"
+src/ui/screens/ResultScreen.tsx,src/domain/entities.ts,import,"{ TriageResult, BAND_LABEL, BAND_ADVICE, requiresEscalation }"
+src/ui/screens/ResultScreen.tsx,src/ui/components/Primitives.tsx,import,"{ Card, SectionLabel, Button, Txt, Springy, Enter, tap }"
+src/ui/screens/ResultScreen.tsx,src/ui/components/Icon.tsx,import,{ Icon }
+src/ui/screens/ResultScreen.tsx,src/ui/components/ScreenHeader.tsx,import,{ ScreenHeader }
+src/ui/screens/ResultScreen.tsx,src/ui/theme.ts,import,"{ useTheme, TYPE, S, R, TOUCH, TAB_CLEARANCE, MOTION, circle }"
+src/ui/screens/ResultScreen.tsx,src/domain/remote.ts,import,"{
+  RemoteOutcome, SymptomAnalysis, ProbableCondition, MatrixSeverity,
+}"
+src/ui/screens/SettingsScreen.tsx,src/ui/components/ScreenHeader.tsx,import,{ ScreenHeader }
+src/ui/screens/SettingsScreen.tsx,src/ui/components/Primitives.tsx,import,"{ Card, NavCard, SectionLabel, Txt, Springy, tap }"
+src/ui/screens/SettingsScreen.tsx,src/ui/components/Icon.tsx,import,{ Icon }
+src/ui/screens/SettingsScreen.tsx,src/ui/theme.ts,import,"{ useTheme, S, R, TOUCH, TAB_CLEARANCE, Scheme }"
+src/ui/screens/SettingsScreen.tsx,src/domain/auth.ts,import,{ Session }
+src/ui/screens/SettingsScreen.tsx,src/domain/ports.ts,import,{ EpisodeStore }
+src/ui/screens/SettingsScreen.tsx,src/domain/activity.ts,import,{ ActivityLog }
+src/ui/screens/SettingsScreen.tsx,src/ui/nav/routes.ts,import,{ RouteKey }
+src/ui/screens/SimpleScreens.tsx,src/ui/components/ScreenHeader.tsx,import,{ ScreenHeader }
+src/ui/screens/SimpleScreens.tsx,src/ui/components/Primitives.tsx,import,"{ PhaseNotice, Button, Card, Txt, Enter }"
+src/ui/screens/SimpleScreens.tsx,src/ui/components/Icon.tsx,import,"{ Icon, IconName }"
+src/ui/screens/SimpleScreens.tsx,src/domain/auth.ts,import,{ Session }
+src/ui/screens/SimpleScreens.tsx,src/ui/theme.ts,import,"{ useTheme, S, circle }"
+src/ui/screens/TriageScreen.tsx,src/domain/entities.ts,import,"{ AgeBand, Symptom, SymptomEpisode, TriageResult }"
+src/ui/screens/TriageScreen.tsx,src/domain/assessSymptoms.ts,import,{ AssessSymptomsUseCase }
+src/ui/screens/TriageScreen.tsx,src/data/symptomCatalogue.ts,import,{ CATALOGUE }
+src/ui/screens/TriageScreen.tsx,src/ui/components/ScreenHeader.tsx,import,{ ScreenHeader }
+src/ui/screens/TriageScreen.tsx,src/ui/components/Primitives.tsx,import,"{ Card, SectionLabel, Chip, Txt, Springy, tap }"
+src/ui/screens/TriageScreen.tsx,src/ui/components/Icon.tsx,import,{ Icon }
+src/ui/screens/TriageScreen.tsx,src/ui/components/KeyboardSafe.tsx,import,{ KeyboardSafe }
+src/ui/screens/TriageScreen.tsx,src/ui/theme.ts,import,"{ useTheme, S, R, TOUCH, TAB_CLEARANCE, MOTION, TYPE, circle }"
+src/ui/screens/TriageScreen.tsx,src/ui/useReveal.ts,import,{ useReveal }
+src/ui/screens/TriageScreen.tsx,src/domain/ports.ts,import,"{ EpisodeStore, Classifier }"
+src/ui/screens/TriageScreen.tsx,src/domain/remote.ts,import,"{
+  SymptomAnalysis, SymptomAnalysisService, ProfileService, RemoteOutcome,
+}"
+src/ui/theme.ts,src/domain/entities.ts,import,{ TriageBand }
