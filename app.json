@@ -43,7 +43,14 @@
           }
         }
       ],
-      "expo-sqlite",
+      [
+        "expo-sqlite",
+        {
+          "android": {
+            "useSQLCipher": true
+          }
+        }
+      ],
       "expo-secure-store",
       "expo-font",
       [
