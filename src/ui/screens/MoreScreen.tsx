@@ -41,7 +41,7 @@ export function MoreScreen({ session, onOpen, scheme, onToggleScheme }: {
                   <Icon name="user" size={22} color={signedIn ? P.onAccent : P.faint} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Txt t="heading">{signedIn ? session.displayName : 'Not signed in'}</Txt>
+                  <Txt t="heading">{signedIn ? (session.displayName ?? 'Signed in') : 'Not signed in'}</Txt>
                   <Txt t="caption" style={{ marginTop: 3 }}>
                     {signedIn
                       ? 'Your health profile is saved to your account'

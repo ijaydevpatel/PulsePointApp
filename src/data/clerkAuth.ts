@@ -1,5 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
-import { AuthGateway, Session, GUEST } from '../domain/auth';
+import { AuthGateway, Session, GUEST, resolveDisplayName } from '../domain/auth';
 
 export const tokenCache = {
   async getToken(key: string): Promise<string | null> {
@@ -217,15 +217,7 @@ export class ClerkAuthGateway implements AuthGateway {
     const id = this.auth.userId ?? user?.id ?? fallbackId ?? null;
     if (!id) return GUEST;
 
-    const nameFromUser =
-      user?.fullName?.trim() ||
-      [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
-      user?.username?.trim();
-
-    const displayName =
-      nameFromUser ||
-      user?.primaryEmailAddress?.emailAddress?.split('@')[0] ||
-      'You';
+    const displayName = user ? resolveDisplayName(user) : null;
 
     return {
       state: 'SIGNED_IN',

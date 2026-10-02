@@ -15,7 +15,7 @@ import { ClerkProvider, useAuth, useUser } from '@clerk/clerk-expo';
 
 import { TriageResult, BAND_LABEL } from '../domain/entities';
 import { InteractionReport } from '../domain/medicines';
-import { Session, GUEST } from '../domain/auth';
+import { Session, GUEST, resolveDisplayName } from '../domain/auth';
 import { ActivityKind } from '../domain/activity';
 import { readFacilityCache, writeFacilityCache } from '../data/facilityCache';
 import { SymptomAnalysis, MedicineCheck, RemoteOutcome } from '../domain/remote';
@@ -139,14 +139,10 @@ function AppContent() {
 
   const session: Session = useMemo(() => {
     if (!authLoaded || !userLoaded || !isSignedIn || !user) return GUEST;
-    const clerkName =
-      user.fullName?.trim() ||
-      [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
-      null;
     return {
       state: 'SIGNED_IN',
       userId: user.id,
-      displayName: clerkName || user.primaryEmailAddress?.emailAddress?.split('@')[0] || 'You',
+      displayName: resolveDisplayName(user),
       cachedAt: new Date().toISOString(),
     };
   }, [authLoaded, userLoaded, isSignedIn, user]);
