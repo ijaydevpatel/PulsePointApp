@@ -6,7 +6,7 @@ import { TriageBand } from '../../domain/entities';
 import { checkInStreak, healthScore } from '../../domain/wellbeing';
 import {
   BRIEFING_NOTICE, Conditions, ConditionsService, DashboardService,
-  Intelligence, LocationState, RemoteOutcome,
+  Intelligence, LocationState, ProfileService, RemoteOutcome,
 } from '../../domain/remote';
 import { Card, Txt, SectionLabel, Enter } from '../components/Primitives';
 import { Icon } from '../components/Icon';
@@ -31,13 +31,14 @@ const show = (n: number | null, suffix = ''): string =>
   n === null ? '-' : `${Math.round(n)}${suffix}`;
 
 export function HomeScreen({
-  store, session, refreshKey, dashboard, conditions, onStartTriage,
+  store, session, refreshKey, dashboard, conditions, profile, onStartTriage,
 }: {
   store: EpisodeStore;
   session: Session;
   refreshKey: number;
   dashboard: DashboardService;
   conditions: ConditionsService;
+  profile?: ProfileService;
   onStartTriage: () => void;
 }) {
   const { c: P } = useTheme();
@@ -45,6 +46,7 @@ export function HomeScreen({
   const [history, setHistory] = useState<readonly HistoryEntry[] | null>(null);
   const [intel, setIntel] = useState<RemoteOutcome<Intelligence> | null>(null);
   const [env, setEnv] = useState<{ state: LocationState; data: Conditions | null; notice: string | null } | null>(null);
+  const [profileName, setProfileName] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadLocal = useCallback(async () => {
@@ -62,7 +64,15 @@ export function HomeScreen({
     });
 
     void conditions.current().then(setEnv);
-  }, [dashboard, conditions]);
+
+    if (profile) {
+      void profile.me().then((r) => {
+        if (r.status === 'OK' && r.data?.fullName?.trim()) {
+          setProfileName(r.data.fullName.trim());
+        }
+      });
+    }
+  }, [dashboard, conditions, profile]);
 
   useEffect(() => { void loadLocal(); }, [loadLocal, refreshKey]);
   useEffect(() => { void loadRemote(); }, [loadRemote]);
@@ -79,7 +89,13 @@ export function HomeScreen({
   const score = useMemo(() => (history ? healthScore(history) : null), [history]);
   const streak = useMemo(() => (history ? checkInStreak(history) : null), [history]);
 
-  const first = session.displayName?.trim().split(/\s+/)[0] ?? null;
+  const fullName = useMemo(() => {
+    if (profileName) return profileName;
+    const sessionName = session.displayName?.trim();
+    if (!sessionName || sessionName === 'You') return null;
+    return sessionName;
+  }, [profileName, session.displayName]);
+
   const i = intel?.status === 'OK' ? intel.data : null;
 
   return (
@@ -95,7 +111,7 @@ export function HomeScreen({
     >
       <Enter index={1}>
         <Txt t="display" style={st.greeting}>
-          {first ? `Welcome back, ${first}.` : 'Welcome back.'}
+          {fullName ? `Welcome back, ${fullName}.` : 'Welcome back.'}
         </Txt>
         {i?.dailyStatus && i.dailyStatus !== 'Unknown' ? (
           <Txt t="micro" c={P.muted} style={st.eyebrow}>

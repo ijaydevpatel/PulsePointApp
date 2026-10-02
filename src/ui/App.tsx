@@ -139,10 +139,14 @@ function AppContent() {
 
   const session: Session = useMemo(() => {
     if (!authLoaded || !userLoaded || !isSignedIn || !user) return GUEST;
+    const clerkName =
+      user.fullName?.trim() ||
+      [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
+      null;
     return {
       state: 'SIGNED_IN',
       userId: user.id,
-      displayName: user.fullName || user.primaryEmailAddress?.emailAddress?.split('@')[0] || 'You',
+      displayName: clerkName || user.primaryEmailAddress?.emailAddress?.split('@')[0] || 'You',
       cachedAt: new Date().toISOString(),
     };
   }, [authLoaded, userLoaded, isSignedIn, user]);
@@ -260,6 +264,7 @@ function AppContent() {
             refreshKey={historyKey}
             dashboard={services.dashboard}
             conditions={services.conditions}
+            profile={services.profile}
             onStartTriage={() => setTab('triage')}
           />
         );

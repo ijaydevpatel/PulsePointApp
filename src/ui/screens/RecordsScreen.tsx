@@ -18,13 +18,22 @@ function summarise(entry: HistoryEntry): string {
   return `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`;
 }
 
+/** Absolute date and time, so a record can be matched to when it was taken. */
+function stamp(d: Date): string {
+  return d.toLocaleString(undefined, {
+    day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit',
+  });
+}
+
+/** Relative age for recent entries, always alongside the absolute time. */
 function when(iso: string): string {
   const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return 'Date not recorded';
   const mins = Math.round((Date.now() - d.getTime()) / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins} min ago`;
-  if (mins < 1440) return `${Math.round(mins / 60)} h ago`;
-  return d.toLocaleDateString();
+  if (mins < 1) return `Just now · ${stamp(d)}`;
+  if (mins < 60) return `${mins} min ago · ${stamp(d)}`;
+  if (mins < 1440) return `${Math.round(mins / 60)} h ago · ${stamp(d)}`;
+  return stamp(d);
 }
 
 export function RecordsScreen({ store, refreshKey, onBack }: {
@@ -113,19 +122,22 @@ export function RecordsScreen({ store, refreshKey, onBack }: {
                     ) : null}
                   </View>
 
+                  {/* Only a saved symptom check opens; anything else has nothing
+                      behind it, so it must not show an affordance that says it does. */}
                   {check ? (
-                    <Springy
-                      onPress={() => remove(check.episode.id)}
-                      scaleTo={0.85}
-                      weight="warn"
-                      accessibilityLabel={`Delete check from ${when(activity.at)}`}
-                      style={{ width: TOUCH, height: TOUCH, alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      <Icon name="trash" size={18} color={P.faint} />
-                    </Springy>
-                  ) : (
-                    <Icon name="chevronRight" size={16} color={P.faint} />
-                  )}
+                    <>
+                      <Icon name="chevronRight" size={16} color={P.faint} />
+                      <Springy
+                        onPress={() => remove(check.episode.id)}
+                        scaleTo={0.85}
+                        weight="warn"
+                        accessibilityLabel={`Delete check from ${when(activity.at)}`}
+                        style={{ width: TOUCH, height: TOUCH, alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <Icon name="trash" size={18} color={P.faint} />
+                      </Springy>
+                    </>
+                  ) : null}
                 </View>
               </Card>
             </Enter>

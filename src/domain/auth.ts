@@ -15,7 +15,7 @@ export const GUEST: Session = {
 export interface AuthGateway {
   current(): Promise<Session>;
   signIn(email: string, password: string): Promise<Session>;
-  signUp(email: string, password: string): Promise<Session>;
+  signUp(email: string, password: string, fullName?: string): Promise<Session>;
   verify(code: string): Promise<Session>;
   resendCode(): Promise<void>;
 

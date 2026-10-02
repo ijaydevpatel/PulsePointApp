@@ -87,11 +87,24 @@ export class ClerkAuthGateway implements AuthGateway {
     throw new Error(`Clerk requires ${attempt.status.replace(/_/g, ' ')}. Please check your dashboard settings.`);
   }
 
-  async signUp(email: string, password: string): Promise<Session> {
+  async signUp(email: string, password: string, fullName?: string): Promise<Session> {
     const { isLoaded, signUp, setActive } = this.signUpHook;
     if (!isLoaded || !signUp) throw new Error('Sign-up is not ready yet.');
 
-    const attempt = await signUp.create({ emailAddress: email, password });
+    let firstName: string | undefined;
+    let lastName: string | undefined;
+    if (fullName?.trim()) {
+      const parts = fullName.trim().split(/\s+/);
+      firstName = parts[0];
+      if (parts.length > 1) lastName = parts.slice(1).join(' ');
+    }
+
+    const attempt = await signUp.create({
+      emailAddress: email,
+      password,
+      ...(firstName ? { firstName } : {}),
+      ...(lastName ? { lastName } : {}),
+    });
 
     if (attempt.status === 'complete') {
       if (setActive) await setActive({ session: attempt.createdSessionId });
@@ -200,15 +213,19 @@ export class ClerkAuthGateway implements AuthGateway {
   }
 
   private toSession(fallbackId?: string | null): Session {
-    const user = this.userHook.user;
+    const user = this.userHook.user as any;
     const id = this.auth.userId ?? user?.id ?? fallbackId ?? null;
     if (!id) return GUEST;
 
+    const nameFromUser =
+      user?.fullName?.trim() ||
+      [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
+      user?.username?.trim();
+
     const displayName =
-      user?.fullName
-      || user?.username
-      || user?.primaryEmailAddress?.emailAddress?.split('@')[0]
-      || 'You';
+      nameFromUser ||
+      user?.primaryEmailAddress?.emailAddress?.split('@')[0] ||
+      'You';
 
     return {
       state: 'SIGNED_IN',

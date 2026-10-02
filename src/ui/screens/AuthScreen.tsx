@@ -165,7 +165,7 @@ export function AuthScreen({ onEnterApp, onDone, initialMode = 'welcome' }: {
     setBusy('submit'); setFormErr(null);
     Keyboard.dismiss();
     try {
-      onDone(await gateway.signUp(email.trim(), pw));
+      onDone(await gateway.signUp(email.trim(), pw, fullName.trim()));
       onEnterApp();
     } catch (e) {
       if ((e as Error)?.message === 'VERIFICATION_REQUIRED') { go('verify'); return; }

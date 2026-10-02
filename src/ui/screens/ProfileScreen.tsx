@@ -147,14 +147,6 @@ export function ProfileScreen({ session, service, onBack, onOpen, onSignOut }: {
         <SectionLabel>Activity</SectionLabel>
         <View style={{ marginBottom: S.sm }}>
           <NavCard
-            title="Records"
-            subtitle="Every assessment you have run, newest first"
-            icon="records"
-            onPress={() => { tap('light'); onOpen('records'); }}
-          />
-        </View>
-        <View style={{ marginBottom: S.sm }}>
-          <NavCard
             title="Settings"
             subtitle="Appearance, data and legal"
             icon="shield"
