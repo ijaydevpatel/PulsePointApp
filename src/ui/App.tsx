@@ -278,8 +278,11 @@ function AppContent() {
             onResult={(r, ms) => {
               setAnalysis(null);
               setResult({ r, ms });
-              setHistoryKey((k) => k + 1);
               push('result');
+            }}
+            onSaved={(r) => {
+              // The record is on disk and complete, so it can be listed and logged.
+              setHistoryKey((k) => k + 1);
 
               void store.get(r.episodeId).then((entry) => {
                 const names = entry?.episode.symptoms.map((x) => x.label) ?? [];
@@ -291,13 +294,7 @@ function AppContent() {
                 );
               });
             }}
-            onAnalysis={(a) => {
-              setAnalysis(a);
-
-              if (a?.status === 'OK' && a.data && result?.r.episodeId) {
-                void store.attachAnalysis(result.r.episodeId, a.data);
-              }
-            }}
+            onAnalysis={setAnalysis}
           />
         );
       case 'medicines':

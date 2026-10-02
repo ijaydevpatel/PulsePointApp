@@ -37,7 +37,9 @@ const LEVELS = [
   { v: 7, label: 'Strong' }, { v: 9, label: 'Severe' },
 ];
 
-export function TriageScreen({ classifier, store, onResult, analysis, profile, onAnalysis }: {
+export function TriageScreen({
+  classifier, store, onResult, analysis, profile, onAnalysis, onSaved,
+}: {
   classifier: Classifier; store: EpisodeStore;
   onResult: (r: TriageResult, ms: number) => void;
 
@@ -46,6 +48,9 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
   profile?: ProfileService;
 
   onAnalysis?: (a: RemoteOutcome<SymptomAnalysis>) => void;
+
+  /** Fired once the record is on disk, complete. */
+  onSaved?: (r: TriageResult) => void;
 }) {
   const { c: P, elev } = useTheme();
   const [profileAge, setProfileAge] = useState<number | null | undefined>(undefined);
@@ -110,19 +115,37 @@ export function TriageScreen({ classifier, store, onResult, analysis, profile, o
       };
       const t0 = Date.now();
 
-      const r = await useCase.execute(episode);
+      // Score first and show it straight away. An escalated band must not wait
+      // on the network, so display is unchanged.
+      const r = await useCase.assess(episode);
       onResult(r, Date.now() - t0);
       setPicked({});
       setNote('');
 
-      if (analysis && onAnalysis) {
-        void analysis
-          .analyze({
-            activeSymptoms: symptoms.map((s) => s.label),
-            customSymptom: note.trim(),
-          })
-          .then(onAnalysis);
-      }
+      // Nothing is written until the analysis attempt has finished, so a saved
+      // record always carries everything it is ever going to carry. The request
+      // is bounded by the client timeout, so this cannot hang.
+      void (async () => {
+        let outcome: RemoteOutcome<SymptomAnalysis> | null = null;
+        if (analysis) {
+          try {
+            outcome = await analysis.analyze({
+              activeSymptoms: symptoms.map((s) => s.label),
+              customSymptom: note.trim(),
+            });
+          } catch {
+            outcome = null;
+          }
+        }
+
+        await store.save(episode, r);
+        if (outcome?.status === 'OK' && outcome.data) {
+          await store.attachAnalysis(episode.id, outcome.data);
+        }
+
+        onSaved?.(r);
+        if (outcome && onAnalysis) onAnalysis(outcome);
+      })();
     } finally { setBusy(false); }
   }
 

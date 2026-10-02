@@ -248,16 +248,16 @@ function CheckDetail({ entry, onBack }: { entry: HistoryEntry; onBack: () => voi
         ) : (
           <Card style={{ marginBottom: S.sm }}>
             <Txt t="caption" c={P.muted}>
-              The clinical engine had not answered when this check was saved,
-              so no condition list was kept for it.
+              The analysis did not return for this check, so it was saved with the
+              on-device result only. Run the check again to get the fuller version.
             </Txt>
           </Card>
         )}
 
         <Txt t="micro" c={P.faint} style={{ marginTop: S.md }}>
-          {result.syncStatus === 'PENDING_SYNC'
-            ? 'Checked on this device. A fuller explanation is added when you are back online.'
-            : 'Checked against the clinical engine.'}
+          {analysis
+            ? 'Scored on this device, then checked against the clinical engine.'
+            : 'Scored on this device. The clinical engine did not answer.'}
         </Txt>
       </ScrollView>
     </View>

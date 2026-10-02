@@ -23,7 +23,11 @@ export class AssessSymptomsUseCase {
     private readonly store: EpisodeStore,
   ) {}
 
-  async execute(episode: SymptomEpisode): Promise<TriageResult> {
+  /**
+   * Scores the episode without writing it. The caller saves once it has
+   * everything it intends to keep, so a record is never stored half-made.
+   */
+  async assess(episode: SymptomEpisode): Promise<TriageResult> {
     const flags = detectRedFlags(episode);
 
     const c = await this.classifier.classify(episode);
@@ -43,6 +47,12 @@ export class AssessSymptomsUseCase {
       syncStatus: 'PENDING_SYNC',
     };
 
+    return result;
+  }
+
+  /** Scores and saves in one step. */
+  async execute(episode: SymptomEpisode): Promise<TriageResult> {
+    const result = await this.assess(episode);
     await this.store.save(episode, result);
     return result;
   }
