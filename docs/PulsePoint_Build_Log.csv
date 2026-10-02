@@ -1,0 +1,96 @@
+Date,Commit,Work
+2026-08-12,3971f7e,PulsePoint Mobile: phases 1-2 on Expo SDK 54 (RN 0.81)
+2026-08-13,1b0c238,Remove expo-dev-client; audit gate; dependency overrides
+2026-08-14,030bdd4,"WIP: iOS 26 styling pass (design system, grouped lists, floating glass nav)"
+2026-09-16,960d0e7,Port the hosted PulsePoint features into the Android app
+2026-09-16,14f1e9c,Port the hosted PulsePoint features into the Android app
+2026-09-16,27e6004,Fix formatting and punctuation in README.md
+2026-09-16,b2fe78f,Merge branch 'main' of https://github.com/ijaydevpatel/PulsePointApp
+2026-09-16,af0f14d,Port the hosted PulsePoint features into the Android app
+2026-09-16,a61657d,Merge branch 'main' of https://github.com/ijaydevpatel/PulsePointApp
+2026-09-17,05bc4b2,Rebuild the authentication and onboarding experience
+2026-09-24,dad9132,Restructure the signed-in navigation
+2026-09-24,d45a3ad,Unify the palette and rebuild Home as a real dashboard
+2026-09-24,099a4ae,Fix the tab transition and surface the report pipeline
+2026-09-24,58d2a02,"Make the daily tip actually change, and drop the briefing card"
+2026-09-24,e801c62,Point the app at the deployed backend; fix a units bug
+2026-09-24,f9d3cfe,Tidy the Home cards and fix the location fix
+2026-09-24,1ab150e,Diagnose the location stall properly
+2026-09-24,67b285f,Stop requiring a GPS fix for conditions
+2026-09-24,99d68ff,Add a location tier that cannot fail
+2026-09-24,3d742cf,"Stop the daily tip timing out, and fix its error wording"
+2026-09-24,2bd8b80,Show where the conditions are for
+2026-09-24,24a7c31,"Rework the symptom check: free text, no age picker, fuller list"
+2026-09-24,209510b,Fix the screen blanking while typing
+2026-09-24,e6b0807,"Fix the disappearing content properly, at its one cause"
+2026-09-24,4f07acd,"Stop the content vanishing, at the cause this time"
+2026-09-24,2918c60,Stop the tab bar flickering
+2026-09-24,3226188,Let the diagnostic matrix finish
+2026-09-24,12efe35,"Cap the synopsis at five sentences, drop the spine from the result hero"
+2026-09-24,55842e5,"Wire the collision check in, and name the screen for what it does"
+2026-09-24,25a8bf3,Compute confidence instead of asserting it
+2026-09-24,d8f74e6,Rebuild the medicine tab around the pair it actually checks
+2026-09-24,ac3e7b6,"Fix the collision check, and stop the screen claiming a local check"
+2026-09-24,01ba3d1,"Drop the internal flag, and stop the Why section saying it twice"
+2026-09-24,fcd1bf4,"Let a report finish being read, and stop the false reassurance"
+2026-09-24,047ec59,Say what actually went wrong with a report
+2026-09-24,3755438,Stop throwing away a report the model did answer
+2026-09-24,9d3f5d8,Stop calling a busy model a bad document
+2026-09-24,27a5575,Recover a report the server could not parse
+2026-09-24,9a6b309,Size the report deadline to the trimmed server chain
+2026-09-24,8eaed22,"Complete the report: real risk, shorter findings"
+2026-09-24,bce8f4c,Swap the Reports tab for AI Doctor
+2026-09-24,3b20d4e,"Stop the chat resetting, and close the gap above the tab bar"
+2026-09-24,a911b56,Slide the selected pill between tabs
+2026-09-24,ea01042,Make the pill hold its own label
+2026-09-24,a335101,Draw the pill the size of its contents
+2026-09-24,d176f42,"Revert ""Draw the pill the size of its contents"""
+2026-09-24,3c1fbef,"Narrow the pill by its slot, not by drawing it small"
+2026-09-25,ab786a1,Make the Map tab show real places
+2026-09-25,ed35561,Let the build succeed without the map package installed
+2026-09-25,12c347b,Re-add the MapLibre config plugin now that the package is installed
+2026-09-25,92ce690,Write the Map tab against MapLibre v11's actual API
+2026-09-25,c801d86,"Give the Map tab the whole screen, and a sheet for the list"
+2026-09-25,c8be601,"Name the pins, draw the person, move the locate button into the sheet"
+2026-09-25,2c17294,"Make ""you are here"" unmistakable, and fix the locate button"
+2026-09-25,dd63750,Stop a failed Overpass call wiping the list
+2026-09-25,a7a55a8,Fix the position the map runs on
+2026-09-25,c2debf0,"Refuse a mocked position, and stop opening on a guess"
+2026-09-25,7e7b5fc,"Hedge the Overpass mirrors, and stop the keyboard covering fields"
+2026-09-25,3e4dcee,"Use the website's location logic, including its lack of a fallback"
+2026-09-25,e822eb4,Stop the Symptoms tab standing up 33 live blurs on open
+2026-09-28,70bc1f7,Open on the logo instead of a blank white screen
+2026-09-28,1827e92,"One Profile, one Settings, and a health card worth having"
+2026-09-28,1c89eee,Stop claiming records sync to the account
+2026-09-28,f466cfc,"Give the app a launcher icon, and stop a blank form overwriting Atlas"
+2026-09-28,364479f,Space the cards on Profile and Settings
+2026-09-28,96bdad9,"Never render an empty tree, and do not let Clerk hold the app shut"
+2026-09-30,bbcbcf1,"Remove liquid glass, and the brand lockup from the header"
+2026-09-30,b8ae681,Tap a pin to get a route
+2026-09-30,7a200dc,Retry the facility search narrower instead of showing nothing
+2026-09-30,961ebe3,"Fix the pin hit test, and show a callout before leaving the app"
+2026-09-30,931083a,"Persist records, and make dark mode actually dark"
+2026-09-30,8559f4c,Step the search radius down instead of falling off a cliff
+2026-09-30,dbf7634,"Say what a record was about, and open it"
+2026-09-30,0134245,"Record everything the app is used for, not just symptom checks"
+2026-09-30,941b02f,Explain the confidence figure instead of inflating it
+2026-09-30,ce21beb,"Show the analysis arriving, not a note apologising for it"
+2026-09-30,0065af0,Stop the spinner claiming to analyse a finished score
+2026-09-30,f0c1b77,Hold the result until the analysis is in
+2026-09-30,e4b57f8,Hold every result until the analysis is complete
+2026-09-30,18caf0a,"Fix deleted records lingering, and show the analysis on a record"
+2026-09-30,1250bda,Fill the map in as results arrive
+2026-10-01,1de930b,Make the map fail fast and answer sooner
+2026-10-01,2a6db08,"Race the mirrors, keep the last good list, and fence the tests out of the bundle"
+2026-10-01,14e3fb8,Report which mirror failed and how
+2026-10-01,5c8a1f1,"Ask Overpass over GET, and fall back to POST"
+2026-10-01,6e65225,"Keep widening after a ring fails, and label pins sooner"
+2026-10-01,8fd0a42,"Say when the wider search fails, and warm the first ring at launch"
+2026-10-01,4e24c1b,Draw pins from plain properties so the labels render
+2026-10-01,f65565b,Put the place names in pills
+2026-10-01,4b0a802,"Revert ""Put the place names in pills"""
+2026-10-01,5a8fa2b,"Label every place, and move labels rather than dropping them"
+2026-10-01,421ad07,Document verified Android scope and revise milestone evaluation
+2026-10-01,dc73ffc,"Revert ""Document verified Android scope and revise milestone evaluation"""
+2026-10-01,ee86a37,Rewrite the README as a project overview
+2026-10-01,f7d9cf5,Enable the SQLCipher build variant; complete the fault-injection tests

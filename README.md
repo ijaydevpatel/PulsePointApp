@@ -2,6 +2,10 @@
 
 **Work out how urgent a symptom is, then find the nearest place that can help.**
 
+> **Online only.** Sign-in is required before any tab is reachable, and triage analysis,
+> interaction checks, chat and the facility search all call the backend. There is no
+> offline mode; see the roadmap.
+
 Most symptom checkers tell you how worried to be but have no idea what is open near you.
 Most map apps list clinics but have no idea how unwell you are. PulsePoint does both: a
 short guided check returns an urgency band *with the reasoning that produced it*, and a
@@ -40,8 +44,9 @@ It does not diagnose, and it says so on the result screen.
 - **Nearby care.** Live OpenStreetMap search over three widening rings, rendered as each
   ring returns rather than after the whole search. Pins are labelled, tapping one opens a
   callout, and Directions hands off to your maps app with a real route.
-- **Medicine interactions.** Type two drug names and get a risk level from an on-device
-  interaction table. Works with no connection.
+- **Medicine interactions.** Type two drug names and get a risk level. A bundled table
+  resolves the drug names as you type; the interaction result comes from the backend, so
+  this needs a connection.
 - **History.** Every check is written to a local database with what was asked and what the
   result was. Deletion is permanent.
 - **Health profile.** Blood group, allergies, conditions and medications, synced to your
@@ -66,13 +71,14 @@ npm run prebuild              # generates the native android/ project
 npm run android               # build and launch
 ```
 
-The app builds and runs without `.env`; sign-in and the optional remote analysis are
-simply disabled.
+The project builds without `.env`, but without the Clerk key `App.tsx` renders a
+"Configuration Missing" screen instead of the app. Without the API origin, the optional
+remote analysis, profile sync and chat are disabled; everything local still works.
 
 | Variable | Purpose |
 |---|---|
-| `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk sign-in. Publishable key only. |
-| `EXPO_PUBLIC_API_BASE_URL` | Origin of the PulsePoint API. |
+| `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk sign-in. Publishable key only. Required to reach the app. |
+| `EXPO_PUBLIC_API_URL` | Origin of the PulsePoint API — no `/api` suffix, no trailing slash. |
 
 Server-side credentials never belong in the app. `.env` is git-ignored and a unit test
 fails the build if a credential-shaped string reaches source control.
