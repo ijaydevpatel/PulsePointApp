@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
 import { AgentProfile, MedicineCheck, RemoteOutcome } from '../../domain/remote';
+import { reconcileMedicineCheck } from '../../domain/medicineVerdict';
 import { Card, SectionLabel, Button, Txt, Springy, Enter } from '../components/Primitives';
 import { Icon } from '../components/Icon';
 import { useTheme, S, R, TOUCH, TAB_CLEARANCE, Palette, circle } from '../theme';
@@ -72,12 +73,13 @@ export function CollisionScreen({ pair, check, onBack, onEdit }: {
 }) {
   const { c: P, elev } = useTheme();
   const data = check && check.status === 'OK' ? check.data : null;
-  const tone = data
-    ? riskColour(P, data.riskLevel, data.dangerDetected)
+  const shown = data ? reconcileMedicineCheck(data) : null;
+  const tone = shown
+    ? riskColour(P, shown.risk, data!.dangerDetected)
     : { fg: P.muted, on: '#FFFFFF' };
 
-  const heading = data
-    ? data.compatibilityVerdict
+  const heading = shown
+    ? shown.verdict
     : check === null ? 'Checking' : 'Check did not complete';
 
   return (
@@ -98,12 +100,17 @@ export function CollisionScreen({ pair, check, onBack, onEdit }: {
               <Txt t="section" c={P.muted}>{`${pair[0]}  +  ${pair[1]}`}</Txt>
               <View style={st.verdictRow}>
                 <Txt t="display" style={{ flex: 1 }}>{heading}</Txt>
-                {data ? (
+                {shown ? (
                   <View style={[st.risk, { backgroundColor: tone.fg }]}>
-                    <Txt t="micro" c={tone.on}>{`RISK: ${data.riskLevel.toUpperCase()}`}</Txt>
+                    <Txt t="micro" c={tone.on}>{`RISK: ${shown.risk}`}</Txt>
                   </View>
                 ) : null}
               </View>
+              {shown && shown.escalated ? (
+                <Txt t="caption" c={P.muted} style={{ marginTop: S.sm }}>
+                  {`Raised from ${data!.riskLevel.toUpperCase()} because ${shown.reason}.`}
+                </Txt>
+              ) : null}
             </View>
           </Enter>
         </View>
