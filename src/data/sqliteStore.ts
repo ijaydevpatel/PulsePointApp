@@ -30,6 +30,26 @@ export class SqliteEpisodeStore implements EpisodeStore, ActivityLog {
   async init(): Promise<void> {
     if (this.db) return;
     const key = await getOrCreateKey();
+
+    try {
+      await this.openAndMigrate(key);
+    } catch (err) {
+      console.warn('SqliteEpisodeStore: Failed to open encrypted database, recreating:', err);
+      try {
+        if (this.db) {
+          await (this.db as SQLite.SQLiteDatabase).closeAsync();
+          this.db = null;
+        }
+      } catch {}
+      try {
+        await SQLite.deleteDatabaseAsync(DB_NAME);
+      } catch {}
+
+      await this.openAndMigrate(key);
+    }
+  }
+
+  private async openAndMigrate(key: string): Promise<void> {
     const db = await SQLite.openDatabaseAsync(DB_NAME);
 
     await db.execAsync(`PRAGMA key = "x'${key}'";`);
