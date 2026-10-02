@@ -31,7 +31,7 @@ const show = (n: number | null, suffix = ''): string =>
   n === null ? '-' : `${Math.round(n)}${suffix}`;
 
 export function HomeScreen({
-  store, session, refreshKey, dashboard, conditions, profile, onStartTriage,
+  store, session, refreshKey, dashboard, conditions, onStartTriage,
 }: {
   store: EpisodeStore;
   session: Session;
@@ -46,7 +46,6 @@ export function HomeScreen({
   const [history, setHistory] = useState<readonly HistoryEntry[] | null>(null);
   const [intel, setIntel] = useState<RemoteOutcome<Intelligence> | null>(null);
   const [env, setEnv] = useState<{ state: LocationState; data: Conditions | null; notice: string | null } | null>(null);
-  const [profileName, setProfileName] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadLocal = useCallback(async () => {
@@ -64,15 +63,7 @@ export function HomeScreen({
     });
 
     void conditions.current().then(setEnv);
-
-    if (profile) {
-      void profile.me().then((r) => {
-        if (r.status === 'OK' && r.data?.fullName?.trim()) {
-          setProfileName(r.data.fullName.trim());
-        }
-      });
-    }
-  }, [dashboard, conditions, profile]);
+  }, [dashboard, conditions]);
 
   useEffect(() => { void loadLocal(); }, [loadLocal, refreshKey]);
   useEffect(() => { void loadRemote(); }, [loadRemote]);
@@ -90,11 +81,10 @@ export function HomeScreen({
   const streak = useMemo(() => (history ? checkInStreak(history) : null), [history]);
 
   const fullName = useMemo(() => {
-    if (profileName) return profileName;
-    const sessionName = session.displayName?.trim();
-    if (!sessionName || sessionName === 'You') return null;
-    return sessionName;
-  }, [profileName, session.displayName]);
+    const sName = session.displayName?.trim();
+    if (!sName || sName === 'You') return null;
+    return sName;
+  }, [session.displayName]);
 
   const i = intel?.status === 'OK' ? intel.data : null;
 

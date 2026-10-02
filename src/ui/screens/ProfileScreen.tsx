@@ -8,6 +8,8 @@ import { useTheme, S, R, TOUCH, TAB_CLEARANCE, TYPE } from '../theme';
 import { Session } from '../../domain/auth';
 import { ProfileService, UserProfile, ProfileEdits } from '../../domain/remote';
 import { RouteKey } from '../nav/routes';
+// @ts-ignore
+import { useUser } from '@clerk/clerk-expo';
 
 const EMPTY: UserProfile = {
   fullName: null, age: null, gender: null, heightCm: null, weightKg: null,
@@ -147,6 +149,14 @@ export function ProfileScreen({ session, service, onBack, onOpen, onSignOut }: {
         <SectionLabel>Activity</SectionLabel>
         <View style={{ marginBottom: S.sm }}>
           <NavCard
+            title="Records"
+            subtitle="Every assessment you have run, newest first"
+            icon="records"
+            onPress={() => { tap('light'); onOpen('records'); }}
+          />
+        </View>
+        <View style={{ marginBottom: S.sm }}>
+          <NavCard
             title="Settings"
             subtitle="Appearance, data and legal"
             icon="shield"
@@ -236,6 +246,7 @@ function EditProfile({ initial, service, onCancel, onSaved }: {
   onSaved: (p: UserProfile) => void;
 }) {
   const { c: P } = useTheme();
+  const { user } = useUser();
 
   const [fullName, setFullName] = useState(initial.fullName ?? '');
   const [age, setAge] = useState(initial.age ? String(initial.age) : '');
@@ -271,6 +282,12 @@ function EditProfile({ initial, service, onCancel, onSaved }: {
     setSaving(false);
 
     if (r.status === 'OK' && r.data) {
+      if (user && edits.fullName?.trim()) {
+        const parts = edits.fullName.trim().split(/\s+/);
+        const firstName = parts[0];
+        const lastName = parts.length > 1 ? parts.slice(1).join(' ') : '';
+        void (user as any).update({ firstName, lastName }).catch(() => {});
+      }
       tap('light');
       onSaved(r.data);
     } else {
