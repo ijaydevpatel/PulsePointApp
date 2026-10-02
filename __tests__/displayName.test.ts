@@ -18,13 +18,17 @@ describe('an email address is never used as a name', () => {
 });
 
 describe('name resolution order', () => {
-  it('prefers the full name the provider holds', () => {
+  it('uses first and last when both are present', () => {
     expect(resolveDisplayName({
       fullName: 'Jaydev Patel', firstName: 'Jaydev', lastName: 'Patel',
     })).toBe('Jaydev Patel');
   });
 
-  it('joins first and last when there is no full name', () => {
+  it('uses the full name when first and last are not set', () => {
+    expect(resolveDisplayName({ fullName: 'Jaydev Patel' })).toBe('Jaydev Patel');
+  });
+
+  it('joins first and last', () => {
     expect(resolveDisplayName({ firstName: 'Jaydev', lastName: 'Patel' }))
       .toBe('Jaydev Patel');
   });
@@ -34,8 +38,16 @@ describe('name resolution order', () => {
       .toBe('Jaydev');
   });
 
-  it('falls back to a username before giving up', () => {
-    expect(resolveDisplayName({ username: 'jaydev' })).toBe('jaydev');
+  it('never uses a username as a name', () => {
+    // Clerk reports the username immediately and the real name later; using it
+    // put "ijaydevpatel" on screen until firstName and lastName arrived.
+    expect(resolveDisplayName({ username: 'ijaydevpatel' } as never)).toBeNull();
+  });
+
+  it('prefers first and last over a stale full name', () => {
+    expect(resolveDisplayName({
+      fullName: 'ijaydevpatel', firstName: 'Jaydev', lastName: 'Patel',
+    })).toBe('Jaydev Patel');
   });
 
   it('treats blank and whitespace-only fields as absent', () => {

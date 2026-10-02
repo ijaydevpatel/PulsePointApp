@@ -13,22 +13,21 @@ export const GUEST: Session = {
 };
 
 /**
- * The person's name, or null when there isn't one yet.
+ * The person's first and last name, or null when the provider has not reported
+ * one yet.
  *
- * Deliberately no email-address fallback. The provider can report the account
- * before it reports the name, so falling back to the local part of the email
- * put "k787jaydev" on screen and swapped it for the real name a moment later.
- * Null lets each screen show its own neutral wording once, instead.
+ * Only the real name counts. The provider reports the account, the username and
+ * the email before it reports firstName and lastName, so any fallback to those
+ * puts the wrong text on screen and swaps it a moment later: the email local
+ * part showed "k787jaydev", the username showed "ijaydevpatel". Null lets each
+ * screen show its own neutral wording once, with no flicker and no handle
+ * standing in for a name.
  */
 export function resolveDisplayName(from: {
   readonly fullName?: string | null;
   readonly firstName?: string | null;
   readonly lastName?: string | null;
-  readonly username?: string | null;
 }): string | null {
-  const full = from.fullName?.trim();
-  if (full) return full;
-
   const joined = [from.firstName, from.lastName]
     .map((p) => p?.trim())
     .filter((p): p is string => !!p)
@@ -36,7 +35,7 @@ export function resolveDisplayName(from: {
     .trim();
   if (joined) return joined;
 
-  return from.username?.trim() || null;
+  return from.fullName?.trim() || null;
 }
 
 export interface AuthGateway {

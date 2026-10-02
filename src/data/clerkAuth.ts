@@ -31,7 +31,14 @@ type ClerkAuthHook = {
   getToken: (opts?: any) => Promise<string | null>;
   signOut: () => Promise<unknown>;
 };
-type ClerkUserHook = { user?: { id: string; fullName?: string | null; username?: string | null; primaryEmailAddress?: { emailAddress?: string } | null } | null };
+type ClerkUserHook = {
+  user?: {
+    id: string;
+    fullName?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+  } | null;
+};
 type ClerkSignInHook = { isLoaded: boolean; signIn?: any; setActive?: any };
 type ClerkSignUpHook = { isLoaded: boolean; signUp?: any; setActive?: any };
 
