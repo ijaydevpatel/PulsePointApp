@@ -52,8 +52,12 @@ export function ProfileScreen({ session, service, onBack, onOpen, onSignOut }: {
 
   useEffect(() => { void load(); }, [load]);
 
-  const name = profile.fullName ?? session.displayName ?? 'Your profile';
-  const initial = (name.trim()[0] ?? '?').toUpperCase();
+  // Blank, not a stand-in, while the name is still being looked up: showing
+  // "Your profile" and replacing it reads as a glitch.
+  const resolvedName = profile.fullName ?? session.displayName;
+  const settled = !loading || session.nameResolved;
+  const name = resolvedName ?? (settled ? 'Your profile' : '');
+  const initial = (name.trim()[0] ?? '').toUpperCase();
 
   if (editing) {
     return (

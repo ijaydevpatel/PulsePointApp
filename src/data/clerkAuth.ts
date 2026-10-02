@@ -230,6 +230,9 @@ export class ClerkAuthGateway implements AuthGateway {
       state: 'SIGNED_IN',
       userId: id,
       displayName,
+      // This gateway only sees the provider. App.tsx also consults the health
+      // profile, so a null here is not yet the final answer.
+      nameResolved: displayName !== null,
       cachedAt: new Date().toISOString(),
     };
   }

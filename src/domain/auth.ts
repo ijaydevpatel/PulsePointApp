@@ -5,11 +5,18 @@ export interface Session {
   readonly userId: string | null;
   readonly displayName: string | null;
 
+  /**
+   * False while the name is still being looked up. A screen must not show a
+   * stand-in like "Your profile" until this is true, or the stand-in appears
+   * and is replaced a moment later.
+   */
+  readonly nameResolved: boolean;
+
   readonly cachedAt: string | null;
 }
 
 export const GUEST: Session = {
-  state: 'GUEST', userId: null, displayName: null, cachedAt: null,
+  state: 'GUEST', userId: null, displayName: null, nameResolved: true, cachedAt: null,
 };
 
 /**

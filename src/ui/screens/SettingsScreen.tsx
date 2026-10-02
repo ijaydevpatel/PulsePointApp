@@ -53,7 +53,7 @@ export function SettingsScreen({
         <SectionLabel>Account</SectionLabel>
         <View style={{ marginBottom: S.sm }}>
           <NavCard
-            title={session.displayName ?? 'Your profile'}
+            title={session.displayName ?? (session.nameResolved ? 'Your profile' : '')}
             subtitle={session.state === 'SIGNED_IN'
               ? 'Name, age, blood group, allergies'
               : 'Signed out - history stays on this device'}

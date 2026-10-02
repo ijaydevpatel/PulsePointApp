@@ -137,15 +137,34 @@ function AppContent() {
     return () => sub.remove();
   }, [stack.length, tab, pop]);
 
+  // Clerk holds firstName and lastName only for accounts created since sign-up
+  // started splitting them. For everyone else the name is on the health profile,
+  // so look there too before concluding there is no name.
+  const [profileName, setProfileName] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (!isSignedIn) { setProfileName(undefined); return; }
+    let alive = true;
+    void services.profile.me()
+      .then((r) => {
+        if (!alive) return;
+        setProfileName(r.status === 'OK' ? (r.data?.fullName?.trim() || null) : null);
+      })
+      .catch(() => { if (alive) setProfileName(null); });
+    return () => { alive = false; };
+  }, [isSignedIn, services]);
+
   const session: Session = useMemo(() => {
     if (!authLoaded || !userLoaded || !isSignedIn || !user) return GUEST;
+    const clerkName = resolveDisplayName(user);
     return {
       state: 'SIGNED_IN',
       userId: user.id,
-      displayName: resolveDisplayName(user),
+      displayName: clerkName ?? profileName ?? null,
+      // Settled once Clerk has a name, or once the profile lookup has answered.
+      nameResolved: clerkName !== null || profileName !== undefined,
       cachedAt: new Date().toISOString(),
     };
-  }, [authLoaded, userLoaded, isSignedIn, user]);
+  }, [authLoaded, userLoaded, isSignedIn, user, profileName, services]);
 
   const [waitedForAuth, setWaitedForAuth] = useState(false);
   useEffect(() => {
