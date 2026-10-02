@@ -150,15 +150,9 @@ export function ProfileScreen({ session, service, onBack, onOpen, onSignOut }: {
 
         <View style={{ height: S.xl }} />
 
+        {/* Records lives in Settings, next to the record count and the delete
+            control. Two entry points to the same screen is one too many. */}
         <SectionLabel>Activity</SectionLabel>
-        <View style={{ marginBottom: S.sm }}>
-          <NavCard
-            title="Records"
-            subtitle="Every assessment you have run, newest first"
-            icon="records"
-            onPress={() => { tap('light'); onOpen('records'); }}
-          />
-        </View>
         <View style={{ marginBottom: S.sm }}>
           <NavCard
             title="Settings"
