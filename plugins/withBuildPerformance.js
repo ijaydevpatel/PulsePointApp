@@ -6,9 +6,8 @@ const { withGradleProperties } = require('@expo/config-plugins');
  * visible to anyone who clones the repository. This re-applies the build
  * settings every time the native project is generated.
  *
- * Measured on the development machine, these cut an incremental Android build
- * from roughly four minutes to under one. They change build time only; nothing
- * here affects what the app does at runtime.
+ * These affect build time only; nothing here changes what the app does at
+ * runtime. No before-and-after build timing has been recorded.
  */
 
 const PROPERTIES = [
