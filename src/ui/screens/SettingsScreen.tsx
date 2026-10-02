@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, ScrollView, StyleSheet, Alert, Linking } from 'react-native';
+import { View, ScrollView, StyleSheet, Alert, Linking, Pressable } from 'react-native';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Card, NavCard, SectionLabel, Txt, Springy, tap } from '../components/Primitives';
 import { Icon } from '../components/Icon';
@@ -214,28 +214,49 @@ export function SettingsScreen({
 function Segment({ icon, active, onPress, label }: {
   icon: 'sun' | 'moon'; active: boolean; onPress: () => void; label: string;
 }) {
-  const { c: P } = useTheme();
+  const { c: P, elev } = useTheme();
   return (
-    <Springy
+    <Pressable
       onPress={onPress}
-      scaleTo={0.9}
+      android_ripple={null}
+      accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected: active }}
+      style={({ pressed }) => [
+        st.segmentItem,
+        active
+          ? {
+              backgroundColor: P.surface,
+              borderRadius: 18,
+              ...elev(1),
+            }
+          : null,
+        pressed && !active ? { opacity: 0.7 } : null,
+      ]}
     >
-      <View style={[st.segmentItem, active ? { backgroundColor: P.surface } : null]}>
-        <Icon name={icon} size={17} color={active ? P.accent : P.faint} />
-      </View>
-    </Springy>
+      <Icon name={icon} size={18} color={active ? P.accent : P.faint} />
+    </Pressable>
   );
 }
 
 const st = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: S.md },
 
-  segment: { flexDirection: 'row', borderRadius: R.pill, padding: 3, gap: 2 },
+  segment: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: R.pill,
+    padding: 4,
+    gap: 4,
+    overflow: 'hidden',
+  },
   segmentItem: {
-    width: TOUCH - 6, height: TOUCH - 10, borderRadius: R.pill,
-    alignItems: 'center', justifyContent: 'center',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
   },
 
   destructive: { alignItems: 'center', paddingVertical: S.lg },
