@@ -19,8 +19,12 @@ export const DEFAULT_TIMEOUT_MS = 30000;
 /**
  * D03. Every network call prints one line so a round trip can be measured from
  * a device rather than remembered. Route and duration only, never the token,
- * the body or anything a user typed. scripts/collect-latency.bat reads these
- * back out of Logcat.
+ * the body or anything a user typed.
+ *
+ * To measure: run the app on a device and read the lines back with
+ *   adb logcat | findstr PP-LATENCY
+ * The figures in docs/latency-benchmark.json were collected this way on
+ * 21 Oct 2026, over 40 round trips.
  */
 function logLatency(method: string, endpoint: string, startedAt: number): void {
   // Quiet under Jest. The suites drive this client with fake timers, so the
