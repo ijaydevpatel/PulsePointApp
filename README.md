@@ -18,28 +18,26 @@ It does not diagnose, and it says so on the result screen.
 ![Expo](https://img.shields.io/badge/Expo-SDK%2054-000020)
 ![React Native](https://img.shields.io/badge/React%20Native-0.81-61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9%20strict-3178C6)
-![Tests](https://img.shields.io/badge/tests-442%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-468%20passing-brightgreen)
 
 ---
 
 ## Screenshots
 
-<!-- Drop six PNGs into docs/screenshots/ and the table below will render them. -->
-
-| Triage | Result | Care map |
+| Sign-in, home and health profile | Symptom entry and an Emergency result | Ranked conditions and treatments |
 |:--:|:--:|:--:|
-| <img src="docs/screenshots/triage.png" width="220"> | <img src="docs/screenshots/result.png" width="220"> | <img src="docs/screenshots/care.png" width="220"> |
+| <img src="docs/screenshots/fig1.png" width="260"> | <img src="docs/screenshots/fig2.png" width="260"> | <img src="docs/screenshots/fig3.png" width="260"> |
 
-| Medicines | Records | Profile |
+| Care map and nearby facilities | Medicine checker and a flagged interaction | Records, a record, and dark-mode settings |
 |:--:|:--:|:--:|
-| <img src="docs/screenshots/medicines.png" width="220"> | <img src="docs/screenshots/records.png" width="220"> | <img src="docs/screenshots/profile.png" width="220"> |
+| <img src="docs/screenshots/fig4.png" width="260"> | <img src="docs/screenshots/fig5.png" width="260"> | <img src="docs/screenshots/fig6.png" width="260"> |
 
 ---
 
 ## What it does
 
 - **Urgency triage.** Pick symptoms with a severity and duration; the app returns one of
-  four bands — self-care, pharmacy/GP, urgent, emergency — and lists the rules that
+  four bands - self-care, pharmacy/GP, urgent, emergency - and lists the rules that
   produced it. Red-flag rules run *before* scoring and can only escalate.
 - **Nearby care.** Live OpenStreetMap search over three widening rings, rendered as each
   ring returns rather than after the whole search. Pins are labelled, tapping one opens a
@@ -58,7 +56,7 @@ It does not diagnose, and it says so on the result screen.
 
 ## Quick start
 
-**Prerequisites** — Node 20+, JDK 17, Android Studio with the SDK for Expo SDK 54, and a
+**Prerequisites** - Node 20+, JDK 17, Android Studio with the SDK for Expo SDK 54, and a
 device or emulator running Android 10 (API 29) or later.
 
 ```bash
@@ -78,7 +76,7 @@ remote analysis, profile sync and chat are disabled; everything local still work
 | Variable | Purpose |
 |---|---|
 | `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` | Clerk sign-in. Publishable key only. Required to reach the app. |
-| `EXPO_PUBLIC_API_URL` | Origin of the PulsePoint API — no `/api` suffix, no trailing slash. |
+| `EXPO_PUBLIC_API_URL` | Origin of the PulsePoint API - no `/api` suffix, no trailing slash. |
 
 Server-side credentials never belong in the app. `.env` is git-ignored and a unit test
 fails the build if a credential-shaped string reaches source control.
@@ -86,7 +84,7 @@ fails the build if a credential-shaped string reaches source control.
 To open the project in Android Studio: **File → Open →** `PulsePointApp/android`, then
 **Run ▶**.
 
-> `android/` is generated, not committed — it is machine-specific and fully reproducible
+> `android/` is generated, not committed - it is machine-specific and fully reproducible
 > from `app.json`. Regenerate at any time with `npm run prebuild:clean`.
 
 ---
@@ -96,7 +94,7 @@ To open the project in Android Studio: **File → Open →** `PulsePointApp/andr
 | Command | What it does |
 |---|---|
 | `npm run verify` | The full gate: typecheck → boundaries → contrast → tests |
-| `npm test` | 442 tests across 23 suites. No emulator, no network, no database. |
+| `npm test` | 468 tests across 26 suites. No emulator, no network, no database. |
 | `npm run typecheck` | `tsc --noEmit`, strict mode |
 | `npm run lint:boundaries` | Fails if the domain layer imports React, Expo, SQLite or any network client |
 | `npm run contrast` | Checks 84 foreground/background pairs against WCAG 2.2 AA in both themes |
@@ -112,7 +110,7 @@ Clean Architecture with a strict inward dependency rule, enforced by a script ra
 by convention.
 
 ```
-src/domain/     imports nothing platform-specific — enforced by npm run lint:boundaries
+src/domain/     imports nothing platform-specific - enforced by npm run lint:boundaries
   entities.ts        SymptomEpisode, TriageResult, TriageBand, requiresEscalation()
   redFlags.ts        safety rules; run before scoring, never suppressed
   ports.ts           Classifier, EpisodeStore, ActivityLog, InteractionRepository
@@ -144,7 +142,7 @@ is plain TypeScript.
 
 `AssessSymptomsUseCase` runs in a fixed order, and the order is the point:
 
-1. **Red-flag rules first** — deterministic, readable, reviewable line by line.
+1. **Red-flag rules first** - deterministic, readable, reviewable line by line.
 2. **Then** the classifier scores the episode.
 3. **Combine so the result can only escalate, never de-escalate.**
 
@@ -175,26 +173,30 @@ lets many trivial symptoms out-vote one serious symptom. Current calibration:
 | Health profile | Your account, over HTTPS. |
 | Symptom data | Stays local **unless** you request the optional remote analysis, which posts it to the API. |
 
-The store requests an encrypted database with a `PRAGMA key`, but the SQLCipher build
-variant of `expo-sqlite` is **not currently enabled**, so that key is accepted and ignored
-and the local database is not encrypted at rest. Enabling it is the top item on the
-roadmap. Until then, treat the device lock screen as the only protection on local history.
+The store opens the database with a `PRAGMA key`, and the SQLCipher build variant of
+`expo-sqlite` is enabled, so local history is encrypted at rest under a key held in the
+Android keystore. A build that cannot open an existing file with that key recreates it, so
+upgrading from an unencrypted database discards earlier records.
+
+This has been verified on device at configuration level only. It has not been proved by
+taking the file off the device and failing to open it with the wrong key, which is the
+test that would actually settle it.
 
 ---
 
 ## Dependency security
 
 `npm audit` reports findings that trace back to two upstream packages, and neither reaches
-the shipped APK — Metro only bundles what the app imports, and none of these are imported
+the shipped APK - Metro only bundles what the app imports, and none of these are imported
 by application code.
 
 | Package | Severity | Where it lives | Status |
 |---|---|---|---|
-| `postcss` | high + moderate | `@expo/metro-config`, build time | **Fixed** — pinned to `^8.5.26` via `overrides` |
+| `postcss` | high + moderate | `@expo/metro-config`, build time | **Fixed** - pinned to `^8.5.26` via `overrides` |
 | `image-size` | high | `metro` bundler, build time | **No fix published.** Denial-of-service in the ICNS/JXL parsers, reachable only by feeding hostile image files to the bundler at build time. |
 | `uuid` | moderate | `xcode`, iOS project generation | **Not overridden deliberately.** `xcode` requires `uuid@^7`; forcing `uuid@11` breaks it. Runs only during iOS prebuild. |
 
-Do not run `npm audit fix --force` — it ignores Expo's version pinning and breaks the SDK.
+Do not run `npm audit fix --force` - it ignores Expo's version pinning and breaks the SDK.
 Re-check with `npm run audit` after each SDK upgrade; the SDK 52 → 54 move alone took this
 from 31 findings (one critical) to 20.
 
@@ -212,17 +214,18 @@ passes; the open work is verification and reach rather than features.
 | ✅ | Medicine interaction checking |
 | ✅ | Local history and activity log |
 | ✅ | Profile sync, Clerk authentication |
-| ✅ | 442 tests, boundary gate, 84-pair contrast gate |
-| ⬜ | **Enable the SQLCipher build variant** and verify encryption on-device |
+| ✅ | 468 tests, boundary gate, 84-pair contrast gate |
+| ✅ | SQLCipher enabled; local database encrypted at rest |
+| ⬜ | **Prove the encryption off-device** by failing to open the file with the wrong key |
 | ⬜ | On-device analysis with a small quantised model (the `ModelBackend` seam exists) |
-| ⬜ | Genuine offline mode — durable caching for facilities and the interaction table |
+| ⬜ | Genuine offline mode - durable caching for facilities and the interaction table |
 | ⬜ | iOS build and test pass |
 | ⬜ | Clinical review of the red-flag rules and thresholds |
 
 ### Known limitations
 
 - Facility search needs a connection, and coverage is only as good as OpenStreetMap in
-  your area — good in central Auckland, thinner rurally, and the app cannot tell which.
+  your area - good in central Auckland, thinner rurally, and the app cannot tell which.
 - The triage rules are **not clinically validated** and have not been reviewed by a
   clinician. They err toward caution, which means they will over-refer.
 - The AI chat is assistant-backed. There is no clinician on the other end.
