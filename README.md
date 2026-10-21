@@ -14,11 +14,35 @@ a route.
 
 It does not diagnose, and it says so on the result screen.
 
+---
+
+## Two ways to try it
+
+**Install the APK.** Nothing to configure, nothing to build. Grab the latest
+build from [Releases](../../releases), install it on an Android 10 or newer
+phone, and open it.
+
+**Or build from source.** You will need your own API keys, since none are
+committed here:
+
+```bash
+npm install
+cp .env.example .env     # then fill in the two values, see Quick start below
+npm run prebuild
+npm run android
+```
+
+Without `.env` the app starts and shows a "Configuration Missing" screen naming
+the variable it needs. That is deliberate rather than a crash, but the app will
+not get past it, so the APK is the quicker route if you only want to use it.
+
+---
+
 ![Platform](https://img.shields.io/badge/platform-Android%2010%2B-3DDC84)
 ![Expo](https://img.shields.io/badge/Expo-SDK%2054-000020)
 ![React Native](https://img.shields.io/badge/React%20Native-0.81-61DAFB)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.9%20strict-3178C6)
-![Tests](https://img.shields.io/badge/tests-468%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-485%20passing-brightgreen)
 
 ---
 
@@ -94,7 +118,7 @@ To open the project in Android Studio: **File → Open →** `PulsePointApp/andr
 | Command | What it does |
 |---|---|
 | `npm run verify` | The full gate: typecheck → boundaries → contrast → tests |
-| `npm test` | 468 tests across 26 suites. No emulator, no network, no database. |
+| `npm test` | 485 tests across 28 suites. No emulator, no network, no database. |
 | `npm run typecheck` | `tsc --noEmit`, strict mode |
 | `npm run lint:boundaries` | Fails if the domain layer imports React, Expo, SQLite or any network client |
 | `npm run contrast` | Checks 84 foreground/background pairs against WCAG 2.2 AA in both themes |
@@ -214,7 +238,7 @@ passes; the open work is verification and reach rather than features.
 | ✅ | Medicine interaction checking |
 | ✅ | Local history and activity log |
 | ✅ | Profile sync, Clerk authentication |
-| ✅ | 468 tests, boundary gate, 84-pair contrast gate |
+| ✅ | 485 tests, boundary gate, 84-pair contrast gate |
 | ✅ | SQLCipher enabled; local database encrypted at rest |
 | ⬜ | **Prove the encryption off-device** by failing to open the file with the wrong key |
 | ⬜ | On-device analysis with a small quantised model (the `ModelBackend` seam exists) |
