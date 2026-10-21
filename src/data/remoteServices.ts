@@ -1,7 +1,7 @@
 import {
   AgentProfile, MedicineCheck, MedicineCheckRequest, MedicineCheckService,
   RemoteOutcome, RemoteStatus, REMOTE_NOTICE, COLLISION_NOTICE,
-  BUSY_NOTICE, isBusy,
+  BUSY_NOTICE, isBusy, isDiagnosticFailure,
   SymptomAnalysis, SymptomAnalysisRequest, SymptomAnalysisService,
   ProbableCondition, MatrixSeverity,
   DailyStatus, DashboardService, Intelligence, RiskTrend,
@@ -92,15 +92,27 @@ export class RemoteSymptomAnalysis implements SymptomAnalysisService {
 
       if (matrix.length === 0 && summary.length === 0) return fail('FAILED', started);
 
+      const pathways = {
+        allopathy: strings(raw?.treatmentPathways?.allopathy),
+        homeopathic: strings(raw?.treatmentPathways?.homeopathic),
+        homeRemedies: strings(raw?.treatmentPathways?.homeRemedies),
+      };
+
+      // A 200 carrying the model's own failure text. Report it instead of
+      // rendering it as a condition; the local band already stands on its own.
+      if (isDiagnosticFailure(
+        summary,
+        matrix.map((c) => c.name),
+        [...pathways.allopathy, ...pathways.homeopathic, ...pathways.homeRemedies],
+      )) {
+        return fail('FAILED', started);
+      }
+
       return {
         status: 'OK',
         data: {
           probabilityMatrix: matrix,
-          treatmentPathways: {
-            allopathy: strings(raw?.treatmentPathways?.allopathy),
-            homeopathic: strings(raw?.treatmentPathways?.homeopathic),
-            homeRemedies: strings(raw?.treatmentPathways?.homeRemedies),
-          },
+          treatmentPathways: pathways,
           summaryText: summary,
           isEmergencyOverride: raw?.isEmergencyOverride === true,
         },

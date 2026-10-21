@@ -97,7 +97,11 @@ export const RED_FLAG_RULES: readonly RedFlagRule[] = [
   {
     id: 'RF-MENINGITIS',
     description: 'Severe headache with neck stiffness or light sensitivity',
-    band: 'URGENT',
+
+    // Raised from URGENT to EMERGENCY on 21 Oct 2026. The cited source tells
+    // readers to call 111, which is the emergency band, so the rule and the
+    // source now agree. Escalating is also the safe direction under QR5.
+    band: 'EMERGENCY',
 
     source: {
       publisher: 'Meningitis Foundation Aotearoa New Zealand',
@@ -106,7 +110,7 @@ export const RED_FLAG_RULES: readonly RedFlagRule[] = [
       url: 'https://meningitis.org.nz/know-the-symptoms/',
       symptomsCited: true,
       thresholdCited: false,
-      outstanding: 'Band is URGENT while the source directs readers to call 111; review whether this should be EMERGENCY. Headache severity >= 7 is a project threshold.',
+      outstanding: 'Headache severity >= 7 is a project threshold, not a published one, and still needs clinical sign-off. The band mismatch against the source was resolved on 21 Oct 2026.',
     },
     matches: (e) => sev(e, 'headache') >= 7 && (has(e, 'neck_stiffness') || has(e, 'photophobia')),
   },

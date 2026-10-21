@@ -96,6 +96,31 @@ export function isBusy(detail: string | undefined): boolean {
   return /\b503\b|high demand|overload|quota|rate limit|too many requests|unavailable/i.test(detail);
 }
 
+/**
+ * The analysis backend answers 200 OK even when its model fails, and puts the
+ * failure in the payload: a condition called "Diagnostic Synthesis Error", a
+ * synopsis about a syntax error, treatments reading "Neural engine returned
+ * unformatted data". Rendered as-is that is worse than a blank screen, because
+ * it looks like a finding. QR2 asks for failures to be reported, so the app has
+ * to recognise the sentinel and report it.
+ *
+ * Matching on wording is brittle and the right fix belongs in the backend,
+ * which is outside the Milestone 2 scope. Until then this keeps a fake
+ * condition off a health screen.
+ */
+const DIAGNOSTIC_FAILURE =
+  /diagnostic synthesis error|neural engine returned unformatted|syntax error while generating|unformatted data/i;
+
+export function isDiagnosticFailure(
+  summaryText: string | undefined,
+  conditionNames: readonly string[] = [],
+  treatments: readonly string[] = [],
+): boolean {
+  if (summaryText && DIAGNOSTIC_FAILURE.test(summaryText)) return true;
+  if (conditionNames.some((n) => DIAGNOSTIC_FAILURE.test(n))) return true;
+  return treatments.some((t) => DIAGNOSTIC_FAILURE.test(t));
+}
+
 export const REPORT_NOTICE: Record<Exclude<RemoteStatus, 'OK'>, string> = {
   UNAUTHENTICATED: 'Sign in to have a report read.',
   UNAVAILABLE: 'Reading a report needs a connection. Nothing was read.',

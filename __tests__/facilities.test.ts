@@ -332,7 +332,12 @@ describe('when Overpass will not answer', () => {
       expect(sent).toContain(key);
     }
 
-    expect(sent).toContain('nwr[');
+    // Nodes and ways only. Relations were dropped on 21 Oct 2026: health
+    // places are almost never mapped as relations, and scanning them is the
+    // expensive part of the query. Public Overpass mirrors were returning
+    // nothing within the client budget.
+    expect(sent).toContain('nw[');
+    expect(sent).not.toContain('nwr[');
     expect(sent).toContain('out center');
   });
 

@@ -16,6 +16,19 @@ export class ApiError extends Error {
 
 export const DEFAULT_TIMEOUT_MS = 30000;
 
+/**
+ * D03. Every network call prints one line so a round trip can be measured from
+ * a device rather than remembered. Route and duration only, never the token,
+ * the body or anything a user typed. scripts/collect-latency.bat reads these
+ * back out of Logcat.
+ */
+function logLatency(method: string, endpoint: string, startedAt: number): void {
+  // Quiet under Jest. The suites drive this client with fake timers, so the
+  // numbers there are meaningless and they bury the verify output.
+  if (typeof process !== 'undefined' && process.env?.JEST_WORKER_ID !== undefined) return;
+  console.log(`PP-LATENCY ${method} ${endpoint} ${Date.now() - startedAt}`);
+}
+
 export class ApiClient {
   private tokenProvider: TokenProvider | null = null;
 
@@ -42,6 +55,7 @@ export class ApiClient {
     const form = new FormData();
     form.append(field, { uri: file.uri, name: file.name, type: file.mimeType } as unknown as Blob);
 
+    const startedAt = Date.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -65,6 +79,7 @@ export class ApiClient {
       return data as T;
     } finally {
       clearTimeout(timer);
+      logLatency('POST', endpoint, startedAt);
     }
   }
 
@@ -73,6 +88,7 @@ export class ApiClient {
     const token = this.tokenProvider ? await this.tokenProvider() : null;
     if (!token) throw new ApiError('No session token', 401);
 
+    const startedAt = Date.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -95,6 +111,7 @@ export class ApiClient {
       return data as T;
     } finally {
       clearTimeout(timer);
+      logLatency('GET', endpoint, startedAt);
     }
   }
 
@@ -104,6 +121,7 @@ export class ApiClient {
     const token = this.tokenProvider ? await this.tokenProvider() : null;
     if (!token) throw new ApiError('No session token', 401);
 
+    const startedAt = Date.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -132,6 +150,7 @@ export class ApiClient {
       return data as T;
     } finally {
       clearTimeout(timer);
+      logLatency('POST', endpoint, startedAt);
     }
   }
 }

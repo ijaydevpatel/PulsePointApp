@@ -18,10 +18,13 @@ function budgetFor(deg: number) {
   const small = deg <= 0.02;
   const mid = deg <= 0.04;
   return {
-    serverSeconds: small ? 12 : mid ? 40 : 60,
-    attemptMs: small ? 20000 : mid ? 50000 : 90000,
+    // The small ring used to tell the server 12 s while the client waited 20 s.
+    // Public mirrors queue requests, so a budget under the client wait just
+    // guarantees a server-side abort. Ask for what we are willing to wait for.
+    serverSeconds: small ? 25 : mid ? 40 : 60,
+    attemptMs: small ? 30000 : mid ? 50000 : 90000,
     hedgeMs: small ? 0 : 4000,
-    totalMs: small ? 24000 : mid ? 60000 : 100000,
+    totalMs: small ? 36000 : mid ? 60000 : 100000,
   };
 }
 
@@ -48,11 +51,11 @@ function buildQuery(lat: number, lon: number, deg: number = BBOX_DEGREES): strin
   const office = ['physician', 'healthcare', 'therapist'].join('|');
 
   const lines = [
-    `nwr["amenity"~"^(${amenity})$"](${bbox});`,
+    `nw["amenity"~"^(${amenity})$"](${bbox});`,
 
-    `nwr["healthcare"](${bbox});`,
-    `nwr["shop"~"^(${shop})$"](${bbox});`,
-    `nwr["office"~"^(${office})$"](${bbox});`,
+    `nw["healthcare"](${bbox});`,
+    `nw["shop"~"^(${shop})$"](${bbox});`,
+    `nw["office"~"^(${office})$"](${bbox});`,
   ];
 
   return `[out:json][timeout:${budgetFor(deg).serverSeconds}];(\n${lines.join('\n')}\n);out center qt;`;

@@ -1,0 +1,73 @@
+{
+  "collected": "2026-10-21T02:52:13.344Z",
+  "total_calls": 40,
+  "measured_calls": 40,
+  "excluded_app_suspended": 0,
+  "exclusion_rule": "samples over 30000 ms, the client abort timeout, cannot be round trips",
+  "overall": {
+    "n": 40,
+    "min_ms": 731,
+    "median_ms": 2497,
+    "p95_ms": 5493,
+    "max_ms": 7217,
+    "mean_ms": 3023
+  },
+  "by_route": {
+    "GET /api/profile": {
+      "n": 14,
+      "min_ms": 731,
+      "median_ms": 930,
+      "p95_ms": 1794,
+      "max_ms": 1794,
+      "mean_ms": 1023
+    },
+    "POST /api/symptoms/analyze": {
+      "n": 13,
+      "min_ms": 3708,
+      "median_ms": 5183,
+      "p95_ms": 7217,
+      "max_ms": 7217,
+      "mean_ms": 5078
+    },
+    "POST /api/medicine/check": {
+      "n": 3,
+      "min_ms": 3681,
+      "median_ms": 5299,
+      "p95_ms": 5898,
+      "max_ms": 5898,
+      "mean_ms": 4959
+    },
+    "GET /api/chat/greeting": {
+      "n": 1,
+      "min_ms": 2415,
+      "median_ms": 2415,
+      "p95_ms": 2415,
+      "max_ms": 2415,
+      "mean_ms": 2415
+    },
+    "POST /api/chat/message": {
+      "n": 7,
+      "min_ms": 2257,
+      "median_ms": 2497,
+      "p95_ms": 3817,
+      "max_ms": 3817,
+      "mean_ms": 2720
+    },
+    "GET /api/dashboard/intel": {
+      "n": 1,
+      "min_ms": 1180,
+      "median_ms": 1180,
+      "p95_ms": 1180,
+      "max_ms": 1180,
+      "mean_ms": 1180
+    },
+    "GET /api/dashboard/intel?fresh=1": {
+      "n": 1,
+      "min_ms": 3066,
+      "median_ms": 3066,
+      "p95_ms": 3066,
+      "max_ms": 3066,
+      "mean_ms": 3066
+    }
+  }
+}

@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BAR_PAD } from '../nav/routes';
 import { useTheme, S, R, TOUCH, TYPE } from '../theme';
 import { ChatService, ChatTurn } from '../../domain/remote';
+import { withConversationContext } from '../../domain/chatContext';
 
 let seq = 0;
 const nextId = () => `t${++seq}`;
@@ -84,7 +85,11 @@ export function ChatScreen({ service, onBack, conversation, onConversation }: {
     setBusy(true);
     toBottom();
 
-    const r = await service.send(message, sessionId);
+    // The backend returns a session id but does not use it to carry the
+    // conversation: on a device on 21 Oct 2026 it greeted the user again and
+    // re-asked a question it had already been answered. Sending the id is not
+    // enough, so the thread goes inside the message, which is free text.
+    const r = await service.send(withConversationContext(turns, message), sessionId);
 
     if (r.status === 'OK' && r.data) {
       onConversation({
